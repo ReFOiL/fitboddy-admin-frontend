@@ -1,0 +1,49 @@
+export type RelationMode = 'invite' | 'direct'
+
+export type RelationStatus = 'invited' | 'active' | 'declined' | 'ended'
+
+export type CreateRelationRequest = {
+  acting_user_id: string
+  trainer_user_id: string
+  client_user_id: string
+  mode: RelationMode
+}
+
+export type RelationActionRequest = {
+  acting_user_id: string
+}
+
+export type TrainerClientRelation = {
+  relation_id: string
+  trainer_user_id: string
+  client_user_id: string
+  status: RelationStatus
+  source: string
+  created_at: string
+  updated_at: string
+}
+
+export type TrainerFunnelMetrics = {
+  trainer_user_id: string
+  invites_sent: number
+  invites_pending: number
+  invites_accepted: number
+  invites_declined: number
+  active_clients: number
+  invite_acceptance_rate: number
+}
+
+export type DiscoveryProfile = {
+  user_id: string
+  role: 'trainer' | 'client'
+  is_visible: boolean
+  looking_for_trainer: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type UpsertDiscoveryProfileRequest = {
+  role: 'trainer' | 'client'
+  is_visible: boolean
+  looking_for_trainer: boolean
+}
