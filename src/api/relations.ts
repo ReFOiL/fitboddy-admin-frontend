@@ -2,6 +2,7 @@ import { apiClient } from './client'
 import type {
   CreateRelationRequest,
   DiscoveryProfile,
+  PaginatedResult,
   RelationActionRequest,
   TrainerClientRelation,
   TrainerFunnelMetrics,
@@ -45,6 +46,37 @@ export async function listTrainerClients(trainerUserId: string, status = 'active
   return Array.isArray(data) ? data : []
 }
 
+export async function listTrainerClientsPaginated(params: {
+  trainerUserId: string
+  status?: string
+  page: number
+  page_size: number
+  search?: string
+}): Promise<PaginatedResult<TrainerClientRelation>> {
+  const { trainerUserId, page, page_size, search, status = 'active' } = params
+  const response = await apiClient.get<TrainerClientRelation[]>(
+    `/api/v1/marketplace/trainers/${encodeURIComponent(trainerUserId)}/clients`,
+    {
+      params: {
+        status,
+        page,
+        page_size,
+        search: search?.trim() ? search.trim() : undefined,
+      },
+    },
+  )
+  const items = Array.isArray(response.data) ? response.data : []
+  const totalHeader = Number(response.headers['x-total-count'])
+  const total = Number.isFinite(totalHeader) ? totalHeader : items.length
+  return {
+    items,
+    total,
+    page,
+    page_size,
+    total_pages: Math.max(1, Math.ceil(total / page_size)),
+  }
+}
+
 export async function listIncomingInvites(clientUserId: string): Promise<TrainerClientRelation[]> {
   const { data } = await apiClient.get<TrainerClientRelation[]>(
     `/api/v1/marketplace/clients/${encodeURIComponent(clientUserId)}/invites`,
@@ -74,6 +106,31 @@ export async function listTrainers(): Promise<DiscoveryProfile[]> {
 export async function listClientsLookingForTrainer(): Promise<DiscoveryProfile[]> {
   const { data } = await apiClient.get<DiscoveryProfile[]>('/api/v1/marketplace/clients/looking')
   return Array.isArray(data) ? data : []
+}
+
+export async function listClientsLookingForTrainerPaginated(params: {
+  page: number
+  page_size: number
+  search?: string
+}): Promise<PaginatedResult<DiscoveryProfile>> {
+  const { page, page_size, search } = params
+  const response = await apiClient.get<DiscoveryProfile[]>('/api/v1/marketplace/clients/looking', {
+    params: {
+      page,
+      page_size,
+      search: search?.trim() ? search.trim() : undefined,
+    },
+  })
+  const items = Array.isArray(response.data) ? response.data : []
+  const totalHeader = Number(response.headers['x-total-count'])
+  const total = Number.isFinite(totalHeader) ? totalHeader : items.length
+  return {
+    items,
+    total,
+    page,
+    page_size,
+    total_pages: Math.max(1, Math.ceil(total / page_size)),
+  }
 }
 
 export async function upsertDiscoveryProfile(

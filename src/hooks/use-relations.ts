@@ -9,8 +9,10 @@ import {
   getTrainerFunnel,
   leaveRelation,
   listClientsLookingForTrainer,
+  listClientsLookingForTrainerPaginated,
   listIncomingInvites,
   listTrainerClients,
+  listTrainerClientsPaginated,
   listTrainers,
   queryKeys,
   upsertDiscoveryProfile,
@@ -22,9 +24,30 @@ function extractErrorMessage(error: unknown, fallback: string): string {
   return (error.response?.data as { detail?: string } | undefined)?.detail ?? fallback
 }
 
-export function useRelations(params: { trainerUserId: string; clientUserId: string; status?: string }) {
-  const { trainerUserId, clientUserId, status = 'active' } = params
+type UseRelationsParams = {
+  trainerUserId: string
+  clientUserId: string
+  status?: string
+  trainerClientsPage?: {
+    status?: string
+    page: number
+    pageSize: number
+    search?: string
+  }
+  clientsLookingPage?: {
+    page: number
+    pageSize: number
+    search?: string
+  }
+}
+
+export function useRelations(params: UseRelationsParams) {
+  const { trainerUserId, clientUserId, status = 'active', trainerClientsPage, clientsLookingPage } = params
   const queryClient = useQueryClient()
+  const activeTrainerClientsPage = trainerClientsPage ?? { status: 'active', page: 1, pageSize: 8, search: '' }
+  const activeClientsLookingPage = clientsLookingPage ?? { page: 1, pageSize: 8, search: '' }
+  const trainerClientsSearch = activeTrainerClientsPage.search?.trim() ?? ''
+  const clientsLookingSearch = activeClientsLookingPage.search?.trim() ?? ''
 
   const trainerClientsQuery = useQuery({
     queryKey: queryKeys.relations.trainerClients(trainerUserId, status),
@@ -51,6 +74,42 @@ export function useRelations(params: { trainerUserId: string; clientUserId: stri
       const payload = await listClientsLookingForTrainer()
       return Array.isArray(payload) ? payload : []
     },
+    retry: false,
+  })
+
+  const trainerClientsPaginatedQuery = useQuery({
+    queryKey: queryKeys.relations.trainerClientsPaginated(
+      trainerUserId,
+      activeTrainerClientsPage.status ?? 'active',
+      activeTrainerClientsPage.page,
+      activeTrainerClientsPage.pageSize,
+      trainerClientsSearch,
+    ),
+    queryFn: async () =>
+      listTrainerClientsPaginated({
+        trainerUserId,
+        status: activeTrainerClientsPage.status,
+        page: activeTrainerClientsPage.page,
+        page_size: activeTrainerClientsPage.pageSize,
+        search: trainerClientsSearch,
+      }),
+    enabled: Boolean(trainerUserId),
+    retry: false,
+  })
+
+  const clientsLookingPaginatedQuery = useQuery({
+    queryKey: queryKeys.relations.clientsLookingPaginated(
+      activeClientsLookingPage.page,
+      activeClientsLookingPage.pageSize,
+      clientsLookingSearch,
+    ),
+    queryFn: async () =>
+      listClientsLookingForTrainerPaginated({
+        page: activeClientsLookingPage.page,
+        page_size: activeClientsLookingPage.pageSize,
+        search: clientsLookingSearch,
+      }),
+    enabled: Boolean(trainerUserId),
     retry: false,
   })
 
@@ -108,36 +167,37 @@ export function useRelations(params: { trainerUserId: string; clientUserId: stri
     retry: false,
   })
 
+  const invalidateRelationLists = () => {
+    void queryClient.invalidateQueries({
+      queryKey: ['relations', 'trainer-clients'],
+    })
+    void queryClient.invalidateQueries({
+      queryKey: ['relations', 'trainer-clients-paginated'],
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.relations.trainerFunnel(trainerUserId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.relations.trainers,
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.relations.clientsLooking,
+    })
+    void queryClient.invalidateQueries({
+      queryKey: ['relations', 'clients-looking-paginated'],
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.relations.incomingInvites(clientUserId),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.relations.clientActiveRelation(clientUserId),
+    })
+  }
+
   const createRelationMutation = useMutation({
     mutationFn: async (payload: CreateRelationRequest) => createRelation(payload),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'active'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'invited'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'declined'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'ended'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerFunnel(trainerUserId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainers,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.clientsLooking,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.incomingInvites(clientUserId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.clientActiveRelation(clientUserId),
-      })
+      invalidateRelationLists()
       toast.success('Связь создана')
     },
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось создать связь')),
@@ -147,12 +207,7 @@ export function useRelations(params: { trainerUserId: string; clientUserId: stri
     mutationFn: async (params: { userId: string; payload: UpsertDiscoveryProfileRequest }) =>
       upsertDiscoveryProfile(params.userId, params.payload),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainers,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.clientsLooking,
-      })
+      invalidateRelationLists()
       toast.success('Профиль для поиска обновлен')
     },
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось обновить видимость профиля')),
@@ -162,33 +217,7 @@ export function useRelations(params: { trainerUserId: string; clientUserId: stri
     mutationFn: async (params: { relationId: string; actingUserId: string }) =>
       leaveRelation(params.relationId, { acting_user_id: params.actingUserId }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'active'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'invited'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'declined'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'ended'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerFunnel(trainerUserId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainers,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.clientsLooking,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.incomingInvites(clientUserId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.clientActiveRelation(clientUserId),
-      })
+      invalidateRelationLists()
       toast.success('Связь завершена')
     },
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось завершить связь')),
@@ -198,30 +227,7 @@ export function useRelations(params: { trainerUserId: string; clientUserId: stri
     mutationFn: async (params: { relationId: string; actingUserId: string }) =>
       acceptRelation(params.relationId, { acting_user_id: params.actingUserId }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'active'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'invited'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'declined'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerClients(trainerUserId, 'ended'),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.trainerFunnel(trainerUserId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.clientsLooking,
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.incomingInvites(clientUserId),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.relations.clientActiveRelation(clientUserId),
-      })
+      invalidateRelationLists()
       toast.success('Приглашение принято')
     },
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось принять приглашение')),
@@ -229,12 +235,14 @@ export function useRelations(params: { trainerUserId: string; clientUserId: stri
 
   return {
     trainerClientsQuery,
+    trainerClientsPaginatedQuery,
     trainerFunnelQuery,
     trainerInvitesQuery,
     trainerDeclinedRelationsQuery,
     trainerEndedRelationsQuery,
     trainersQuery,
     clientsLookingQuery,
+    clientsLookingPaginatedQuery,
     incomingInvitesQuery,
     clientActiveRelationQuery,
     createRelationMutation,

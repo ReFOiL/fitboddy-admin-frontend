@@ -17,6 +17,7 @@ export type TrainerClientRelation = {
   relation_id: string
   trainer_user_id: string
   client_user_id: string
+  client_display_name?: string | null
   status: RelationStatus
   source: string
   created_at: string
@@ -35,6 +36,7 @@ export type TrainerFunnelMetrics = {
 
 export type DiscoveryProfile = {
   user_id: string
+  display_name?: string | null
   role: 'trainer' | 'client'
   is_visible: boolean
   looking_for_trainer: boolean
@@ -46,4 +48,12 @@ export type UpsertDiscoveryProfileRequest = {
   role: 'trainer' | 'client'
   is_visible: boolean
   looking_for_trainer: boolean
+}
+
+export type PaginatedResult<T> = {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }
