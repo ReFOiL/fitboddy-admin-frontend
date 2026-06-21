@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { ClipboardList, Dumbbell, Home, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Dumbbell, Home, Users } from 'lucide-react'
 
 import { useAuth } from '../../hooks/use-auth'
 import { Button } from '../ui/button'
 
 export function MainLayout() {
   const { user, logoutMutation } = useAuth()
+  const isTrainer = user?.role === 'trainer'
   const navItemClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-lg px-3 py-2 font-medium transition ${
       isActive ? 'bg-primary/20 text-foreground' : 'text-secondary-foreground hover:bg-secondary/70 hover:text-foreground'
@@ -25,6 +26,11 @@ export function MainLayout() {
             <NavLink className={navItemClass} to="/clients">
               Клиенты
             </NavLink>
+            {isTrainer ? (
+              <NavLink className={navItemClass} to="/analytics">
+                Аналитика
+              </NavLink>
+            ) : null}
             <NavLink className={navItemClass} to="/exercises">
               Каталог
             </NavLink>
@@ -49,7 +55,9 @@ export function MainLayout() {
         <Outlet />
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur md:hidden">
-        <div className="mx-auto grid h-16 w-full max-w-6xl grid-cols-4 items-center px-4 text-sm">
+        <div
+          className={`mx-auto grid h-16 w-full max-w-6xl items-center px-4 text-sm ${isTrainer ? 'grid-cols-5' : 'grid-cols-4'}`}
+        >
           <NavLink className={navItemClass} to="/home">
             <span className="mx-auto flex flex-col items-center gap-0.5">
               <Home size={16} />
@@ -62,6 +70,14 @@ export function MainLayout() {
               Клиенты
             </span>
           </NavLink>
+          {isTrainer ? (
+            <NavLink className={navItemClass} to="/analytics">
+              <span className="mx-auto flex flex-col items-center gap-0.5">
+                <BarChart3 size={16} />
+                Аналитика
+              </span>
+            </NavLink>
+          ) : null}
           <NavLink className={navItemClass} to="/exercises">
             <span className="mx-auto flex flex-col items-center gap-0.5">
               <Dumbbell size={16} />
