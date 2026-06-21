@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { MainLayout } from './components/layout/MainLayout'
 import { DashboardPage } from './pages/Dashboard'
+import { ExerciseDetailsPage } from './pages/ExerciseDetails'
 import { ExercisesPage } from './pages/Exercises'
 import { LoginPage } from './pages/Login'
 import { ProfilePage } from './pages/Profile'
@@ -24,6 +25,7 @@ function App() {
         <Route path="home" element={<DashboardPage />} />
         <Route path="clients" element={<RelationsPage />} />
         <Route path="exercises" element={<ExercisesPage />} />
+        <Route path="exercises/:exerciseId" element={<ExerciseDetailsPage />} />
         <Route path="profile" element={<ProfilePage />} />
 
         <Route path="dashboard" element={<Navigate to="/home" replace />} />

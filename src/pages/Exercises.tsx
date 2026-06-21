@@ -1,17 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Dumbbell, Eye, EyeOff, Pencil, Plus, Save, Trash2 } from 'lucide-react'
+import { Archive, Dumbbell, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
-import type { TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
+import type { UpsertTrainerExerciseRequest } from '../types/exercise'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
+import { StyledSelect } from '../components/ui/styled-select'
 
 const exerciseSchema = z.object({
   exercise_id: z
@@ -20,13 +22,14 @@ const exerciseSchema = z.object({
     .max(64, 'Максимум 64 символа')
     .regex(/^[a-z0-9_]+$/, 'Только латиница, цифры и "_"'),
   exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
-  equipment: z.string().min(2, 'Минимум 2 символа').max(32, 'Максимум 32 символа'),
+  equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
   is_cardio: z.boolean(),
   difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
-  workout_category: z.string().min(2, 'Минимум 2 символа').max(50, 'Максимум 50 символов'),
+  workout_category: z.enum(['upper', 'lower', 'core', 'cardio', 'full_body']),
 })
 
 type ExerciseFormValues = z.infer<typeof exerciseSchema>
+type CatalogFilterMode = 'all' | 'active' | 'archived'
 
 const EQUIPMENT_LABELS: Record<string, string> = {
   none: 'без инвентаря',
@@ -37,6 +40,16 @@ const EQUIPMENT_LABELS: Record<string, string> = {
   treadmill: 'дорожка',
   other: 'другое',
 }
+
+const EQUIPMENT_OPTIONS: Array<{ value: ExerciseFormValues['equipment']; label: string }> = [
+  { value: 'none', label: 'Без инвентаря' },
+  { value: 'dumbbells', label: 'Гантели' },
+  { value: 'barbell', label: 'Штанга' },
+  { value: 'resistance_bands', label: 'Эспандер / резина' },
+  { value: 'kettlebell', label: 'Гиря' },
+  { value: 'treadmill', label: 'Беговая дорожка' },
+  { value: 'other', label: 'Другое' },
+]
 
 function formatEquipment(code: string): string {
   const key = code.trim().toLowerCase()
@@ -56,6 +69,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   lower_body: 'низ тела',
 }
 
+const CATEGORY_OPTIONS: Array<{ value: ExerciseFormValues['workout_category']; label: string }> = [
+  { value: 'upper', label: 'Верх тела' },
+  { value: 'lower', label: 'Низ тела' },
+  { value: 'core', label: 'Корпус' },
+  { value: 'cardio', label: 'Кардио' },
+  { value: 'full_body', label: 'Все тело' },
+]
+
 function formatCategory(value: string): string {
   const key = value.trim().toLowerCase()
   return CATEGORY_LABELS[key] ?? value
@@ -67,7 +88,7 @@ const defaultValues: ExerciseFormValues = {
   equipment: 'none',
   is_cardio: false,
   difficulty: 2,
-  workout_category: 'верх',
+  workout_category: 'upper',
 }
 
 function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequest {
@@ -84,39 +105,40 @@ export function ExercisesPage() {
   const { user } = useAuth()
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
-  const [includeArchived, setIncludeArchived] = useState(false)
-  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null)
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [filterMode, setFilterMode] = useState<CatalogFilterMode>('active')
+  const [searchQuery, setSearchQuery] = useState('')
+  const includeArchived = filterMode !== 'active'
   const { trainerCatalogQuery, addExerciseMutation, updateExerciseMutation, archiveExerciseMutation } = useExercises({
     trainerUserId,
     includeArchived,
   })
   const catalog = Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []
-  const currentEditing = useMemo(
-    () => catalog.find((exercise) => exercise.exercise_id === editingExerciseId) ?? null,
-    [catalog, editingExerciseId],
-  )
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const filteredCatalog = useMemo(() => {
+    const byStatus = catalog.filter((exercise) => {
+      if (filterMode === 'active') return exercise.is_active
+      if (filterMode === 'archived') return !exercise.is_active
+      return true
+    })
+    if (!normalizedSearch) return byStatus
+    return byStatus.filter((exercise) => {
+      const haystack = [
+        exercise.exercise_name,
+        exercise.exercise_id,
+        exercise.workout_category,
+        exercise.equipment,
+      ]
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(normalizedSearch)
+    })
+  }, [catalog, filterMode, normalizedSearch])
 
   const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(exerciseSchema),
     defaultValues,
   })
-
-  const resetToCreateMode = () => {
-    setEditingExerciseId(null)
-    form.reset(defaultValues)
-  }
-
-  const fillForEdit = (exercise: TrainerExercise) => {
-    setEditingExerciseId(exercise.exercise_id)
-    form.reset({
-      exercise_id: exercise.exercise_id,
-      exercise_name: exercise.exercise_name,
-      equipment: exercise.equipment,
-      is_cardio: exercise.is_cardio,
-      difficulty: exercise.difficulty,
-      workout_category: exercise.workout_category,
-    })
-  }
 
   const formDisabled =
     addExerciseMutation.isPending || updateExerciseMutation.isPending || archiveExerciseMutation.isPending
@@ -144,152 +166,193 @@ export function ExercisesPage() {
             Каталог упражнений тренера
           </CardTitle>
           <CardDescription>
-            Базовые упражнения уже добавляются автоматически. Здесь можно подстроить каталог под свой стиль программирования.
+            Базовые упражнения уже добавляются автоматически. Здесь создаются новые упражнения, а редактирование доступно на отдельной странице упражнения.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form
-            className="grid gap-4 rounded-xl border border-border/70 bg-secondary/20 p-4"
-            onSubmit={form.handleSubmit((values) => {
-              const payload = mapFormToPayload(values)
-              if (editingExerciseId) {
-                updateExerciseMutation.mutate({
-                  exerciseId: editingExerciseId,
-                  payload,
-                })
-                return
-              }
-              addExerciseMutation.mutate({
-                exerciseId: values.exercise_id.trim().toLowerCase(),
-                payload,
-              })
-              form.reset(defaultValues)
-            })}
-          >
-            <div className="grid gap-1.5">
-              <Label htmlFor="exercise_id">Технический ID упражнения</Label>
-              <Input
-                id="exercise_id"
-                placeholder="split_squat"
-                disabled={Boolean(editingExerciseId) || formDisabled}
-                {...form.register('exercise_id')}
-              />
-              {form.formState.errors.exercise_id?.message ? (
-                <span className="text-xs text-destructive">{form.formState.errors.exercise_id.message}</span>
-              ) : null}
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label htmlFor="exercise_name">Название</Label>
-              <Input id="exercise_name" placeholder="Болгарские выпады" disabled={formDisabled} {...form.register('exercise_name')} />
-              {form.formState.errors.exercise_name?.message ? (
-                <span className="text-xs text-destructive">{form.formState.errors.exercise_name.message}</span>
-              ) : null}
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
+          {!isCreateFormOpen ? (
+            <Button type="button" size="lg" className="min-w-56" onClick={() => setIsCreateFormOpen(true)}>
+              Создать упражнение
+            </Button>
+          ) : (
+            <form
+              className="grid gap-4 rounded-xl border border-border/70 bg-secondary/20 p-4"
+              onSubmit={form.handleSubmit((values) => {
+                const payload = mapFormToPayload(values)
+                addExerciseMutation.mutate(
+                  {
+                    exerciseId: values.exercise_id.trim().toLowerCase(),
+                    payload,
+                  },
+                  {
+                    onSuccess: () => {
+                      form.reset(defaultValues)
+                      setIsCreateFormOpen(false)
+                    },
+                  },
+                )
+              })}
+            >
               <div className="grid gap-1.5">
-                <Label htmlFor="equipment">Инвентарь</Label>
+                <Label htmlFor="exercise_id">Технический ID упражнения</Label>
                 <Input
+                  id="exercise_id"
+                  placeholder="split_squat"
+                  disabled={formDisabled}
+                  {...form.register('exercise_id')}
+                />
+                {form.formState.errors.exercise_id?.message ? (
+                  <span className="text-xs text-destructive">{form.formState.errors.exercise_id.message}</span>
+                ) : null}
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="exercise_name">Название</Label>
+                <Input id="exercise_name" placeholder="Болгарские выпады" disabled={formDisabled} {...form.register('exercise_name')} />
+                {form.formState.errors.exercise_name?.message ? (
+                  <span className="text-xs text-destructive">{form.formState.errors.exercise_name.message}</span>
+                ) : null}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="equipment">Инвентарь</Label>
+                <StyledSelect
                   id="equipment"
-                  placeholder="напр. none, dumbbells"
                   disabled={formDisabled}
-                  {...form.register('equipment')}
+                  options={EQUIPMENT_OPTIONS}
+                  value={form.watch('equipment')}
+                  onChange={(nextValue) => {
+                    if (nextValue === form.getValues('equipment')) return
+                    form.setValue('equipment', nextValue as ExerciseFormValues['equipment'], {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
                 />
-                {form.formState.errors.equipment?.message ? (
-                  <span className="text-xs text-destructive">{form.formState.errors.equipment.message}</span>
-                ) : null}
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="workout_category">Категория</Label>
-                <Input
+                  {form.formState.errors.equipment?.message ? (
+                    <span className="text-xs text-destructive">{form.formState.errors.equipment.message}</span>
+                  ) : null}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="workout_category">Категория</Label>
+                <StyledSelect
                   id="workout_category"
-                  placeholder="напр. верх, низ, корпус, кардио"
                   disabled={formDisabled}
-                  {...form.register('workout_category')}
+                  options={CATEGORY_OPTIONS}
+                  value={form.watch('workout_category')}
+                  onChange={(nextValue) => {
+                    if (nextValue === form.getValues('workout_category')) return
+                    form.setValue('workout_category', nextValue as ExerciseFormValues['workout_category'], {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
                 />
-                {form.formState.errors.workout_category?.message ? (
-                  <span className="text-xs text-destructive">{form.formState.errors.workout_category.message}</span>
-                ) : null}
+                  {form.formState.errors.workout_category?.message ? (
+                    <span className="text-xs text-destructive">{form.formState.errors.workout_category.message}</span>
+                  ) : null}
+                </div>
               </div>
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="difficulty">Сложность (1-5)</Label>
-                <Input
-                  id="difficulty"
-                  type="number"
-                  min={1}
-                  max={5}
-                  disabled={formDisabled}
-                  {...form.register('difficulty', { valueAsNumber: true })}
-                />
-                {form.formState.errors.difficulty?.message ? (
-                  <span className="text-xs text-destructive">{form.formState.errors.difficulty.message}</span>
-                ) : null}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="difficulty">Сложность (1-5)</Label>
+                  <Input
+                    id="difficulty"
+                    type="number"
+                    min={1}
+                    max={5}
+                    disabled={formDisabled}
+                    {...form.register('difficulty', { valueAsNumber: true })}
+                  />
+                  {form.formState.errors.difficulty?.message ? (
+                    <span className="text-xs text-destructive">{form.formState.errors.difficulty.message}</span>
+                  ) : null}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="is_cardio">Тип упражнения</Label>
+                  <StyledSelect
+                    id="is_cardio"
+                    value={form.watch('is_cardio') ? 'cardio' : 'strength'}
+                    onChange={(nextValue) => {
+                      const nextIsCardio = nextValue === 'cardio'
+                      if (nextIsCardio === form.getValues('is_cardio')) return
+                      form.setValue('is_cardio', nextIsCardio, { shouldDirty: true, shouldValidate: true })
+                    }}
+                    disabled={formDisabled}
+                    options={[
+                      { value: 'strength', label: 'Силовое' },
+                      { value: 'cardio', label: 'Кардио' },
+                    ]}
+                  />
+                </div>
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="is_cardio">Тип упражнения</Label>
-                <select
-                  id="is_cardio"
-                  className="h-10 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-                  value={form.watch('is_cardio') ? 'cardio' : 'strength'}
-                  onChange={(event) => form.setValue('is_cardio', event.target.value === 'cardio')}
+
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" size="lg" className="min-w-56" disabled={formDisabled}>
+                  Сохранить упражнение
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    form.reset(defaultValues)
+                    setIsCreateFormOpen(false)
+                  }}
                   disabled={formDisabled}
                 >
-                  <option value="strength">Силовое</option>
-                  <option value="cardio">Кардио</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={formDisabled}>
-                {editingExerciseId ? <Save size={14} /> : <Plus size={14} />}
-                {editingExerciseId ? 'Сохранить изменения' : 'Добавить упражнение'}
-              </Button>
-              {editingExerciseId ? (
-                <Button type="button" variant="secondary" onClick={resetToCreateMode} disabled={formDisabled}>
-                  Отменить редактирование
+                  Отмена
                 </Button>
-              ) : null}
-            </div>
-            {currentEditing ? (
-              <span className="text-xs text-secondary-foreground">
-                Сейчас редактируется: {currentEditing.exercise_name} (`{currentEditing.exercise_id}`)
-              </span>
-            ) : null}
-          </form>
+              </div>
+            </form>
+          )}
         </CardContent>
       </Card>
 
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {includeArchived ? <Eye size={18} className="text-primary" /> : <EyeOff size={18} className="text-primary" />}
+            <Archive size={18} className="text-primary" />
             Список упражнений
           </CardTitle>
-          <CardDescription>Можно посмотреть только активные или полный список вместе с архивом.</CardDescription>
+          <CardDescription>Фильтруй каталог по статусу и быстро ищи упражнение по ключевым словам.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-secondary/20 p-2">
             <Button
               type="button"
-              variant={includeArchived ? 'secondary' : 'default'}
-              onClick={() => setIncludeArchived(false)}
-              disabled={formDisabled}
+              size="sm"
+              variant={filterMode === 'all' ? 'default' : 'secondary'}
+              onClick={() => setFilterMode('all')}
+            >
+              Все
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={filterMode === 'active' ? 'default' : 'secondary'}
+              onClick={() => setFilterMode('active')}
             >
               Только активные
             </Button>
             <Button
               type="button"
-              variant={includeArchived ? 'default' : 'secondary'}
-              onClick={() => setIncludeArchived(true)}
-              disabled={formDisabled}
+              size="sm"
+              variant={filterMode === 'archived' ? 'default' : 'secondary'}
+              onClick={() => setFilterMode('archived')}
             >
-              Показать архив
+              Только архив
             </Button>
+          </div>
+          <div className="relative">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-secondary-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="pl-9"
+              placeholder="Поиск: название, ID, категория, инвентарь"
+            />
           </div>
 
           {trainerCatalogQuery.isLoading ? (
@@ -303,10 +366,10 @@ export function ExercisesPage() {
           ) : null}
           {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError ? (
             <div className="space-y-3">
-              {catalog.length === 0 ? (
-                <span className="text-sm text-secondary-foreground">Пока нет упражнений по выбранному фильтру.</span>
+              {filteredCatalog.length === 0 ? (
+                <span className="text-sm text-secondary-foreground">По текущим фильтрам упражнения не найдены.</span>
               ) : (
-                catalog.map((exercise) => (
+                filteredCatalog.map((exercise) => (
                   <div
                     key={exercise.row_id}
                     className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm"
@@ -323,21 +386,15 @@ export function ExercisesPage() {
                       Сложность: {exercise.difficulty} · {exercise.is_cardio ? 'Кардио' : 'Силовое'}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => fillForEdit(exercise)}
-                        disabled={formDisabled}
-                      >
-                        <Pencil size={14} />
-                        Редактировать
+                      <Button asChild type="button" size="sm" variant="default">
+                        <Link to={`/exercises/${encodeURIComponent(exercise.exercise_id)}`}>Подробнее</Link>
                       </Button>
                       {exercise.is_active ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="destructive"
+                          className="gap-2"
                           onClick={() => archiveExerciseMutation.mutate(exercise.exercise_id)}
                           disabled={formDisabled}
                         >
