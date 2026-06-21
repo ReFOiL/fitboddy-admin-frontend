@@ -53,54 +53,18 @@ export function RelationsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-300">
               <ClipboardList size={18} />
-              Сначала анкета
+              Сначала профиль
             </CardTitle>
             <CardDescription>
-              Перед поиском и подключением тренера нужно заполнить анкету в разделе{' '}
+              Перед поиском и подключением тренера нужно заполнить профиль в разделе{' '}
               <Link to="/profile" className="underline decoration-dotted underline-offset-4">
-                «Анкета и цели»
+                «Профиль и цели»
               </Link>
               .
             </CardDescription>
           </CardHeader>
         </Card>
       ) : null}
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users size={18} className="text-primary" />
-            Личный профиль
-          </CardTitle>
-          <CardDescription>Проверь как выглядят твои личные данные в системе.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {profileQuery.isLoading ? <Skeleton className="h-20 w-full rounded-xl" /> : null}
-          {!profileQuery.isLoading && profileQuery.data ? (
-            <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-secondary/20 p-3 text-sm">
-              {profileQuery.data.avatar_url ? (
-                <img
-                  src={profileQuery.data.avatar_url}
-                  alt={profileQuery.data.full_name ?? 'Аватар'}
-                  className="h-14 w-14 rounded-full object-cover ring-2 ring-primary/40"
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border/70 bg-secondary/40 text-xs text-secondary-foreground">
-                  без фото
-                </div>
-              )}
-              <div>
-                <div className="font-medium">{profileQuery.data.full_name || user?.email || 'Пользователь'}</div>
-                <div className="text-secondary-foreground">{profileQuery.data.city || 'Город не указан'}</div>
-                {profileQuery.data.bio ? <div className="text-secondary-foreground">{profileQuery.data.bio}</div> : null}
-              </div>
-            </div>
-          ) : null}
-          <Button asChild variant="secondary" size="sm">
-            <Link to="/profile">Открыть анкету и личные данные</Link>
-          </Button>
-        </CardContent>
-      </Card>
 
       <Card className="overflow-hidden border-primary/30">
         <CardHeader>
@@ -550,7 +514,7 @@ export function RelationsPage() {
                       </div>
                       <div className="flex gap-2">
                         <Button asChild size="sm">
-                          <Link to={`/profile?client=${encodeURIComponent(relation.client_user_id)}`}>Открыть анкету</Link>
+                          <Link to={`/profile?client=${encodeURIComponent(relation.client_user_id)}`}>Открыть профиль</Link>
                         </Button>
                         <Button
                           size="sm"

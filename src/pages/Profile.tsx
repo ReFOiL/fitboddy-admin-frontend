@@ -214,9 +214,12 @@ export function ProfilePage() {
   const hasSelectedClientInList = trainerClients.some((relation) => relation.client_user_id === targetUserId)
   const avatarUrl = form.watch('avatar_url')
   const isTrainerOwnProfile = user?.role === 'trainer' && targetUserId === user.user_id
+  const isTrainerClientView = user?.role === 'trainer' && !isTrainerOwnProfile
+  const showClientSelectionCard = isTrainerClientView
   const questionnaireRequired = !isTrainerOwnProfile
   const selectedWorkoutLocation = form.watch('workout_location')
   const selectedEquipment = form.watch('equipment')
+  const isFormDirty = form.formState.isDirty
   const metaErrorStatus = axios.isAxiosError(metaQuery.error) ? metaQuery.error.response?.status : undefined
 
   useEffect(() => {
@@ -227,101 +230,102 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target size={18} className="text-primary" />
-            Анкета клиента
-          </CardTitle>
-          <CardDescription>
-            Клиент редактирует только свою анкету. Тренер может работать с анкетой клиента только при активной связи.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="target_user_id">ID клиента</Label>
-            <div className="flex gap-2">
-              <Input
-                id="target_user_id"
-                value={targetUserIdInput}
-                onChange={(event) => setTargetUserIdInput(event.target.value)}
-                disabled={!canSwitchUser}
-                placeholder="например: client-1"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setTargetUserId(targetUserIdInput.trim())}
-                disabled={!targetUserIdInput.trim() || profileQuery.isFetching}
-              >
-                Открыть
-              </Button>
-            </div>
-            {!canSwitchUser ? (
-              <span className="text-xs text-secondary-foreground">Для роли клиента доступна только собственная анкета.</span>
-            ) : null}
-          </div>
-
-          {canSwitchUser ? (
+      {showClientSelectionCard ? (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target size={18} className="text-primary" />
+              Профиль клиента
+            </CardTitle>
+            <CardDescription>
+              Управление анкетой клиента доступно из раздела «Клиенты» и только при активной связи.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
             <div className="grid gap-1.5">
-              <Label htmlFor="active_client_select">Выбрать из активных клиентов</Label>
-              <div className="relative">
-                <select
-                  id="active_client_select"
-                  className="h-11 w-full appearance-none rounded-xl border border-border bg-background/80 px-3 pr-10 text-sm outline-none transition hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/70"
-                  value={hasSelectedClientInList ? targetUserId : ''}
-                  onChange={(event) => {
-                    const selected = event.target.value
-                    if (!selected) return
-                    setTargetUserIdInput(selected)
-                    setTargetUserId(selected)
-                  }}
-                >
-                  <option value="">Выбери клиента из списка...</option>
-                  {trainerClients.map((relation) => (
-                    <option key={relation.relation_id} value={relation.client_user_id}>
-                      {relation.client_user_id}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={16}
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-secondary-foreground"
+              <Label htmlFor="target_user_id">ID клиента</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="target_user_id"
+                  value={targetUserIdInput}
+                  onChange={(event) => setTargetUserIdInput(event.target.value)}
+                  disabled={!canSwitchUser}
+                  placeholder="например: client-1"
                 />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setTargetUserId(targetUserIdInput.trim())}
+                  disabled={!targetUserIdInput.trim() || profileQuery.isFetching}
+                >
+                  Открыть
+                </Button>
               </div>
             </div>
-          ) : null}
 
-          {profileQuery.isFetching ? (
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-          ) : null}
+            {canSwitchUser ? (
+              <div className="grid gap-1.5">
+                <Label htmlFor="active_client_select">Выбрать из активных клиентов</Label>
+                <div className="relative">
+                  <select
+                    id="active_client_select"
+                    className="h-11 w-full appearance-none rounded-xl border border-border bg-background/80 px-3 pr-10 text-sm outline-none transition hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/70"
+                    value={hasSelectedClientInList ? targetUserId : ''}
+                    onChange={(event) => {
+                      const selected = event.target.value
+                      if (!selected) return
+                      setTargetUserIdInput(selected)
+                      setTargetUserId(selected)
+                    }}
+                  >
+                    <option value="">Выбери клиента из списка...</option>
+                    {trainerClients.map((relation) => (
+                      <option key={relation.relation_id} value={relation.client_user_id}>
+                        {relation.client_user_id}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={16}
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-secondary-foreground"
+                  />
+                </div>
+              </div>
+            ) : null}
 
-          {isNotFound ? (
-            <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
-              Профиль пока не создан. Заполни форму и нажми «Сохранить анкету».
-            </span>
-          ) : null}
+            {profileQuery.isFetching ? (
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+            ) : null}
 
-          {isForbidden ? (
-            <span className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Доступ запрещен: проверь роль пользователя и активную связь с клиентом.
-            </span>
-          ) : null}
-        </CardContent>
-      </Card>
+            {isNotFound ? (
+              <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
+                Профиль пока не создан. Заполни форму и нажми «Сохранить профиль».
+              </span>
+            ) : null}
+
+            {isForbidden ? (
+              <span className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                Доступ запрещен: проверь роль пользователя и активную связь с клиентом.
+              </span>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6">
         <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity size={18} className="text-primary" />
-              Данные анкеты
+              {isTrainerOwnProfile ? 'Личный профиль тренера' : 'Профиль клиента'}
             </CardTitle>
             <CardDescription>
-              Заполни ключевую информацию, чтобы тренировки лучше подходили под цели и ограничения.
+              {isTrainerOwnProfile
+                ? 'Личные данные тренера: имя, фото, город и описание профиля.'
+                : 'Заполни ключевую информацию, чтобы тренировки лучше подходили под цели и ограничения.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -338,16 +342,16 @@ export function ProfilePage() {
                   equipmentOptions.some((option) => option.value === item),
                 )
                 if (!hasMeta) {
-                  form.setError('goal', { type: 'manual', message: 'Не удалось загрузить параметры анкеты, попробуй позже' })
+                  form.setError('goal', { type: 'manual', message: 'Не удалось загрузить параметры профиля, попробуй позже' })
                   return
                 }
                 if (questionnaireRequired) {
                   if (!goalValue) {
-                    form.setError('goal', { type: 'manual', message: 'Для анкеты клиента цель обязательна' })
+                    form.setError('goal', { type: 'manual', message: 'Для профиля клиента цель обязательна' })
                     return
                   }
                   if (!experienceValue) {
-                    form.setError('experience_level', { type: 'manual', message: 'Для анкеты клиента уровень обязателен' })
+                    form.setError('experience_level', { type: 'manual', message: 'Для профиля клиента уровень обязателен' })
                     return
                   }
                   if (!workoutLocationValue) {
@@ -380,6 +384,12 @@ export function ProfilePage() {
                 })
               })}
             >
+              {isTrainerOwnProfile ? (
+                <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
+                  Это ваш профиль тренера. Заполните личные данные и фото.
+                </span>
+              ) : null}
+
               <div className="grid gap-1.5">
                 <Label htmlFor="full_name">Имя и фамилия</Label>
                 <Input id="full_name" {...form.register('full_name')} placeholder="Например: Иван Иванов" />
@@ -407,7 +417,7 @@ export function ProfilePage() {
                   disabled={!targetUserId || uploadAvatarMutation.isPending}
                 />
                 <span className="text-xs text-secondary-foreground">
-                  Поддерживаются JPG/PNG/WebP, до 5MB. Фото загружается в S3 и сохраняется автоматически.
+                  Поддерживаются JPG/PNG/WebP, до 5MB.
                 </span>
                 {form.formState.errors.avatar_url?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.avatar_url.message}</span>
@@ -433,7 +443,7 @@ export function ProfilePage() {
 
               {metaErrorStatus ? (
                 <span className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  Не удалось загрузить параметры анкеты. Обнови страницу или проверь `profile-service`.
+                  Не удалось загрузить параметры профиля. Обнови страницу или проверь `profile-service`.
                 </span>
               ) : null}
 
@@ -458,11 +468,7 @@ export function ProfilePage() {
                 ) : null}
               </div>
 
-              {isTrainerOwnProfile ? (
-                <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
-                  Для профиля тренера анкета клиента не обязательна. Заполни личные данные и фото.
-                </span>
-              ) : (
+              {!isTrainerOwnProfile ? (
                 <>
                   <FancySelect
                     id="goal"
@@ -534,10 +540,10 @@ export function ProfilePage() {
                     ) : null}
                   </div>
                 </>
-              )}
+              ) : null}
 
-              <Button type="submit" size="lg" disabled={upsertMutation.isPending || !targetUserId}>
-                Сохранить анкету
+              <Button type="submit" size="lg" disabled={upsertMutation.isPending || !targetUserId || !isFormDirty}>
+                Сохранить профиль
               </Button>
             </form>
           </CardContent>

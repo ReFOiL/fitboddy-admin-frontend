@@ -51,7 +51,7 @@ export function DashboardPage() {
               </div>
               <CardTitle className="text-2xl md:text-3xl">Добро пожаловать в Fitboddy</CardTitle>
               <CardDescription className="max-w-2xl text-base">
-                Все под рукой: клиенты, анкеты и персональные рекомендации. Фокус только на том, что важно для прогресса.
+                Все под рукой: клиенты, профили и персональные рекомендации. Фокус только на том, что важно для прогресса.
               </CardDescription>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ClipboardCheck size={18} className="text-primary" />
-              Анкета и цели
+              Профиль и цели
             </CardTitle>
             <CardDescription>
               Заполняйте цели, ограничения и инвентарь, чтобы рекомендации были безопасными и персонализированными.
@@ -118,7 +118,7 @@ export function DashboardPage() {
         <CardContent>
           {profileQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
           {!profileQuery.isLoading && hasNoProfile ? (
-            <span className="text-sm text-secondary-foreground">Профиль еще не заполнен. Открой раздел «Анкета и цели».</span>
+            <span className="text-sm text-secondary-foreground">Профиль еще не заполнен. Открой раздел «Профиль и цели».</span>
           ) : null}
           {!profileQuery.isLoading && !hasNoProfile && profileQuery.data ? (
             <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4">
@@ -257,15 +257,15 @@ export function DashboardPage() {
             {profileQuery.isLoading ? <Skeleton className="h-10 w-full rounded-xl" /> : null}
             {hasNoProfile ? (
               <span className="text-sm text-secondary-foreground">
-                Сначала заполни анкету в разделе{' '}
+                Сначала заполни профиль в разделе{' '}
                 <Link to="/profile" className="underline decoration-dotted underline-offset-4">
-                  «Анкета и цели»
+                  «Профиль и цели»
                 </Link>
                 , затем можно запускать генерацию.
               </span>
             ) : null}
             {!profileQuery.isLoading && profileQuery.isError && !hasNoProfile ? (
-              <span className="text-sm text-destructive">Не удалось проверить анкету пользователя.</span>
+              <span className="text-sm text-destructive">Не удалось проверить профиль пользователя.</span>
             ) : null}
             {clientActiveRelationQuery.isError && !hasNoActiveRelation ? (
               <span className="text-sm text-destructive">Не удалось загрузить активную связь с тренером.</span>

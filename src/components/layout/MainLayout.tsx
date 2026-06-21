@@ -29,7 +29,7 @@ export function MainLayout() {
               Каталог
             </NavLink>
             <NavLink className={navItemClass} to="/profile">
-              Анкета
+              Профиль
             </NavLink>
           </nav>
           <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export function MainLayout() {
           <NavLink className={navItemClass} to="/profile">
             <span className="mx-auto flex flex-col items-center gap-0.5">
               <ClipboardList size={16} />
-              Анкета
+              Профиль
             </span>
           </NavLink>
         </div>

@@ -88,7 +88,7 @@ export function LoginPage() {
             </div>
             <CardTitle className="text-2xl md:text-3xl">Тренируйтесь системно, а не хаотично</CardTitle>
             <CardDescription className="text-base">
-              Платформа помогает клиенту и тренеру работать как одна команда: цели, анкета, сопровождение и прогресс в одном месте.
+              Платформа помогает клиенту и тренеру работать как одна команда: цели, профиль, сопровождение и прогресс в одном месте.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm text-secondary-foreground">
