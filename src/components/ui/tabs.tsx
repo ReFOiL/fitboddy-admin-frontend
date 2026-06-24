@@ -3,7 +3,11 @@ import * as TabsPrimitive from '@radix-ui/react-tabs'
 
 import { cn } from '../../lib/utils'
 
-export const Tabs = TabsPrimitive.Root
+export function Tabs({
+  ...props
+}: ComponentProps<typeof TabsPrimitive.Root>) {
+  return <TabsPrimitive.Root {...props} />
+}
 
 export function TabsList({
   className,
