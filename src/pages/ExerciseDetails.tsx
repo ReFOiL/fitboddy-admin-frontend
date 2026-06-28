@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
-import type { UpsertTrainerExerciseRequest } from '../types/exercise'
+import type { TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -48,21 +48,67 @@ const LEGACY_CATEGORY_MAP: Record<string, ExerciseFormValues['workout_category']
   низ: 'lower',
   корпус: 'core',
   кардио: 'cardio',
+  upper_body: 'upper',
   lower_body: 'lower',
+  fullbody: 'full_body',
+  'full body': 'full_body',
 }
 
-function normalizeEquipment(value: string): ExerciseFormValues['equipment'] {
-  return EQUIPMENT_OPTIONS.some((option) => option.value === value)
-    ? (value as ExerciseFormValues['equipment'])
-    : 'other'
+const LEGACY_EQUIPMENT_MAP: Record<string, ExerciseFormValues['equipment']> = {
+  bodyweight: 'none',
+  no_equipment: 'none',
+  dumbbell: 'dumbbells',
+  bands: 'resistance_bands',
+  resistance_band: 'resistance_bands',
+  'resistance band': 'resistance_bands',
+  kettlebells: 'kettlebell',
+  беговая_дорожка: 'treadmill',
 }
 
-function normalizeCategory(value: string): ExerciseFormValues['workout_category'] {
-  const normalized = value.trim().toLowerCase()
+function normalizeEquipment(value: unknown): ExerciseFormValues['equipment'] {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  if (!normalized) return 'none'
+  if (EQUIPMENT_OPTIONS.some((option) => option.value === normalized)) {
+    return normalized as ExerciseFormValues['equipment']
+  }
+  return LEGACY_EQUIPMENT_MAP[normalized] ?? 'other'
+}
+
+function normalizeCategory(value: unknown): ExerciseFormValues['workout_category'] {
+  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  if (!normalized) return 'full_body'
   if (CATEGORY_OPTIONS.some((option) => option.value === normalized)) {
     return normalized as ExerciseFormValues['workout_category']
   }
   return LEGACY_CATEGORY_MAP[normalized] ?? 'full_body'
+}
+
+function normalizeDifficulty(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(parsed)) return 2
+  const bounded = Math.min(5, Math.max(1, Math.trunc(parsed)))
+  return bounded
+}
+
+function normalizeIsCardio(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'true' || normalized === '1') return true
+    if (normalized === 'false' || normalized === '0') return false
+  }
+  if (typeof value === 'number') return value === 1
+  return false
+}
+
+function mapExerciseToFormValues(exercise: TrainerExercise): ExerciseFormValues {
+  return {
+    exercise_name: typeof exercise.exercise_name === 'string' ? exercise.exercise_name : '',
+    equipment: normalizeEquipment(exercise.equipment),
+    is_cardio: normalizeIsCardio(exercise.is_cardio),
+    difficulty: normalizeDifficulty(exercise.difficulty),
+    workout_category: normalizeCategory(exercise.workout_category),
+  }
 }
 
 function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequest {
@@ -100,13 +146,7 @@ export function ExerciseDetailsPage() {
 
   useEffect(() => {
     if (!exercise) return
-    form.reset({
-      exercise_name: exercise.exercise_name,
-      equipment: normalizeEquipment(exercise.equipment),
-      is_cardio: exercise.is_cardio,
-      difficulty: exercise.difficulty,
-      workout_category: normalizeCategory(exercise.workout_category),
-    })
+    form.reset(mapExerciseToFormValues(exercise))
   }, [exercise, form])
 
   const formDisabled = updateExerciseMutation.isPending || archiveExerciseMutation.isPending || !form.formState.isDirty
@@ -175,6 +215,10 @@ export function ExerciseDetailsPage() {
                 updateExerciseMutation.mutate({
                   exerciseId: exercise.exercise_id,
                   payload: mapFormToPayload(values),
+                }, {
+                  onSuccess: (updatedExercise) => {
+                    form.reset(mapExerciseToFormValues(updatedExercise))
+                  },
                 })
               })}
             >

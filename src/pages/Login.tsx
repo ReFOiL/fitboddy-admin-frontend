@@ -20,6 +20,11 @@ const loginSchema = z.object({
 const registerSchema = z
   .object({
     role: z.enum(['trainer', 'client']),
+    login: z
+      .string()
+      .min(3, 'Логин: минимум 3 символа')
+      .max(32, 'Логин: максимум 32 символа')
+      .regex(/^[a-zA-Z0-9_.-]+$/, 'Логин: только латиница, цифры, _, -, .'),
     email: z.string().email('Введите корректный email'),
     password: z.string().min(8, 'Минимум 8 символов'),
     confirmPassword: z.string().min(8, 'Минимум 8 символов'),
@@ -68,6 +73,7 @@ export function LoginPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       role: 'trainer',
+      login: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -174,6 +180,7 @@ export function LoginPage() {
                     registerMutation.mutate(
                       {
                         role: values.role,
+                        login: values.login.trim().toLowerCase(),
                         email: values.email,
                         password: values.password,
                       },
@@ -193,6 +200,14 @@ export function LoginPage() {
                       <option value="trainer">Тренер</option>
                       <option value="client">Клиент</option>
                     </select>
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="register_login">Логин</Label>
+                    <Input id="register_login" placeholder="trainer_ivan" {...registerForm.register('login')} />
+                    {registerForm.formState.errors.login?.message ? (
+                      <span className="text-xs text-destructive">{registerForm.formState.errors.login.message}</span>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-1.5">

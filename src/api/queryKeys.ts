@@ -16,6 +16,8 @@ export const queryKeys = {
       search: string,
     ) => ['relations', 'trainer-clients-paginated', trainerUserId, status, page, pageSize, search] as const,
     trainerFunnel: (trainerUserId: string) => ['relations', 'trainer-funnel', trainerUserId] as const,
+    trainerPublicationStatus: (trainerUserId: string) =>
+      ['relations', 'trainer-publication-status', trainerUserId] as const,
     clientActiveRelation: (clientUserId: string) => ['relations', 'client-active-relation', clientUserId] as const,
     trainers: ['relations', 'trainers'] as const,
     clientsLooking: ['relations', 'clients-looking'] as const,

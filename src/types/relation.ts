@@ -16,7 +16,9 @@ export type RelationActionRequest = {
 export type TrainerClientRelation = {
   relation_id: string
   trainer_user_id: string
+  trainer_login?: string | null
   client_user_id: string
+  client_login?: string | null
   client_display_name?: string | null
   status: RelationStatus
   source: string
@@ -34,8 +36,14 @@ export type TrainerFunnelMetrics = {
   invite_acceptance_rate: number
 }
 
+export type TrainerPublicationStatus = {
+  trainer_user_id: string
+  is_published: boolean
+}
+
 export type DiscoveryProfile = {
   user_id: string
+  login?: string | null
   display_name?: string | null
   role: 'trainer' | 'client'
   is_visible: boolean

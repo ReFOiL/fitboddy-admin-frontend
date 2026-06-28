@@ -6,6 +6,7 @@ import type {
   RelationActionRequest,
   TrainerClientRelation,
   TrainerFunnelMetrics,
+  TrainerPublicationStatus,
   UpsertDiscoveryProfileRequest,
 } from '../types/relation'
 
@@ -94,6 +95,13 @@ export async function getClientActiveRelation(clientUserId: string): Promise<Tra
 export async function getTrainerFunnel(trainerUserId: string): Promise<TrainerFunnelMetrics> {
   const { data } = await apiClient.get<TrainerFunnelMetrics>(
     `/api/v1/marketplace/trainers/${encodeURIComponent(trainerUserId)}/funnel`,
+  )
+  return data
+}
+
+export async function getTrainerPublicationStatus(trainerUserId: string): Promise<TrainerPublicationStatus> {
+  const { data } = await apiClient.get<TrainerPublicationStatus>(
+    `/api/v1/marketplace/trainers/${encodeURIComponent(trainerUserId)}/publication-status`,
   )
   return data
 }

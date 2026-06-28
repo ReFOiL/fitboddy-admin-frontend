@@ -42,6 +42,7 @@ export function RelationsPage() {
     trainerInvitesQuery,
     trainerDeclinedRelationsQuery,
     trainerEndedRelationsQuery,
+    trainerPublicationStatusQuery,
     trainersQuery,
     clientsLookingQuery,
     clientsLookingPaginatedQuery,
@@ -75,8 +76,19 @@ export function RelationsPage() {
   const incomingInvites = Array.isArray(incomingInvitesQuery.data) ? incomingInvitesQuery.data : []
   const isTrainer = user?.role === 'trainer'
   const isClient = user?.role === 'client'
-  const selfVisibleAsTrainer = Boolean(user?.user_id && trainers.some((trainer) => trainer.user_id === user.user_id))
+  const selfVisibleAsTrainer = Boolean(trainerPublicationStatusQuery.data?.is_published)
   const selfVisibleAsClient = Boolean(user?.user_id && clientsLooking.some((client) => client.user_id === user.user_id))
+  const trainerVisibilityLabel = trainerPublicationStatusQuery.isLoading
+    ? 'Проверяем...'
+    : trainerPublicationStatusQuery.isError
+      ? 'Не удалось определить'
+      : selfVisibleAsTrainer
+        ? 'Виден клиентам'
+        : 'Не опубликован'
+  const trainerVisibilityToggleDisabled =
+    upsertDiscoveryProfileMutation.isPending || trainerPublicationStatusQuery.isLoading || trainerPublicationStatusQuery.isError
+  const formatIdentity = (params: { login?: string | null; userId: string }) =>
+    params.login?.trim() ? params.login : params.userId
   const ownUserId = user?.user_id ?? ''
   const { profileQuery } = useProfile(ownUserId)
   const questionnaireReady = isProfileCompleted(profileQuery.data)
@@ -117,14 +129,14 @@ export function RelationsPage() {
             Видимость профиля
           </CardTitle>
           <CardDescription>
-            Для поиска по платформе профиль должен быть опубликован. Это делается один раз и потом работает автоматически.
+            Вы можете в любой момент публиковать профиль для поиска и скрывать его обратно.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
           {isTrainer ? (
             <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
               <span className="mb-3 block text-sm">
-                Статус тренера в поиске: {selfVisibleAsTrainer ? 'Виден клиентам' : 'Не опубликован'}
+                Статус тренера в поиске: {trainerVisibilityLabel}
               </span>
               <Button
                 size="sm"
@@ -134,14 +146,14 @@ export function RelationsPage() {
                     userId: user.user_id,
                     payload: {
                       role: 'trainer',
-                      is_visible: true,
+                      is_visible: !selfVisibleAsTrainer,
                       looking_for_trainer: false,
                     },
                   })
                 }}
-                disabled={upsertDiscoveryProfileMutation.isPending}
+                disabled={trainerVisibilityToggleDisabled}
               >
-                Опубликовать профиль тренера
+                {selfVisibleAsTrainer ? 'Скрыть профиль тренера' : 'Опубликовать профиль тренера'}
               </Button>
             </div>
           ) : null}
@@ -163,9 +175,9 @@ export function RelationsPage() {
                     },
                   })
                 }}
-                disabled={upsertDiscoveryProfileMutation.isPending || mustCompleteQuestionnaire}
+                disabled={upsertDiscoveryProfileMutation.isPending || mustCompleteQuestionnaire || selfVisibleAsClient}
               >
-                Опубликовать профиль клиента
+                {selfVisibleAsClient ? 'Профиль клиента опубликован' : 'Опубликовать профиль клиента'}
               </Button>
             </div>
           ) : null}
@@ -200,7 +212,9 @@ export function RelationsPage() {
                     <div key={invite.relation_id} className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm">
                       <div className="mb-1 flex items-center gap-2">
                         <Users size={16} className="text-primary" />
-                        <span className="font-medium">Тренер: {invite.trainer_user_id}</span>
+                        <span className="font-medium">
+                          Тренер: {formatIdentity({ login: invite.trainer_login, userId: invite.trainer_user_id })}
+                        </span>
                       </div>
                       <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
                         Статус: приглашение
@@ -275,7 +289,9 @@ export function RelationsPage() {
                         <Users size={16} className="text-primary" />
                         <span className="font-medium">Тренер</span>
                       </div>
-                      <div className="mb-3 text-secondary-foreground">{trainer.user_id}</div>
+                      <div className="mb-3 text-secondary-foreground">
+                        {formatIdentity({ login: trainer.login, userId: trainer.user_id })}
+                      </div>
                       <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
                         Профиль подтвержден
                       </div>
@@ -343,7 +359,9 @@ export function RelationsPage() {
                         >
                           <div className="mb-1 flex items-center gap-2">
                             <Users size={16} className="text-primary" />
-                            <span className="font-medium">Клиент: {relation.client_user_id}</span>
+                            <span className="font-medium">
+                              Клиент: {formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
+                            </span>
                           </div>
                           <div className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
                             Статус: ожидает решения
@@ -367,7 +385,9 @@ export function RelationsPage() {
                         >
                           <div className="mb-1 flex items-center gap-2">
                             <X size={16} className="text-destructive" />
-                            <span className="font-medium">Клиент: {relation.client_user_id}</span>
+                            <span className="font-medium">
+                              Клиент: {formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
+                            </span>
                           </div>
                           <div className="inline-flex items-center rounded-full border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive">
                             Статус: отклонено
@@ -391,7 +411,9 @@ export function RelationsPage() {
                         >
                           <div className="mb-1 flex items-center gap-2">
                             <Link2Off size={16} className="text-destructive" />
-                            <span className="font-medium">Клиент: {relation.client_user_id}</span>
+                            <span className="font-medium">
+                              Клиент: {formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
+                            </span>
                           </div>
                           <div className="inline-flex items-center rounded-full border border-destructive/40 bg-destructive/10 px-2 py-1 text-xs text-destructive">
                             Статус: завершено
@@ -454,10 +476,15 @@ export function RelationsPage() {
                             >
                               <div className="mb-1 flex items-center gap-2">
                                 <UserCheck size={16} className="text-primary" />
-                                <span className="font-medium">{relation.client_display_name || relation.client_user_id}</span>
+                                <span className="font-medium">
+                                  {relation.client_display_name ||
+                                    formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
+                                </span>
                               </div>
                               {relation.client_display_name ? (
-                                <div className="mb-2 text-xs text-secondary-foreground">{relation.client_user_id}</div>
+                                <div className="mb-2 text-xs text-secondary-foreground">
+                                  {formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
+                                </div>
                               ) : null}
                               <div className="mb-3 inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
                                 Статус: активен
@@ -550,7 +577,9 @@ export function RelationsPage() {
                                 <Sparkles size={16} className="text-primary" />
                                 <span className="font-medium">Клиент</span>
                               </div>
-                              <div className="mb-3 text-secondary-foreground">{client.user_id}</div>
+                              <div className="mb-3 text-secondary-foreground">
+                                {formatIdentity({ login: client.login, userId: client.user_id })}
+                              </div>
                               {client.display_name ? <div className="mb-2 font-medium">{client.display_name}</div> : null}
                               <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
                                 Готов к сотрудничеству

@@ -7,6 +7,7 @@ import {
   createRelation,
   getClientActiveRelation,
   getTrainerFunnel,
+  getTrainerPublicationStatus,
   leaveRelation,
   listClientsLookingForTrainer,
   listClientsLookingForTrainerPaginated,
@@ -147,6 +148,13 @@ export function useRelations(params: UseRelationsParams) {
     retry: false,
   })
 
+  const trainerPublicationStatusQuery = useQuery({
+    queryKey: queryKeys.relations.trainerPublicationStatus(trainerUserId),
+    queryFn: async () => getTrainerPublicationStatus(trainerUserId),
+    enabled: Boolean(trainerUserId),
+    retry: false,
+  })
+
   const trainerDeclinedRelationsQuery = useQuery({
     queryKey: queryKeys.relations.trainerClients(trainerUserId, 'declined'),
     queryFn: async () => {
@@ -178,6 +186,9 @@ export function useRelations(params: UseRelationsParams) {
       queryKey: queryKeys.relations.trainerFunnel(trainerUserId),
     })
     void queryClient.invalidateQueries({
+      queryKey: queryKeys.relations.trainerPublicationStatus(trainerUserId),
+    })
+    void queryClient.invalidateQueries({
       queryKey: queryKeys.relations.trainers,
     })
     void queryClient.invalidateQueries({
@@ -194,6 +205,22 @@ export function useRelations(params: UseRelationsParams) {
     })
   }
 
+  const invalidateDiscoveryVisibility = (params: { userId: string; payload: UpsertDiscoveryProfileRequest }) => {
+    if (params.payload.role === 'trainer') {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.relations.trainers,
+      })
+      return
+    }
+
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.relations.clientsLooking,
+    })
+    void queryClient.invalidateQueries({
+      queryKey: ['relations', 'clients-looking-paginated'],
+    })
+  }
+
   const createRelationMutation = useMutation({
     mutationFn: async (payload: CreateRelationRequest) => createRelation(payload),
     onSuccess: () => {
@@ -206,8 +233,14 @@ export function useRelations(params: UseRelationsParams) {
   const upsertDiscoveryProfileMutation = useMutation({
     mutationFn: async (params: { userId: string; payload: UpsertDiscoveryProfileRequest }) =>
       upsertDiscoveryProfile(params.userId, params.payload),
-    onSuccess: () => {
-      invalidateRelationLists()
+    onSuccess: (data, params) => {
+      if (data.role === 'trainer') {
+        queryClient.setQueryData(queryKeys.relations.trainerPublicationStatus(params.userId), {
+          trainer_user_id: params.userId,
+          is_published: data.is_visible,
+        })
+      }
+      invalidateDiscoveryVisibility(params)
       toast.success('Профиль для поиска обновлен')
     },
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось обновить видимость профиля')),
@@ -237,6 +270,7 @@ export function useRelations(params: UseRelationsParams) {
     trainerClientsQuery,
     trainerClientsPaginatedQuery,
     trainerFunnelQuery,
+    trainerPublicationStatusQuery,
     trainerInvitesQuery,
     trainerDeclinedRelationsQuery,
     trainerEndedRelationsQuery,

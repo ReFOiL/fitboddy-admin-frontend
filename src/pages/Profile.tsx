@@ -162,6 +162,18 @@ export function ProfilePage() {
   const trainerUserId = user?.role === 'trainer' ? user.user_id : ''
   const { trainerClientsQuery } = useRelations({ trainerUserId, clientUserId: '' })
   const trainerClients = Array.isArray(trainerClientsQuery.data) ? trainerClientsQuery.data : []
+  const resolveClientUserId = (value: string): string => {
+    const normalizedValue = value.trim()
+    if (!normalizedValue) return ''
+    const byUserId = trainerClients.find((relation) => relation.client_user_id === normalizedValue)
+    if (byUserId) return byUserId.client_user_id
+    const byLogin = trainerClients.find(
+      (relation) => relation.client_login?.toLowerCase() === normalizedValue.toLowerCase(),
+    )
+    return byLogin?.client_user_id ?? normalizedValue
+  }
+  const formatClientIdentity = (relation: (typeof trainerClients)[number]): string =>
+    relation.client_login?.trim() ? relation.client_login : relation.client_user_id
 
   const goalOptions = metaQuery.data?.goals ?? []
   const levelOptions = metaQuery.data?.levels ?? []
@@ -243,19 +255,19 @@ export function ProfilePage() {
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-1.5">
-              <Label htmlFor="target_user_id">ID клиента</Label>
+              <Label htmlFor="target_user_id">Клиент (логин или ID)</Label>
               <div className="flex gap-2">
                 <Input
                   id="target_user_id"
                   value={targetUserIdInput}
                   onChange={(event) => setTargetUserIdInput(event.target.value)}
                   disabled={!canSwitchUser}
-                  placeholder="например: client-1"
+                  placeholder="например: client_login"
                 />
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => setTargetUserId(targetUserIdInput.trim())}
+                  onClick={() => setTargetUserId(resolveClientUserId(targetUserIdInput))}
                   disabled={!targetUserIdInput.trim() || profileQuery.isFetching}
                 >
                   Открыть
@@ -281,7 +293,7 @@ export function ProfilePage() {
                     <option value="">Выбери клиента из списка...</option>
                     {trainerClients.map((relation) => (
                       <option key={relation.relation_id} value={relation.client_user_id}>
-                        {relation.client_user_id}
+                        {formatClientIdentity(relation)}
                       </option>
                     ))}
                   </select>

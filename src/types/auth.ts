@@ -7,6 +7,7 @@ export type RegisterRole = 'trainer' | 'client'
 
 export type RegisterRequest = {
   role: RegisterRole
+  login: string
   email: string
   password: string
 }
@@ -20,6 +21,7 @@ export type TokenPair = {
 export type AuthUser = {
   user_id: string
   tenant_id: string
+  login: string
   email: string
   role: string
   is_active: boolean

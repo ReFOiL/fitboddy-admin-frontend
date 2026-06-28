@@ -27,6 +27,8 @@ export function DashboardPage() {
     : undefined
   const hasNoActiveRelation = activeRelationErrorStatus === 404
   const activeTrainerUserId = clientActiveRelationQuery.data?.trainer_user_id ?? ''
+  const activeTrainerLogin = clientActiveRelationQuery.data?.trainer_login ?? null
+  const activeTrainerDisplay = activeTrainerLogin?.trim() ? activeTrainerLogin : activeTrainerUserId
   const { activePlanQuery, generatePlanMutation } = usePlans(user?.user_id ?? '')
   const ownUserId = user?.user_id ?? ''
   const { profileQuery } = useProfile(ownUserId)
@@ -56,7 +58,10 @@ export function DashboardPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-2 text-sm md:grid-cols-2">
+        <CardContent className="grid gap-2 text-sm md:grid-cols-3">
+          <div className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
+            <span className="text-secondary-foreground">Логин:</span> {user?.login ?? 'не указан'}
+          </div>
           <div className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
             <span className="text-secondary-foreground">Почта:</span> {user?.email ?? 'не указана'}
           </div>
@@ -164,7 +169,7 @@ export function DashboardPage() {
                 id="trainer_auto"
                 readOnly
                 className="h-10 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-secondary-foreground outline-none"
-                value={activeTrainerUserId || 'Нет активной связи'}
+                value={activeTrainerDisplay || 'Нет активной связи'}
               />
             </div>
 
@@ -282,7 +287,7 @@ export function DashboardPage() {
                     Активный план: {activePlanQuery.data.goal} ({activePlanQuery.data.level})
                   </div>
                   <div className="text-secondary-foreground">
-                    Тренер: {activePlanQuery.data.trainer_user_id} · Период: {activePlanQuery.data.start_date} —{' '}
+                    Тренер: {activeTrainerDisplay || activePlanQuery.data.trainer_user_id} · Период: {activePlanQuery.data.start_date} —{' '}
                     {activePlanQuery.data.end_date}
                   </div>
                 </div>
