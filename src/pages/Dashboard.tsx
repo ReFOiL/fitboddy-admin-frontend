@@ -9,6 +9,7 @@ import { ArrowRight, ClipboardCheck, Rocket, Sparkles, Users } from 'lucide-reac
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Label } from '../components/ui/label'
+import { StyledSelect } from '../components/ui/styled-select'
 import { isProfileCompleted } from '../lib/profile-completion'
 import { Skeleton } from '../components/ui/skeleton'
 
@@ -176,46 +177,46 @@ export function DashboardPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="goal_select">Цель</Label>
-                <select
+                <StyledSelect
                   id="goal_select"
-                  className="h-10 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                   value={goal}
-                  onChange={(event) => setGoal(event.target.value)}
+                  onChange={setGoal}
                   disabled={generatePlanMutation.isPending}
-                >
-                  <option value="maintenance">Поддержание формы</option>
-                  <option value="weight_loss">Снижение веса</option>
-                  <option value="muscle_gain">Набор мышечной массы</option>
-                </select>
+                  options={[
+                    { value: 'maintenance', label: 'Поддержание формы' },
+                    { value: 'weight_loss', label: 'Снижение веса' },
+                    { value: 'muscle_gain', label: 'Набор мышечной массы' },
+                  ]}
+                />
               </div>
 
               <div className="grid gap-1.5">
                 <Label htmlFor="level_select">Уровень</Label>
-                <select
+                <StyledSelect
                   id="level_select"
-                  className="h-10 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                   value={level}
-                  onChange={(event) => setLevel(event.target.value)}
+                  onChange={setLevel}
                   disabled={generatePlanMutation.isPending}
-                >
-                  <option value="beginner">Начальный</option>
-                  <option value="intermediate">Средний</option>
-                  <option value="advanced">Продвинутый</option>
-                </select>
+                  options={[
+                    { value: 'beginner', label: 'Начальный' },
+                    { value: 'intermediate', label: 'Средний' },
+                    { value: 'advanced', label: 'Продвинутый' },
+                  ]}
+                />
               </div>
 
               <div className="grid gap-1.5">
                 <Label htmlFor="location_select">Где тренироваться</Label>
-                <select
+                <StyledSelect
                   id="location_select"
-                  className="h-10 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
                   value={workoutLocation}
-                  onChange={(event) => setWorkoutLocation(event.target.value)}
+                  onChange={setWorkoutLocation}
                   disabled={generatePlanMutation.isPending}
-                >
-                  <option value="home">Дома</option>
-                  <option value="gym">В зале</option>
-                </select>
+                  options={[
+                    { value: 'home', label: 'Дома' },
+                    { value: 'gym', label: 'В зале' },
+                  ]}
+                />
               </div>
             </div>
 

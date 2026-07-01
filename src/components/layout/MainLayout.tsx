@@ -7,6 +7,7 @@ import { Button } from '../ui/button'
 export function MainLayout() {
   const { user, logoutMutation } = useAuth()
   const isTrainer = user?.role === 'trainer'
+  const mobileGridClass = isTrainer ? 'grid-cols-5' : 'grid-cols-3'
   const navItemClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-lg px-3 py-2 font-medium transition ${
       isActive ? 'bg-primary/20 text-foreground' : 'text-secondary-foreground hover:bg-secondary/70 hover:text-foreground'
@@ -31,9 +32,11 @@ export function MainLayout() {
                 Аналитика
               </NavLink>
             ) : null}
-            <NavLink className={navItemClass} to="/exercises">
-              Каталог
-            </NavLink>
+            {isTrainer ? (
+              <NavLink className={navItemClass} to="/exercises">
+                Каталог
+              </NavLink>
+            ) : null}
             <NavLink className={navItemClass} to="/profile">
               Профиль
             </NavLink>
@@ -56,7 +59,7 @@ export function MainLayout() {
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur md:hidden">
         <div
-          className={`mx-auto grid h-16 w-full max-w-6xl items-center px-4 text-sm ${isTrainer ? 'grid-cols-5' : 'grid-cols-4'}`}
+          className={`mx-auto grid h-16 w-full max-w-6xl items-center px-4 text-sm ${mobileGridClass}`}
         >
           <NavLink className={navItemClass} to="/home">
             <span className="mx-auto flex flex-col items-center gap-0.5">
@@ -78,12 +81,14 @@ export function MainLayout() {
               </span>
             </NavLink>
           ) : null}
-          <NavLink className={navItemClass} to="/exercises">
-            <span className="mx-auto flex flex-col items-center gap-0.5">
-              <Dumbbell size={16} />
-              Каталог
-            </span>
-          </NavLink>
+          {isTrainer ? (
+            <NavLink className={navItemClass} to="/exercises">
+              <span className="mx-auto flex flex-col items-center gap-0.5">
+                <Dumbbell size={16} />
+                Каталог
+              </span>
+            </NavLink>
+          ) : null}
           <NavLink className={navItemClass} to="/profile">
             <span className="mx-auto flex flex-col items-center gap-0.5">
               <ClipboardList size={16} />

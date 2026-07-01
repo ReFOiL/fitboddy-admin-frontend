@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
-import { Activity, Check, ChevronDown, Target, X } from 'lucide-react'
+import { Activity, Check, Target, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useSearchParams } from 'react-router-dom'
@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
+import { StyledSelect } from '../components/ui/styled-select'
 import { cn } from '../lib/utils'
 
 function isValidAvatarReference(value: string): boolean {
@@ -61,29 +62,14 @@ function FancySelect({ id, label, value, onChange, options, placeholder, error }
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <div className="relative">
-        <select
-          id={id}
-          className={cn(
-            'h-11 w-full appearance-none rounded-xl border bg-background/80 px-3 pr-10 text-sm text-foreground outline-none transition',
-            'focus-visible:ring-2 focus-visible:ring-primary/70',
-            error ? 'border-destructive/60' : 'border-border hover:border-primary/40',
-          )}
-          value={value ?? ''}
-          onChange={(event) => onChange(event.target.value ? event.target.value : null)}
-        >
-          <option value="">{placeholder}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown
-          size={16}
-          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-secondary-foreground"
-        />
-      </div>
+      <StyledSelect
+        id={id}
+        placeholder={placeholder}
+        value={value ?? undefined}
+        options={options}
+        onChange={(nextValue) => onChange(nextValue || null)}
+        className={error ? 'border-destructive/60' : undefined}
+      />
       {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </div>
   )
@@ -278,30 +264,20 @@ export function ProfilePage() {
             {canSwitchUser ? (
               <div className="grid gap-1.5">
                 <Label htmlFor="active_client_select">Выбрать из активных клиентов</Label>
-                <div className="relative">
-                  <select
-                    id="active_client_select"
-                    className="h-11 w-full appearance-none rounded-xl border border-border bg-background/80 px-3 pr-10 text-sm outline-none transition hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/70"
-                    value={hasSelectedClientInList ? targetUserId : ''}
-                    onChange={(event) => {
-                      const selected = event.target.value
-                      if (!selected) return
-                      setTargetUserIdInput(selected)
-                      setTargetUserId(selected)
-                    }}
-                  >
-                    <option value="">Выбери клиента из списка...</option>
-                    {trainerClients.map((relation) => (
-                      <option key={relation.relation_id} value={relation.client_user_id}>
-                        {formatClientIdentity(relation)}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-secondary-foreground"
-                  />
-                </div>
+                <StyledSelect
+                  id="active_client_select"
+                  placeholder="Выбери клиента из списка..."
+                  value={hasSelectedClientInList ? targetUserId : undefined}
+                  options={trainerClients.map((relation) => ({
+                    value: relation.client_user_id,
+                    label: formatClientIdentity(relation),
+                  }))}
+                  onChange={(selected) => {
+                    if (!selected) return
+                    setTargetUserIdInput(selected)
+                    setTargetUserId(selected)
+                  }}
+                />
               </div>
             ) : null}
 

@@ -10,10 +10,15 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { StyledSelect } from '../components/ui/styled-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
 const loginSchema = z.object({
-  email: z.string().email('Введите корректный email'),
+  email_or_login: z
+    .string()
+    .trim()
+    .min(3, 'Введите email или логин')
+    .max(254, 'Слишком длинное значение'),
   password: z.string().min(8, 'Минимум 8 символов'),
 })
 
@@ -64,7 +69,7 @@ export function LoginPage() {
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      email_or_login: '',
       password: '',
     },
   })
@@ -131,16 +136,22 @@ export function LoginPage() {
                 <form
                   className="grid gap-4"
                   onSubmit={loginForm.handleSubmit((values) => {
-                    loginMutation.mutate(values, {
-                      onSuccess: () => navigate('/home', { replace: true }),
-                    })
+                    loginMutation.mutate(
+                      {
+                        email_or_login: values.email_or_login.trim().toLowerCase(),
+                        password: values.password,
+                      },
+                      {
+                        onSuccess: () => navigate('/home', { replace: true }),
+                      },
+                    )
                   })}
                 >
                   <div className="grid gap-1.5">
-                    <Label htmlFor="login_email">Email</Label>
-                    <Input id="login_email" type="email" {...loginForm.register('email')} />
-                    {loginForm.formState.errors.email?.message ? (
-                      <span className="text-xs text-destructive">{loginForm.formState.errors.email.message}</span>
+                    <Label htmlFor="login_email_or_login">Email или логин</Label>
+                    <Input id="login_email_or_login" type="text" placeholder="ivan@example.com или trainer_ivan" {...loginForm.register('email_or_login')} />
+                    {loginForm.formState.errors.email_or_login?.message ? (
+                      <span className="text-xs text-destructive">{loginForm.formState.errors.email_or_login.message}</span>
                     ) : null}
                   </div>
 
@@ -192,14 +203,20 @@ export function LoginPage() {
                 >
                   <div className="grid gap-1.5">
                     <Label htmlFor="register_role">Роль</Label>
-                    <select
+                    <StyledSelect
                       id="register_role"
-                      className="h-10 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-                      {...registerForm.register('role')}
-                    >
-                      <option value="trainer">Тренер</option>
-                      <option value="client">Клиент</option>
-                    </select>
+                      value={registerForm.watch('role')}
+                      onChange={(nextRole) =>
+                        registerForm.setValue('role', nextRole as RegisterFormValues['role'], {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      options={[
+                        { value: 'trainer', label: 'Тренер' },
+                        { value: 'client', label: 'Клиент' },
+                      ]}
+                    />
                   </div>
 
                   <div className="grid gap-1.5">
