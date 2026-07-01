@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Dumbbell, Save, Trash2 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -10,6 +10,7 @@ import { useExercises } from '../hooks/use-exercises'
 import type { TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { DifficultyPicker } from '../components/ui/difficulty-picker'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
@@ -20,7 +21,7 @@ const exerciseSchema = z.object({
   equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
   is_cardio: z.boolean(),
   difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
-  workout_category: z.enum(['upper', 'lower', 'core', 'cardio', 'full_body']),
+  workout_category: z.enum(['upper', 'lower', 'core', 'full_body']),
 })
 
 type ExerciseFormValues = z.infer<typeof exerciseSchema>
@@ -39,19 +40,20 @@ const CATEGORY_OPTIONS: Array<{ value: ExerciseFormValues['workout_category']; l
   { value: 'upper', label: 'Верх тела' },
   { value: 'lower', label: 'Низ тела' },
   { value: 'core', label: 'Корпус' },
-  { value: 'cardio', label: 'Кардио' },
   { value: 'full_body', label: 'Все тело' },
 ]
 
 const LEGACY_CATEGORY_MAP: Record<string, ExerciseFormValues['workout_category']> = {
   верх: 'upper',
+  верх_тела: 'upper',
   низ: 'lower',
+  низ_тела: 'lower',
   корпус: 'core',
-  кардио: 'cardio',
   upper_body: 'upper',
   lower_body: 'lower',
   fullbody: 'full_body',
-  'full body': 'full_body',
+  все_тело: 'full_body',
+  всё_тело: 'full_body',
 }
 
 const LEGACY_EQUIPMENT_MAP: Record<string, ExerciseFormValues['equipment']> = {
@@ -77,10 +79,12 @@ function normalizeEquipment(value: unknown): ExerciseFormValues['equipment'] {
 function normalizeCategory(value: unknown): ExerciseFormValues['workout_category'] {
   const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
   if (!normalized) return 'full_body'
-  if (CATEGORY_OPTIONS.some((option) => option.value === normalized)) {
-    return normalized as ExerciseFormValues['workout_category']
+  const canonical = normalized.replace(/[\s-]+/g, '_')
+
+  if (CATEGORY_OPTIONS.some((option) => option.value === canonical)) {
+    return canonical as ExerciseFormValues['workout_category']
   }
-  return LEGACY_CATEGORY_MAP[normalized] ?? 'full_body'
+  return LEGACY_CATEGORY_MAP[canonical] ?? 'full_body'
 }
 
 function normalizeDifficulty(value: unknown): number {
@@ -143,13 +147,23 @@ export function ExerciseDetailsPage() {
       workout_category: 'upper',
     },
   })
+  const [equipmentOverride, setEquipmentOverride] = useState<ExerciseFormValues['equipment'] | null>(null)
+  const [categoryOverride, setCategoryOverride] = useState<ExerciseFormValues['workout_category'] | null>(null)
+  const [exerciseTypeOverride, setExerciseTypeOverride] = useState<'strength' | 'cardio' | null>(null)
 
   useEffect(() => {
     if (!exercise) return
-    form.reset(mapExerciseToFormValues(exercise))
+    const nextValues = mapExerciseToFormValues(exercise)
+    form.reset(nextValues)
+    setEquipmentOverride(null)
+    setCategoryOverride(null)
+    setExerciseTypeOverride(null)
   }, [exercise, form])
 
   const formDisabled = updateExerciseMutation.isPending || archiveExerciseMutation.isPending || !form.formState.isDirty
+  const equipmentDisplayValue = equipmentOverride ?? normalizeEquipment(exercise?.equipment)
+  const categoryDisplayValue = categoryOverride ?? normalizeCategory(exercise?.workout_category)
+  const exerciseTypeDisplayValue = exerciseTypeOverride ?? (normalizeIsCardio(exercise?.is_cardio) ? 'cardio' : 'strength')
 
   if (!isTrainer) {
     return (
@@ -217,7 +231,11 @@ export function ExerciseDetailsPage() {
                   payload: mapFormToPayload(values),
                 }, {
                   onSuccess: (updatedExercise) => {
-                    form.reset(mapExerciseToFormValues(updatedExercise))
+                    const nextValues = mapExerciseToFormValues(updatedExercise)
+                    form.reset(nextValues)
+                    setEquipmentOverride(null)
+                    setCategoryOverride(null)
+                    setExerciseTypeOverride(null)
                   },
                 })
               })}
@@ -241,10 +259,11 @@ export function ExerciseDetailsPage() {
                   <StyledSelect
                     id="equipment"
                     options={EQUIPMENT_OPTIONS}
-                    value={form.watch('equipment')}
+                    value={equipmentDisplayValue}
                     onChange={(nextValue) => {
-                      if (nextValue === form.getValues('equipment')) return
-                      form.setValue('equipment', nextValue as ExerciseFormValues['equipment'], {
+                      const normalizedValue = normalizeEquipment(nextValue)
+                      setEquipmentOverride(normalizedValue)
+                      form.setValue('equipment', normalizedValue, {
                         shouldDirty: true,
                         shouldValidate: true,
                       })
@@ -259,10 +278,11 @@ export function ExerciseDetailsPage() {
                   <StyledSelect
                     id="workout_category"
                     options={CATEGORY_OPTIONS}
-                    value={form.watch('workout_category')}
+                    value={categoryDisplayValue}
                     onChange={(nextValue) => {
-                      if (nextValue === form.getValues('workout_category')) return
-                      form.setValue('workout_category', nextValue as ExerciseFormValues['workout_category'], {
+                      const normalizedValue = normalizeCategory(nextValue)
+                      setCategoryOverride(normalizedValue)
+                      form.setValue('workout_category', normalizedValue, {
                         shouldDirty: true,
                         shouldValidate: true,
                       })
@@ -277,7 +297,17 @@ export function ExerciseDetailsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-1.5">
                   <Label htmlFor="difficulty">Сложность (1-5)</Label>
-                  <Input id="difficulty" type="number" min={1} max={5} {...form.register('difficulty', { valueAsNumber: true })} />
+                  <DifficultyPicker
+                    id="difficulty"
+                    value={form.watch('difficulty')}
+                    onChange={(nextDifficulty) => {
+                      if (nextDifficulty === form.getValues('difficulty')) return
+                      form.setValue('difficulty', nextDifficulty, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
                   {form.formState.errors.difficulty?.message ? (
                     <span className="text-xs text-destructive">{form.formState.errors.difficulty.message}</span>
                   ) : null}
@@ -286,11 +316,14 @@ export function ExerciseDetailsPage() {
                   <Label htmlFor="is_cardio">Тип упражнения</Label>
                   <StyledSelect
                     id="is_cardio"
-                    value={form.watch('is_cardio') ? 'cardio' : 'strength'}
+                    value={exerciseTypeDisplayValue}
                     onChange={(nextValue) => {
-                      const nextIsCardio = nextValue === 'cardio'
-                      if (nextIsCardio === form.getValues('is_cardio')) return
-                      form.setValue('is_cardio', nextIsCardio, { shouldDirty: true, shouldValidate: true })
+                      const resolvedType = nextValue === 'cardio' ? 'cardio' : 'strength'
+                      setExerciseTypeOverride(resolvedType)
+                      form.setValue('is_cardio', resolvedType === 'cardio', {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
                     }}
                     options={[
                       { value: 'strength', label: 'Силовое' },

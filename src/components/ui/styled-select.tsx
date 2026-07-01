@@ -29,9 +29,15 @@ export function StyledSelect({
   containerClassName,
   options,
 }: StyledSelectProps) {
+  const normalizedValue = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  const selectedOption =
+    options.find((option) => option.value === value) ??
+    options.find((option) => option.value.trim().toLowerCase() === normalizedValue)
+  const resolvedValue = selectedOption?.value
+
   return (
     <div className={cn('relative', containerClassName)}>
-      <Select.Root value={value} onValueChange={onChange} disabled={disabled}>
+      <Select.Root value={resolvedValue} onValueChange={onChange} disabled={disabled}>
         <Select.Trigger
           id={id}
           aria-label={placeholder}
@@ -41,7 +47,9 @@ export function StyledSelect({
             className,
           )}
         >
-          <Select.Value placeholder={placeholder} />
+          <span className={cn('block truncate', !selectedOption ? 'text-secondary-foreground' : undefined)}>
+            {selectedOption?.label ?? placeholder}
+          </span>
           <Select.Icon asChild>
             <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary-foreground" />
           </Select.Icon>

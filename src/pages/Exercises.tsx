@@ -10,6 +10,7 @@ import { useExercises } from '../hooks/use-exercises'
 import type { UpsertTrainerExerciseRequest } from '../types/exercise'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { DifficultyPicker } from '../components/ui/difficulty-picker'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
@@ -25,7 +26,7 @@ const exerciseSchema = z.object({
   equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
   is_cardio: z.boolean(),
   difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
-  workout_category: z.enum(['upper', 'lower', 'core', 'cardio', 'full_body']),
+  workout_category: z.enum(['upper', 'lower', 'core', 'full_body']),
 })
 
 type ExerciseFormValues = z.infer<typeof exerciseSchema>
@@ -60,11 +61,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   верх: 'верх тела',
   низ: 'низ тела',
   корпус: 'корпус',
-  кардио: 'кардио',
   upper: 'верх тела',
   lower: 'низ тела',
   core: 'корпус',
-  cardio: 'кардио',
   full_body: 'все тело',
   lower_body: 'низ тела',
 }
@@ -73,7 +72,6 @@ const CATEGORY_OPTIONS: Array<{ value: ExerciseFormValues['workout_category']; l
   { value: 'upper', label: 'Верх тела' },
   { value: 'lower', label: 'Низ тела' },
   { value: 'core', label: 'Корпус' },
-  { value: 'cardio', label: 'Кардио' },
   { value: 'full_body', label: 'Все тело' },
 ]
 
@@ -258,13 +256,14 @@ export function ExercisesPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-1.5">
                   <Label htmlFor="difficulty">Сложность (1-5)</Label>
-                  <Input
+                  <DifficultyPicker
                     id="difficulty"
-                    type="number"
-                    min={1}
-                    max={5}
+                    value={form.watch('difficulty')}
                     disabled={formDisabled}
-                    {...form.register('difficulty', { valueAsNumber: true })}
+                    onChange={(nextDifficulty) => {
+                      if (nextDifficulty === form.getValues('difficulty')) return
+                      form.setValue('difficulty', nextDifficulty, { shouldDirty: true, shouldValidate: true })
+                    }}
                   />
                   {form.formState.errors.difficulty?.message ? (
                     <span className="text-xs text-destructive">{form.formState.errors.difficulty.message}</span>
