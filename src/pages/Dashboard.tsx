@@ -16,6 +16,8 @@ import { Skeleton } from '../components/ui/skeleton'
 export function DashboardPage() {
   const { user } = useAuth()
   const isClient = user?.role === 'client'
+  const relationsPath = isClient ? '/trainers' : '/clients'
+  const relationsSectionLabel = isClient ? 'Тренеры и связи' : 'Клиенты и связи'
   const roleLabel =
     user?.role === 'trainer' ? 'Тренер' : user?.role === 'client' ? 'Клиент' : 'Пользователь'
   const [goal, setGoal] = useState('maintenance')
@@ -75,7 +77,7 @@ export function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users size={18} className="text-primary" />
-              Клиенты и связи
+              {relationsSectionLabel}
             </CardTitle>
             <CardDescription>
               Находите новых клиентов, подключайте их в один клик и ведите активную базу без технических шагов.
@@ -84,7 +86,7 @@ export function DashboardPage() {
           <CardContent className="flex items-center justify-between gap-3">
             <span className="text-sm text-secondary-foreground">Управление отношениями тренер-клиент</span>
             <Button asChild>
-              <Link to="/clients" className="inline-flex items-center gap-2">
+              <Link to={relationsPath} className="inline-flex items-center gap-2">
                 Открыть
                 <ArrowRight size={16} />
               </Link>
@@ -255,7 +257,7 @@ export function DashboardPage() {
             {clientActiveRelationQuery.isLoading ? <Skeleton className="h-10 w-full rounded-xl" /> : null}
             {hasNoActiveRelation ? (
               <span className="text-sm text-secondary-foreground">
-                Сначала подключись к тренеру в разделе «Клиенты», потом можно запускать генерацию.
+                Сначала подключись к тренеру в разделе «Тренеры», потом можно запускать генерацию.
               </span>
             ) : null}
             {profileQuery.isLoading ? <Skeleton className="h-10 w-full rounded-xl" /> : null}

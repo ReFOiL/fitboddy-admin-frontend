@@ -9,12 +9,14 @@ import { ExerciseDetailsPage } from './pages/ExerciseDetails'
 import { ExercisesPage } from './pages/Exercises'
 import { LoginPage } from './pages/Login'
 import { ProfilePage } from './pages/Profile'
-import { RelationsPage } from './pages/Relations'
+import { ClientRelationsPage } from './pages/ClientRelations'
+import { TrainerRelationsPage } from './pages/TrainerRelations'
 import { TrainerClientProfilePage } from './pages/TrainerClientProfile'
 
 function App() {
   const { user } = useAuth()
   const isTrainer = user?.role === 'trainer'
+  const isClient = user?.role === 'client'
 
   return (
     <Routes>
@@ -29,7 +31,8 @@ function App() {
       >
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<DashboardPage />} />
-        <Route path="clients" element={<RelationsPage />} />
+        <Route path="clients" element={isTrainer ? <TrainerRelationsPage /> : <Navigate to="/trainers" replace />} />
+        <Route path="trainers" element={isClient ? <ClientRelationsPage /> : <Navigate to="/clients" replace />} />
         <Route path="clients/profile" element={isTrainer ? <TrainerClientProfilePage /> : <Navigate to="/home" replace />} />
         <Route path="analytics" element={isTrainer ? <AnalyticsPage /> : <Navigate to="/home" replace />} />
         <Route path="exercises" element={isTrainer ? <ExercisesPage /> : <Navigate to="/home" replace />} />
@@ -37,7 +40,7 @@ function App() {
         <Route path="profile" element={<ProfilePage />} />
 
         <Route path="dashboard" element={<Navigate to="/home" replace />} />
-        <Route path="relations" element={<Navigate to="/clients" replace />} />
+        <Route path="relations" element={<Navigate to={isTrainer ? '/clients' : '/trainers'} replace />} />
         <Route path="catalog" element={<Navigate to={isTrainer ? '/exercises' : '/home'} replace />} />
         <Route path="profiles" element={<Navigate to="/profile" replace />} />
       </Route>
