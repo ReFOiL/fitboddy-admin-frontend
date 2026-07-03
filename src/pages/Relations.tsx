@@ -23,20 +23,15 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Skeleton } from '../components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { isProfileCompleted } from '../lib/profile-completion'
 
 export function RelationsPage() {
   const { user } = useAuth()
   const trainerUserId = user?.role === 'trainer' ? user.user_id : ''
   const clientUserId = user?.role === 'client' ? user.user_id : ''
-  const [trainerMarketplaceTab, setTrainerMarketplaceTab] = useState<'my-clients' | 'clients-looking'>('my-clients')
   const [myClientsPage, setMyClientsPage] = useState(1)
   const [myClientsSearch, setMyClientsSearch] = useState('')
-  const [clientsLookingPage, setClientsLookingPage] = useState(1)
-  const [clientsLookingSearch, setClientsLookingSearch] = useState('')
   const myClientsSearchDeferred = useDeferredValue(myClientsSearch)
-  const clientsLookingSearchDeferred = useDeferredValue(clientsLookingSearch)
   const {
     trainerClientsPaginatedQuery,
     trainerInvitesQuery,
@@ -44,8 +39,6 @@ export function RelationsPage() {
     trainerEndedRelationsQuery,
     trainerPublicationStatusQuery,
     trainersQuery,
-    clientsLookingQuery,
-    clientsLookingPaginatedQuery,
     incomingInvitesQuery,
     createRelationMutation,
     acceptRelationMutation,
@@ -60,11 +53,6 @@ export function RelationsPage() {
       pageSize: 6,
       search: myClientsSearchDeferred,
     },
-    clientsLookingPage: {
-      page: clientsLookingPage,
-      pageSize: 6,
-      search: clientsLookingSearchDeferred,
-    },
   })
   const trainerInvites = Array.isArray(trainerInvitesQuery.data) ? trainerInvitesQuery.data : []
   const trainerDeclinedRelations = Array.isArray(trainerDeclinedRelationsQuery.data)
@@ -72,12 +60,10 @@ export function RelationsPage() {
     : []
   const trainerEndedRelations = Array.isArray(trainerEndedRelationsQuery.data) ? trainerEndedRelationsQuery.data : []
   const trainers = Array.isArray(trainersQuery.data) ? trainersQuery.data : []
-  const clientsLooking = Array.isArray(clientsLookingQuery.data) ? clientsLookingQuery.data : []
   const incomingInvites = Array.isArray(incomingInvitesQuery.data) ? incomingInvitesQuery.data : []
   const isTrainer = user?.role === 'trainer'
   const isClient = user?.role === 'client'
   const selfVisibleAsTrainer = Boolean(trainerPublicationStatusQuery.data?.is_published)
-  const selfVisibleAsClient = Boolean(user?.user_id && clientsLooking.some((client) => client.user_id === user.user_id))
   const trainerVisibilityLabel = trainerPublicationStatusQuery.isLoading
     ? 'Проверяем...'
     : trainerPublicationStatusQuery.isError
@@ -97,10 +83,6 @@ export function RelationsPage() {
   const myClients = myClientsPageData?.items ?? []
   const myClientsTotal = myClientsPageData?.total ?? 0
   const myClientsTotalPages = myClientsPageData?.total_pages ?? 1
-  const clientsLookingPageData = clientsLookingPaginatedQuery.data
-  const clientsLookingPaged = clientsLookingPageData?.items ?? []
-  const clientsLookingTotal = clientsLookingPageData?.total ?? 0
-  const clientsLookingTotalPages = clientsLookingPageData?.total_pages ?? 1
 
   return (
     <div className="space-y-6">
@@ -159,9 +141,7 @@ export function RelationsPage() {
           ) : null}
           {isClient ? (
             <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-              <span className="mb-3 block text-sm">
-                Статус клиента в поиске: {selfVisibleAsClient ? 'Ищу тренера' : 'Не опубликован'}
-              </span>
+              <span className="mb-3 block text-sm">Опубликуйте профиль, чтобы тренеры могли отправлять приглашения.</span>
               <Button
                 size="sm"
                 onClick={() => {
@@ -175,9 +155,9 @@ export function RelationsPage() {
                     },
                   })
                 }}
-                disabled={upsertDiscoveryProfileMutation.isPending || mustCompleteQuestionnaire || selfVisibleAsClient}
+                disabled={upsertDiscoveryProfileMutation.isPending || mustCompleteQuestionnaire}
               >
-                {selfVisibleAsClient ? 'Профиль клиента опубликован' : 'Опубликовать профиль клиента'}
+                Опубликовать профиль клиента
               </Button>
             </div>
           ) : null}
@@ -433,207 +413,110 @@ export function RelationsPage() {
                 <Users size={18} className="text-primary" />
                 Клиенты
               </CardTitle>
-              <CardDescription>Управляйте текущими клиентами и находите новых, которые сейчас ищут тренера.</CardDescription>
+              <CardDescription>Управляйте текущими клиентами.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs value={trainerMarketplaceTab} onValueChange={(value) => setTrainerMarketplaceTab(value as 'my-clients' | 'clients-looking')}>
-                <TabsList className="w-full justify-start">
-                  <TabsTrigger value="my-clients">Мои клиенты</TabsTrigger>
-                  <TabsTrigger value="clients-looking">Клиенты в поиске тренера</TabsTrigger>
-                </TabsList>
+              <div className="space-y-3">
+                <Input
+                  value={myClientsSearch}
+                  onChange={(event) => {
+                    setMyClientsSearch(event.target.value)
+                    setMyClientsPage(1)
+                  }}
+                  placeholder="Поиск по имени клиента"
+                />
+              </div>
 
-                <TabsContent value="my-clients" className="space-y-4">
-                  <div className="space-y-3">
-                    <Input
-                      value={myClientsSearch}
-                      onChange={(event) => {
-                        setMyClientsSearch(event.target.value)
-                        setMyClientsPage(1)
-                      }}
-                      placeholder="Поиск по имени клиента"
-                    />
-                  </div>
-
-                  {trainerClientsPaginatedQuery.isLoading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="h-28 w-full rounded-xl" />
-                      <Skeleton className="h-28 w-full rounded-xl" />
-                    </div>
-                  ) : null}
-                  {trainerClientsPaginatedQuery.isError ? (
-                    <span className="text-sm text-destructive">Не удалось загрузить список активных клиентов.</span>
-                  ) : null}
-                  {!trainerClientsPaginatedQuery.isLoading && !trainerClientsPaginatedQuery.isError ? (
-                    <>
-                      <div className="space-y-2">
-                        {myClients.length === 0 ? (
-                          <span className="text-sm text-secondary-foreground">По текущим фильтрам клиентов не найдено.</span>
-                        ) : (
-                          myClients.map((relation) => (
-                            <div
-                              key={relation.relation_id}
-                              className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm"
+              {trainerClientsPaginatedQuery.isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-28 w-full rounded-xl" />
+                  <Skeleton className="h-28 w-full rounded-xl" />
+                </div>
+              ) : null}
+              {trainerClientsPaginatedQuery.isError ? (
+                <span className="text-sm text-destructive">Не удалось загрузить список активных клиентов.</span>
+              ) : null}
+              {!trainerClientsPaginatedQuery.isLoading && !trainerClientsPaginatedQuery.isError ? (
+                <>
+                  <div className="space-y-2">
+                    {myClients.length === 0 ? (
+                      <span className="text-sm text-secondary-foreground">По текущим фильтрам клиентов не найдено.</span>
+                    ) : (
+                      myClients.map((relation) => (
+                        <div
+                          key={relation.relation_id}
+                          className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm"
+                        >
+                          <div className="mb-1 flex items-center gap-2">
+                            <UserCheck size={16} className="text-primary" />
+                            <span className="font-medium">
+                              {relation.client_display_name ||
+                                formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
+                            </span>
+                          </div>
+                          {relation.client_display_name ? (
+                            <div className="mb-2 text-xs text-secondary-foreground">
+                              {formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
+                            </div>
+                          ) : null}
+                          <div className="mb-3 inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
+                            Статус: активен
+                          </div>
+                          <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
+                            Источник: {relation.source === 'invite' ? 'приглашение' : 'прямое подключение'}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button asChild size="sm">
+                              <Link to={`/profile?client=${encodeURIComponent(relation.client_user_id)}`}>Открыть профиль</Link>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                if (!user?.user_id) return
+                                leaveRelationMutation.mutate({
+                                  relationId: relation.relation_id,
+                                  actingUserId: user.user_id,
+                                })
+                              }}
+                              disabled={leaveRelationMutation.isPending}
                             >
-                              <div className="mb-1 flex items-center gap-2">
-                                <UserCheck size={16} className="text-primary" />
-                                <span className="font-medium">
-                                  {relation.client_display_name ||
-                                    formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
-                                </span>
-                              </div>
-                              {relation.client_display_name ? (
-                                <div className="mb-2 text-xs text-secondary-foreground">
-                                  {formatIdentity({ login: relation.client_login, userId: relation.client_user_id })}
-                                </div>
-                              ) : null}
-                              <div className="mb-3 inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
-                                Статус: активен
-                              </div>
-                              <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
-                                Источник: {relation.source === 'invite' ? 'приглашение' : 'прямое подключение'}
-                              </div>
-                              <div className="flex gap-2">
-                                <Button asChild size="sm">
-                                  <Link to={`/profile?client=${encodeURIComponent(relation.client_user_id)}`}>Открыть профиль</Link>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => {
-                                    if (!user?.user_id) return
-                                    leaveRelationMutation.mutate({
-                                      relationId: relation.relation_id,
-                                      actingUserId: user.user_id,
-                                    })
-                                  }}
-                                  disabled={leaveRelationMutation.isPending}
-                                >
-                                  <Link2Off size={14} />
-                                  Завершить
-                                </Button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-border/70 bg-secondary/20 px-3 py-2 text-xs text-secondary-foreground">
-                        <span>Всего: {myClientsTotal}</span>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setMyClientsPage((current) => Math.max(1, current - 1))}
-                            disabled={myClientsPage <= 1}
-                          >
-                            <ChevronLeft size={14} />
-                            Назад
-                          </Button>
-                          <span>
-                            Страница {myClientsPage} из {myClientsTotalPages}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setMyClientsPage((current) => Math.min(myClientsTotalPages, current + 1))}
-                            disabled={myClientsPage >= myClientsTotalPages}
-                          >
-                            Вперед
-                            <ChevronRight size={14} />
-                          </Button>
+                              <Link2Off size={14} />
+                              Завершить
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </>
-                  ) : null}
-                </TabsContent>
-
-                <TabsContent value="clients-looking" className="space-y-4">
-                  <Input
-                    value={clientsLookingSearch}
-                    onChange={(event) => {
-                      setClientsLookingSearch(event.target.value)
-                      setClientsLookingPage(1)
-                    }}
-                    placeholder="Поиск по имени клиента"
-                  />
-
-                  {clientsLookingPaginatedQuery.isLoading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="h-24 w-full rounded-xl" />
-                      <Skeleton className="h-24 w-full rounded-xl" />
+                      ))
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border/70 bg-secondary/20 px-3 py-2 text-xs text-secondary-foreground">
+                    <span>Всего: {myClientsTotal}</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setMyClientsPage((current) => Math.max(1, current - 1))}
+                        disabled={myClientsPage <= 1}
+                      >
+                        <ChevronLeft size={14} />
+                        Назад
+                      </Button>
+                      <span>
+                        Страница {myClientsPage} из {myClientsTotalPages}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setMyClientsPage((current) => Math.min(myClientsTotalPages, current + 1))}
+                        disabled={myClientsPage >= myClientsTotalPages}
+                      >
+                        Вперед
+                        <ChevronRight size={14} />
+                      </Button>
                     </div>
-                  ) : null}
-                  {clientsLookingPaginatedQuery.isError ? (
-                    <span className="text-sm text-destructive">Не удалось загрузить список клиентов.</span>
-                  ) : null}
-                  {!clientsLookingPaginatedQuery.isLoading && !clientsLookingPaginatedQuery.isError ? (
-                    <>
-                      <div className="space-y-3">
-                        {clientsLookingPaged.length === 0 ? (
-                          <span className="text-sm text-secondary-foreground">Сейчас нет клиентов в поиске.</span>
-                        ) : (
-                          clientsLookingPaged.map((client) => (
-                            <div key={client.user_id} className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm">
-                              <div className="mb-1 flex items-center gap-2">
-                                <Sparkles size={16} className="text-primary" />
-                                <span className="font-medium">Клиент</span>
-                              </div>
-                              <div className="mb-3 text-secondary-foreground">
-                                {formatIdentity({ login: client.login, userId: client.user_id })}
-                              </div>
-                              {client.display_name ? <div className="mb-2 font-medium">{client.display_name}</div> : null}
-                              <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
-                                Готов к сотрудничеству
-                              </div>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  if (!trainerUserId) return
-                                  createRelationMutation.mutate({
-                                    acting_user_id: trainerUserId,
-                                    trainer_user_id: trainerUserId,
-                                    client_user_id: client.user_id,
-                                    mode: 'invite',
-                                  })
-                                }}
-                                disabled={createRelationMutation.isPending}
-                              >
-                                <Link2 size={14} />
-                                Пригласить
-                              </Button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between rounded-xl border border-border/70 bg-secondary/20 px-3 py-2 text-xs text-secondary-foreground">
-                        <span>Всего: {clientsLookingTotal}</span>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setClientsLookingPage((current) => Math.max(1, current - 1))}
-                            disabled={clientsLookingPage <= 1}
-                          >
-                            <ChevronLeft size={14} />
-                            Назад
-                          </Button>
-                          <span>
-                            Страница {clientsLookingPage} из {clientsLookingTotalPages}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setClientsLookingPage((current) => Math.min(clientsLookingTotalPages, current + 1))}
-                            disabled={clientsLookingPage >= clientsLookingTotalPages}
-                          >
-                            Вперед
-                            <ChevronRight size={14} />
-                          </Button>
-                        </div>
-                      </div>
-                    </>
-                  ) : null}
-                </TabsContent>
-              </Tabs>
+                  </div>
+                </>
+              ) : null}
             </CardContent>
           </Card>
         </>
