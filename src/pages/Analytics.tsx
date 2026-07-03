@@ -1,7 +1,7 @@
 import { BarChart3 } from 'lucide-react'
 
 import { useAuth } from '../hooks/use-auth'
-import { useTrainerRelations } from '../hooks/use-relations'
+import { useTrainerRelations } from '../hooks'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
 

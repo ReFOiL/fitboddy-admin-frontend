@@ -3,7 +3,7 @@ import { Check, Sparkles, Users, X } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
-import { AsyncTextState } from '../shared/AsyncState'
+import { AsyncTextState } from '../shared'
 import { formatRelationIdentity } from '../../lib/relations-formatters'
 import type { TrainerClientRelation } from '../../types/relation'
 

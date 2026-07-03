@@ -1,10 +1,6 @@
 import { useProfile } from '../hooks/use-profile'
-import { useClientRelations } from '../hooks/use-relations'
-import { useUserIdGuard } from '../hooks/use-user-id-guard'
-import { useClientRelationActions } from '../hooks/use-relation-actions'
-import { ClientProfileRequiredCard } from '../components/client-relations/ClientProfileRequiredCard'
-import { IncomingInvitesCard } from '../components/client-relations/IncomingInvitesCard'
-import { TrainerSelectionCard } from '../components/client-relations/TrainerSelectionCard'
+import { useClientRelationActions, useClientRelations, useUserIdGuard } from '../hooks'
+import { ClientProfileRequiredCard, IncomingInvitesCard, TrainerSelectionCard } from '../components/client-relations'
 import { isProfileCompleted } from '../lib/profile-completion'
 
 export function ClientRelationsPage() {

@@ -4,7 +4,7 @@ import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
 import { Skeleton } from '../ui/skeleton'
-import { AsyncTextState } from '../shared/AsyncState'
+import { AsyncTextState } from '../shared'
 import type { TrainerClientRelation } from '../../types/relation'
 import { TrainerClientItem } from './TrainerClientItem'
 

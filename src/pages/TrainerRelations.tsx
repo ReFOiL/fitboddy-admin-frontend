@@ -1,10 +1,7 @@
 import { useDeferredValue, useState } from 'react'
 
-import { useTrainerRelations } from '../hooks/use-relations'
-import { useTrainerRelationActions } from '../hooks/use-relation-actions'
-import { useUserIdGuard } from '../hooks/use-user-id-guard'
-import { TrainerClientsCard } from '../components/trainer-relations/TrainerClientsCard'
-import { TrainerVisibilityCard } from '../components/trainer-relations/TrainerVisibilityCard'
+import { useTrainerRelationActions, useTrainerRelations, useUserIdGuard } from '../hooks'
+import { TrainerClientsCard, TrainerVisibilityCard } from '../components/trainer-relations'
 
 export function TrainerRelationsPage() {
   const { user, userId, withUserId } = useUserIdGuard()

@@ -5,10 +5,7 @@ import { useProfile } from '../hooks/use-profile'
 import { useClientRelations } from '../hooks/use-relations'
 import { usePlans } from '../hooks/use-plans'
 import { isProfileCompleted } from '../lib/profile-completion'
-import { ClientPlanGeneratorCard } from '../components/dashboard/ClientPlanGeneratorCard'
-import { HeroCard } from '../components/dashboard/HeroCard'
-import { MyProfileCard } from '../components/dashboard/MyProfileCard'
-import { QuickActionsSection } from '../components/dashboard/QuickActionsSection'
+import { ClientPlanGeneratorCard, HeroCard, MyProfileCard, QuickActionsSection } from '../components/dashboard'
 
 export function DashboardPage() {
   const { user } = useAuth()

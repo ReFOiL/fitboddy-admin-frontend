@@ -5,7 +5,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
-import { useTrainerRelations } from '../hooks/use-relations'
+import { useTrainerRelations } from '../hooks'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Label } from '../components/ui/label'

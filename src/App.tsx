@@ -1,11 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
-import { ProtectedRoute } from './components/ProtectedRoute'
-import { RoleRoute } from './components/RoleRoute'
-import { RouteErrorBoundary } from './components/RouteErrorBoundary'
+import { ProtectedRoute, RoleRoute, RouteErrorBoundary } from './components'
 import { MainLayout } from './components/layout/MainLayout'
-import { APP_PATHS, type AppRole, resolveCatalogPath, resolveDocumentTitle, resolveRelationsPath } from './config/app-routes'
+import { APP_PATHS, type AppRole, resolveCatalogPath, resolveDocumentTitle, resolveRelationsPath } from './config'
 import { useAuth } from './hooks/use-auth'
 
 const AnalyticsPage = lazy(async () => ({ default: (await import('./pages/Analytics')).AnalyticsPage }))

@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { BarChart3, ClipboardList, Dumbbell, Home, Users } from 'lucide-react'
 
-import { APP_BRAND_NAME } from '../../config/brand'
+import { APP_BRAND_NAME } from '../../config'
 import { useAuth } from '../../hooks/use-auth'
 import { Button } from '../ui/button'
 
