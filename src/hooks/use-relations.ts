@@ -97,16 +97,6 @@ export function useRelations(params: UseRelationsParams) {
     retry: false,
   })
 
-  const trainerInvitesQuery = useQuery({
-    queryKey: queryKeys.relations.trainerClients(trainerUserId, 'invited'),
-    queryFn: async () => {
-      const payload = await listTrainerClients(trainerUserId, 'invited')
-      return Array.isArray(payload) ? payload : []
-    },
-    enabled: Boolean(trainerUserId),
-    retry: false,
-  })
-
   const trainerFunnelQuery = useQuery({
     queryKey: queryKeys.relations.trainerFunnel(trainerUserId),
     queryFn: async () => getTrainerFunnel(trainerUserId),
@@ -117,26 +107,6 @@ export function useRelations(params: UseRelationsParams) {
   const trainerPublicationStatusQuery = useQuery({
     queryKey: queryKeys.relations.trainerPublicationStatus(trainerUserId),
     queryFn: async () => getTrainerPublicationStatus(trainerUserId),
-    enabled: Boolean(trainerUserId),
-    retry: false,
-  })
-
-  const trainerDeclinedRelationsQuery = useQuery({
-    queryKey: queryKeys.relations.trainerClients(trainerUserId, 'declined'),
-    queryFn: async () => {
-      const payload = await listTrainerClients(trainerUserId, 'declined')
-      return Array.isArray(payload) ? payload : []
-    },
-    enabled: Boolean(trainerUserId),
-    retry: false,
-  })
-
-  const trainerEndedRelationsQuery = useQuery({
-    queryKey: queryKeys.relations.trainerClients(trainerUserId, 'ended'),
-    queryFn: async () => {
-      const payload = await listTrainerClients(trainerUserId, 'ended')
-      return Array.isArray(payload) ? payload : []
-    },
     enabled: Boolean(trainerUserId),
     retry: false,
   })
@@ -224,9 +194,6 @@ export function useRelations(params: UseRelationsParams) {
     trainerClientsPaginatedQuery,
     trainerFunnelQuery,
     trainerPublicationStatusQuery,
-    trainerInvitesQuery,
-    trainerDeclinedRelationsQuery,
-    trainerEndedRelationsQuery,
     trainersQuery,
     incomingInvitesQuery,
     clientActiveRelationQuery,
