@@ -46,8 +46,6 @@ export type DiscoveryProfile = {
   login?: string | null
   display_name?: string | null
   role: 'trainer' | 'client'
-  is_visible: boolean
-  looking_for_trainer: boolean
   created_at: string
   updated_at: string
 }
@@ -55,7 +53,6 @@ export type DiscoveryProfile = {
 export type UpsertDiscoveryProfileRequest = {
   role: 'trainer' | 'client'
   is_visible: boolean
-  looking_for_trainer: boolean
 }
 
 export type PaginatedResult<T> = {

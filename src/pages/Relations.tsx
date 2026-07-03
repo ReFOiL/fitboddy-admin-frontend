@@ -115,18 +115,18 @@ export function RelationsPage() {
         </Card>
       ) : null}
 
-      <Card className="overflow-hidden border-primary/30">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye size={18} className="text-primary" />
-            Видимость профиля
-          </CardTitle>
-          <CardDescription>
-            Вы можете в любой момент публиковать профиль для поиска и скрывать его обратно.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          {isTrainer ? (
+      {isTrainer ? (
+        <Card className="overflow-hidden border-primary/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye size={18} className="text-primary" />
+              Видимость профиля
+            </CardTitle>
+            <CardDescription>
+              Вы можете в любой момент публиковать профиль для поиска и скрывать его обратно.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
             <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
               <span className="mb-3 block text-sm">
                 Статус тренера в поиске: {trainerVisibilityLabel}
@@ -140,7 +140,6 @@ export function RelationsPage() {
                     payload: {
                       role: 'trainer',
                       is_visible: !selfVisibleAsTrainer,
-                      looking_for_trainer: false,
                     },
                   })
                 }}
@@ -149,31 +148,9 @@ export function RelationsPage() {
                 {selfVisibleAsTrainer ? 'Скрыть профиль тренера' : 'Опубликовать профиль тренера'}
               </Button>
             </div>
-          ) : null}
-          {isClient ? (
-            <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-              <span className="mb-3 block text-sm">Опубликуйте профиль, чтобы тренеры могли отправлять приглашения.</span>
-              <Button
-                size="sm"
-                onClick={() => {
-                  if (!user?.user_id) return
-                  upsertDiscoveryProfileMutation.mutate({
-                    userId: user.user_id,
-                    payload: {
-                      role: 'client',
-                      is_visible: true,
-                      looking_for_trainer: true,
-                    },
-                  })
-                }}
-                disabled={upsertDiscoveryProfileMutation.isPending || mustCompleteQuestionnaire}
-              >
-                Опубликовать профиль клиента
-              </Button>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isClient ? (
         <Card className="border-primary/20">

@@ -160,7 +160,7 @@ export function useRelations(params: UseRelationsParams) {
       if (data.role === 'trainer') {
         queryClient.setQueryData(queryKeys.relations.trainerPublicationStatus(params.userId), {
           trainer_user_id: params.userId,
-          is_published: data.is_visible,
+          is_published: params.payload.is_visible,
         })
       }
       invalidateDiscoveryVisibility(params)
