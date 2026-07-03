@@ -23,10 +23,8 @@ export function DashboardPage() {
   const [workoutLocation, setWorkoutLocation] = useState('home')
   const [workoutsPerWeek, setWorkoutsPerWeek] = useState(3)
   const { clientActiveRelationQuery } = useRelations({ trainerUserId: '', clientUserId: user?.user_id ?? '' })
-  const activeRelationErrorStatus = axios.isAxiosError(clientActiveRelationQuery.error)
-    ? clientActiveRelationQuery.error.response?.status
-    : undefined
-  const hasNoActiveRelation = activeRelationErrorStatus === 404
+  const hasNoActiveRelation =
+    !clientActiveRelationQuery.isLoading && !clientActiveRelationQuery.isError && !clientActiveRelationQuery.data
   const activeTrainerUserId = clientActiveRelationQuery.data?.trainer_user_id ?? ''
   const activeTrainerLogin = clientActiveRelationQuery.data?.trainer_login ?? null
   const activeTrainerDisplay = activeTrainerLogin?.trim() ? activeTrainerLogin : activeTrainerUserId

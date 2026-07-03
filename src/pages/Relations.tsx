@@ -40,6 +40,7 @@ export function RelationsPage() {
     trainerPublicationStatusQuery,
     trainersQuery,
     incomingInvitesQuery,
+    clientActiveRelationQuery,
     createRelationMutation,
     acceptRelationMutation,
     upsertDiscoveryProfileMutation,
@@ -83,6 +84,8 @@ export function RelationsPage() {
   const myClients = myClientsPageData?.items ?? []
   const myClientsTotal = myClientsPageData?.total ?? 0
   const myClientsTotalPages = myClientsPageData?.total_pages ?? 1
+  const activeRelation = clientActiveRelationQuery.data
+  const hasActiveTrainer = Boolean(activeRelation?.trainer_user_id)
 
   return (
     <div className="space-y-6">
@@ -279,6 +282,7 @@ export function RelationsPage() {
                         size="sm"
                         onClick={() => {
                           if (!user?.user_id) return
+                          if (hasActiveTrainer || createRelationMutation.isPending) return
                           createRelationMutation.mutate({
                             acting_user_id: user.user_id,
                             trainer_user_id: trainer.user_id,
@@ -286,15 +290,33 @@ export function RelationsPage() {
                             mode: 'direct',
                           })
                         }}
-                        disabled={createRelationMutation.isPending || mustCompleteQuestionnaire}
+                        disabled={
+                          createRelationMutation.isPending ||
+                          mustCompleteQuestionnaire ||
+                          clientActiveRelationQuery.isLoading ||
+                          clientActiveRelationQuery.isError ||
+                          hasActiveTrainer
+                        }
                       >
                         <Link2 size={14} />
-                        Подключиться
+                        {createRelationMutation.isPending
+                          ? 'Подключаем...'
+                          : hasActiveTrainer
+                            ? 'Уже подключен'
+                            : 'Подключиться'}
                       </Button>
                     </div>
                   ))
                 )}
               </div>
+            ) : null}
+            {!clientActiveRelationQuery.isLoading && !clientActiveRelationQuery.isError && hasActiveTrainer ? (
+              <span className="text-sm text-secondary-foreground">
+                Активная связь уже есть. Завершите текущую связь, чтобы выбрать другого тренера.
+              </span>
+            ) : null}
+            {clientActiveRelationQuery.isError ? (
+              <span className="text-sm text-destructive">Не удалось проверить активную связь с тренером.</span>
             ) : null}
           </CardContent>
         </Card>

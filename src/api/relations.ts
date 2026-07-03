@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { apiClient } from './client'
 import type {
   CreateRelationRequest,
@@ -85,11 +86,18 @@ export async function listIncomingInvites(clientUserId: string): Promise<Trainer
   return Array.isArray(data) ? data : []
 }
 
-export async function getClientActiveRelation(clientUserId: string): Promise<TrainerClientRelation> {
-  const { data } = await apiClient.get<TrainerClientRelation>(
-    `/api/v1/marketplace/clients/${encodeURIComponent(clientUserId)}/active-relation`,
-  )
-  return data
+export async function getClientActiveRelation(clientUserId: string): Promise<TrainerClientRelation | null> {
+  try {
+    const { data } = await apiClient.get<TrainerClientRelation>(
+      `/api/v1/marketplace/clients/${encodeURIComponent(clientUserId)}/active-relation`,
+    )
+    return data
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return null
+    }
+    throw error
+  }
 }
 
 export async function getTrainerFunnel(trainerUserId: string): Promise<TrainerFunnelMetrics> {
