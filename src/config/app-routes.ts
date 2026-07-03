@@ -10,6 +10,7 @@ export const APP_PATHS = {
   clients: '/clients',
   trainers: '/trainers',
   clientProfile: '/clients/profile',
+  planGeneration: '/plan-generation',
   analytics: '/analytics',
   exercises: '/exercises',
   exerciseDetails: '/exercises/:exerciseId',
@@ -49,6 +50,10 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Профиль клиента',
     matches: (pathname) => pathname === APP_PATHS.clientProfile,
+  },
+  {
+    title: 'Генерация плана',
+    matches: (pathname) => pathname === APP_PATHS.planGeneration,
   },
   {
     title: 'Аналитика',

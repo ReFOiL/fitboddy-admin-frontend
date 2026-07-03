@@ -4,7 +4,7 @@ export type GeneratePlanRequest = {
   goal: string
   level: string
   workout_location: string
-  workouts_per_week: number
+  workouts_per_week?: number
   equipment: string[]
 }
 
