@@ -1,14 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
-import { Activity, Check, Target, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Activity, Check, X } from 'lucide-react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
-import { useRelations } from '../hooks/use-relations'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -148,36 +146,8 @@ function ChipsMultiSelect({ options, value, onChange, disabled }: ChipsMultiSele
 
 export function ProfilePage() {
   const { user } = useAuth()
-  const [searchParams] = useSearchParams()
-  const preselectedClient = searchParams.get('client')
-  const initialUserId = preselectedClient || user?.user_id || ''
-  const [clientSearchQuery, setClientSearchQuery] = useState('')
-  const [targetUserId, setTargetUserId] = useState(initialUserId)
+  const targetUserId = user?.user_id ?? ''
   const { profileQuery, metaQuery, upsertMutation, uploadAvatarMutation } = useProfile(targetUserId)
-  const trainerUserId = user?.role === 'trainer' ? user.user_id : ''
-  const { trainerClientsQuery } = useRelations({ trainerUserId, clientUserId: '' })
-  const trainerClients = Array.isArray(trainerClientsQuery.data) ? trainerClientsQuery.data : []
-  const formatClientIdentity = (relation: (typeof trainerClients)[number]): string => {
-    const displayName = relation.client_display_name?.trim()
-    if (displayName) return displayName
-    const login = relation.client_login?.trim()
-    if (login) return login
-    return 'Клиент'
-  }
-  const normalizedClientSearch = clientSearchQuery.trim().toLowerCase()
-  const selectedClientRelation = trainerClients.find((relation) => relation.client_user_id === targetUserId)
-  const filteredTrainerClients = trainerClients.filter((relation) => {
-    if (!normalizedClientSearch) return true
-    return formatClientIdentity(relation).toLowerCase().includes(normalizedClientSearch)
-  })
-  const filteredClientOptions = filteredTrainerClients.map((relation) => ({
-    value: relation.client_user_id,
-    label: formatClientIdentity(relation),
-  }))
-  const trainerClientOptions =
-    selectedClientRelation && !filteredTrainerClients.some((relation) => relation.client_user_id === targetUserId)
-      ? [{ value: selectedClientRelation.client_user_id, label: formatClientIdentity(selectedClientRelation) }, ...filteredClientOptions]
-      : filteredClientOptions
 
   const goalOptions = metaQuery.data?.goals ?? []
   const levelOptions = metaQuery.data?.levels ?? []
@@ -201,11 +171,6 @@ export function ProfilePage() {
   })
 
   useEffect(() => {
-    if (!preselectedClient) return
-    setTargetUserId(preselectedClient)
-  }, [preselectedClient])
-
-  useEffect(() => {
     if (!profileQuery.data || typeof profileQuery.data !== 'object') return
     const profile = profileQuery.data as Record<string, unknown>
     form.reset({
@@ -225,13 +190,8 @@ export function ProfilePage() {
   const loadErrorStatus = axios.isAxiosError(profileQuery.error) ? profileQuery.error.response?.status : undefined
   const isNotFound = loadErrorStatus === 404
   const isForbidden = loadErrorStatus === 403
-  const canSwitchUser = user?.role === 'trainer'
-  const hasSelectedClientInList = trainerClients.some((relation) => relation.client_user_id === targetUserId)
   const avatarUrl = form.watch('avatar_url')
-  const isTrainerOwnProfile = user?.role === 'trainer' && targetUserId === user.user_id
-  const isTrainerClientView = user?.role === 'trainer' && !isTrainerOwnProfile
-  const isProfileReadOnly = isTrainerClientView
-  const showClientSelectionCard = isTrainerClientView
+  const isTrainerOwnProfile = user?.role === 'trainer'
   const questionnaireRequired = !isTrainerOwnProfile
   const selectedWorkoutLocation = form.watch('workout_location')
   const selectedEquipment = form.watch('equipment')
@@ -246,71 +206,6 @@ export function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      {showClientSelectionCard ? (
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target size={18} className="text-primary" />
-              Профиль клиента
-            </CardTitle>
-            <CardDescription>
-              Просмотр анкеты клиента доступен только при активной связи.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="active_client_search">Поиск по активным клиентам</Label>
-              <Input
-                id="active_client_search"
-                value={clientSearchQuery}
-                onChange={(event) => setClientSearchQuery(event.target.value)}
-                disabled={!canSwitchUser}
-                placeholder="Начни вводить имя или логин клиента..."
-              />
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label htmlFor="active_client_select">Клиент</Label>
-              <StyledSelect
-                id="active_client_select"
-                placeholder="Выбери клиента из результатов поиска..."
-                value={hasSelectedClientInList ? targetUserId : undefined}
-                options={trainerClientOptions}
-                disabled={!canSwitchUser || trainerClientOptions.length === 0}
-                onChange={(selected) => {
-                  if (!selected) return
-                  setTargetUserId(selected)
-                }}
-              />
-              {trainerClientOptions.length === 0 ? (
-                <span className="text-xs text-secondary-foreground">По этому запросу активные клиенты не найдены.</span>
-              ) : null}
-            </div>
-
-            {profileQuery.isFetching ? (
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-10 w-full rounded-xl" />
-              </div>
-            ) : null}
-
-            {isNotFound ? (
-              <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
-                {isProfileReadOnly
-                  ? 'Профиль клиента пока не создан.'
-                  : 'Профиль пока не создан. Заполни форму и нажми «Сохранить профиль».'}
-              </span>
-            ) : null}
-
-            {isForbidden ? (
-              <span className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                Доступ запрещен: проверь роль пользователя и активную связь с клиентом.
-              </span>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
       <div className="grid gap-6">
         <Card className="border-primary/20">
           <CardHeader>
@@ -328,7 +223,6 @@ export function ProfilePage() {
             <form
               className="grid gap-4"
               onSubmit={form.handleSubmit((values) => {
-                if (isProfileReadOnly) return
                 const goalValue = values.goal
                 const experienceValue = values.experience_level
                 const workoutLocationValue = values.workout_location
@@ -386,15 +280,20 @@ export function ProfilePage() {
                   Это ваш профиль тренера. Заполните личные данные и фото.
                 </span>
               ) : null}
-              {isProfileReadOnly ? (
+              {isNotFound ? (
                 <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
-                  Профиль клиента доступен только для просмотра. Редактировать данные может только сам клиент.
+                  Профиль пока не создан. Заполни форму и нажми «Сохранить профиль».
+                </span>
+              ) : null}
+              {isForbidden ? (
+                <span className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  Доступ запрещен.
                 </span>
               ) : null}
 
               <div className="grid gap-1.5">
                 <Label htmlFor="full_name">Имя и фамилия</Label>
-                <Input id="full_name" {...form.register('full_name')} placeholder="Например: Иван Иванов" disabled={isProfileReadOnly} />
+                <Input id="full_name" {...form.register('full_name')} placeholder="Например: Иван Иванов" />
                 {form.formState.errors.full_name?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.full_name.message}</span>
                 ) : null}
@@ -416,7 +315,7 @@ export function ProfilePage() {
                     })
                     event.currentTarget.value = ''
                   }}
-                  disabled={isProfileReadOnly || !targetUserId || uploadAvatarMutation.isPending}
+                  disabled={!targetUserId || uploadAvatarMutation.isPending}
                 />
                 <span className="text-xs text-secondary-foreground">
                   Поддерживаются JPG/PNG/WebP, до 5MB.
@@ -451,7 +350,7 @@ export function ProfilePage() {
 
               <div className="grid gap-1.5">
                 <Label htmlFor="city">Город</Label>
-                <Input id="city" {...form.register('city')} placeholder="Сидней" disabled={isProfileReadOnly} />
+                <Input id="city" {...form.register('city')} placeholder="Сидней" />
                 {form.formState.errors.city?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.city.message}</span>
                 ) : null}
@@ -464,7 +363,6 @@ export function ProfilePage() {
                   className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70"
                   {...form.register('bio')}
                   placeholder="Коротко о себе, опыте и целях."
-                  disabled={isProfileReadOnly}
                 />
                 {form.formState.errors.bio?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.bio.message}</span>
@@ -479,9 +377,8 @@ export function ProfilePage() {
                     value={form.watch('goal')}
                     options={goalOptions}
                     placeholder="Выбери цель..."
-                    onChange={(nextValue) => form.setValue('goal', nextValue)}
+                    onChange={(nextValue) => form.setValue('goal', nextValue, { shouldDirty: true, shouldValidate: true })}
                     error={form.formState.errors.goal?.message}
-                    disabled={isProfileReadOnly}
                   />
 
                   <FancySelect
@@ -490,9 +387,10 @@ export function ProfilePage() {
                     value={form.watch('experience_level')}
                     options={levelOptions}
                     placeholder="Выбери уровень..."
-                    onChange={(nextValue) => form.setValue('experience_level', nextValue)}
+                    onChange={(nextValue) =>
+                      form.setValue('experience_level', nextValue, { shouldDirty: true, shouldValidate: true })
+                    }
                     error={form.formState.errors.experience_level?.message}
-                    disabled={isProfileReadOnly}
                   />
 
                   <FancySelect
@@ -501,9 +399,10 @@ export function ProfilePage() {
                     value={form.watch('workout_location')}
                     options={locationOptions}
                     placeholder="Выбери место..."
-                    onChange={(nextValue) => form.setValue('workout_location', nextValue)}
+                    onChange={(nextValue) =>
+                      form.setValue('workout_location', nextValue, { shouldDirty: true, shouldValidate: true })
+                    }
                     error={form.formState.errors.workout_location?.message}
-                    disabled={isProfileReadOnly}
                   />
 
                   {selectedWorkoutLocation === 'home' ? (
@@ -512,8 +411,9 @@ export function ProfilePage() {
                       <ChipsMultiSelect
                         options={equipmentOptions}
                         value={selectedEquipment}
-                        onChange={(nextValue) => form.setValue('equipment', nextValue, { shouldValidate: true })}
-                        disabled={isProfileReadOnly}
+                        onChange={(nextValue) =>
+                          form.setValue('equipment', nextValue, { shouldDirty: true, shouldValidate: true })
+                        }
                       />
                       {form.formState.errors.equipment?.message ? (
                         <span className="text-xs text-destructive">{form.formState.errors.equipment.message}</span>
@@ -528,7 +428,6 @@ export function ProfilePage() {
                       className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70"
                       {...form.register('limitations')}
                       placeholder="Например: травма колена"
-                      disabled={isProfileReadOnly}
                     />
                     {form.formState.errors.limitations?.message ? (
                       <span className="text-xs text-destructive">{form.formState.errors.limitations.message}</span>
@@ -542,7 +441,6 @@ export function ProfilePage() {
                       className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70"
                       {...form.register('medical_notes')}
                       placeholder="Дополнительная информация"
-                      disabled={isProfileReadOnly}
                     />
                     {form.formState.errors.medical_notes?.message ? (
                       <span className="text-xs text-destructive">{form.formState.errors.medical_notes.message}</span>
@@ -554,7 +452,7 @@ export function ProfilePage() {
               <Button
                 type="submit"
                 size="lg"
-                disabled={isProfileReadOnly || upsertMutation.isPending || !targetUserId || !isFormDirty}
+                disabled={upsertMutation.isPending || !targetUserId || !isFormDirty}
               >
                 Сохранить профиль
               </Button>

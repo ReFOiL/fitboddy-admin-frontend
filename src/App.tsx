@@ -10,6 +10,7 @@ import { ExercisesPage } from './pages/Exercises'
 import { LoginPage } from './pages/Login'
 import { ProfilePage } from './pages/Profile'
 import { RelationsPage } from './pages/Relations'
+import { TrainerClientProfilePage } from './pages/TrainerClientProfile'
 
 function App() {
   const { user } = useAuth()
@@ -29,6 +30,7 @@ function App() {
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<DashboardPage />} />
         <Route path="clients" element={<RelationsPage />} />
+        <Route path="clients/profile" element={isTrainer ? <TrainerClientProfilePage /> : <Navigate to="/home" replace />} />
         <Route path="analytics" element={isTrainer ? <AnalyticsPage /> : <Navigate to="/home" replace />} />
         <Route path="exercises" element={isTrainer ? <ExercisesPage /> : <Navigate to="/home" replace />} />
         <Route path="exercises/:exerciseId" element={isTrainer ? <ExerciseDetailsPage /> : <Navigate to="/home" replace />} />

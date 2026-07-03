@@ -431,7 +431,9 @@ export function RelationsPage() {
                             <div className="mt-3 text-xs text-secondary-foreground">С нами с {formatJoinedDate(relation.created_at)}</div>
                             <div className="mt-4 grid gap-2 sm:flex sm:gap-2">
                               <Button asChild size="sm" className="w-full sm:w-auto">
-                                <Link to={`/profile?client=${encodeURIComponent(relation.client_user_id)}`}>Открыть профиль</Link>
+                                <Link to="/clients/profile" state={{ clientUserId: relation.client_user_id }}>
+                                  Открыть профиль
+                                </Link>
                               </Button>
                               <Button
                                 size="sm"
