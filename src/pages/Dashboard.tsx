@@ -5,7 +5,7 @@ import { useProfile } from '../hooks/use-profile'
 import { useClientRelations } from '../hooks/use-relations'
 import { usePlans } from '../hooks/use-plans'
 import { isProfileCompleted } from '../lib/profile-completion'
-import { ClientPlanGeneratorCard, HeroCard, MyProfileCard, QuickActionsSection } from '../components/dashboard'
+import { ClientPlanGeneratorCard, HeroCard, QuickActionsSection } from '../components/dashboard'
 
 export function DashboardPage() {
   const { user } = useAuth()
@@ -41,13 +41,6 @@ export function DashboardPage() {
     <div className="space-y-6">
       <HeroCard login={user?.login} email={user?.email} roleLabel={roleLabel} />
       <QuickActionsSection relationsPath={relationsPath} relationsSectionLabel={relationsSectionLabel} />
-      <MyProfileCard
-        profile={profileQuery.data}
-        isLoading={profileQuery.isLoading}
-        hasNoProfile={hasNoProfile}
-        hasError={hasProfileError}
-        fallbackName={user?.email}
-      />
       {isClient ? (
         <ClientPlanGeneratorCard
           activeTrainerDisplay={activeTrainerDisplay}
