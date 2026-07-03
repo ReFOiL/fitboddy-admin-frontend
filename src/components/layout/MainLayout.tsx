@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { BarChart3, ClipboardList, Dumbbell, Home, Users } from 'lucide-react'
 
+import { APP_BRAND_NAME } from '../../config/brand'
 import { useAuth } from '../../hooks/use-auth'
 import { Button } from '../ui/button'
 
@@ -20,7 +21,7 @@ export function MainLayout() {
       <header className="border-b border-border/80 bg-[rgba(15,17,21,0.85)] backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-6">
           <div className="hidden rounded-lg border border-border/80 bg-secondary/60 px-3 py-1 text-xs text-secondary-foreground md:block">
-            Fitboddy Платформа
+            {APP_BRAND_NAME} Платформа
           </div>
           <nav className="hidden items-center gap-2 text-sm md:flex">
             <NavLink className={navItemClass} to="/home">
