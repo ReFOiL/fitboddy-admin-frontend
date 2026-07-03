@@ -390,7 +390,11 @@ export function ExercisesPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button asChild type="button" size="sm" variant="default">
-                        <Link to={`/exercises/${encodeURIComponent(exercise.exercise_id)}`}>Подробнее</Link>
+                        <Link
+                          to={`/exercises/${encodeURIComponent(exercise.exercise_id)}?row=${encodeURIComponent(exercise.row_id)}&active=${exercise.is_active ? '1' : '0'}`}
+                        >
+                          Подробнее
+                        </Link>
                       </Button>
                       {exercise.is_active ? (
                         <Button

@@ -34,10 +34,19 @@ export function StyledSelect({
     options.find((option) => option.value === value) ??
     options.find((option) => option.value.trim().toLowerCase() === normalizedValue)
   const resolvedValue = selectedOption?.value
+  const optionValues = options.map((option) => option.value)
+
+  const handleValueChange = (nextValue: string) => {
+    if (!nextValue) return
+    if (!optionValues.includes(nextValue)) {
+      return
+    }
+    onChange(nextValue)
+  }
 
   return (
     <div className={cn('relative', containerClassName)}>
-      <Select.Root value={resolvedValue} onValueChange={onChange} disabled={disabled}>
+      <Select.Root value={resolvedValue} onValueChange={handleValueChange} disabled={disabled}>
         <Select.Trigger
           id={id}
           aria-label={placeholder}

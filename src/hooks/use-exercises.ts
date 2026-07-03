@@ -9,7 +9,7 @@ import {
   queryKeys,
   updateTrainerExercise,
 } from '../api'
-import type { UpsertTrainerExerciseRequest } from '../types/exercise'
+import type { TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
 
 function extractErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) return fallback
@@ -36,10 +36,63 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     })
   }
 
+  const upsertExerciseInCatalogCache = (updatedExercise: TrainerExercise) => {
+    const writeCatalog = (showArchived: boolean) => {
+      queryClient.setQueryData<TrainerExercise[]>(
+        queryKeys.exercises.trainerCatalog(trainerUserId, showArchived),
+        (current) => {
+          if (!Array.isArray(current) || current.length === 0) {
+            return showArchived || updatedExercise.is_active ? [updatedExercise] : []
+          }
+
+          let found = false
+          const next = current.map((exercise) => {
+            if (exercise.exercise_id !== updatedExercise.exercise_id) return exercise
+            found = true
+            return updatedExercise
+          })
+
+          if (found) {
+            if (!showArchived && !updatedExercise.is_active) {
+              return next.filter((exercise) => exercise.exercise_id !== updatedExercise.exercise_id)
+            }
+            return next
+          }
+
+          if (!showArchived && !updatedExercise.is_active) return next
+          return [...next, updatedExercise]
+        },
+      )
+    }
+
+    writeCatalog(false)
+    writeCatalog(true)
+  }
+
+  const markExerciseArchivedInCatalogCache = (exerciseId: string) => {
+    queryClient.setQueryData<TrainerExercise[]>(
+      queryKeys.exercises.trainerCatalog(trainerUserId, false),
+      (current) => {
+        if (!Array.isArray(current)) return current
+        return current.filter((exercise) => exercise.exercise_id !== exerciseId)
+      },
+    )
+    queryClient.setQueryData<TrainerExercise[]>(
+      queryKeys.exercises.trainerCatalog(trainerUserId, true),
+      (current) => {
+        if (!Array.isArray(current)) return current
+        return current.map((exercise) =>
+          exercise.exercise_id === exerciseId ? { ...exercise, is_active: false } : exercise,
+        )
+      },
+    )
+  }
+
   const addExerciseMutation = useMutation({
     mutationFn: async (params: { exerciseId: string; payload: UpsertTrainerExerciseRequest }) =>
       addTrainerExercise(trainerUserId, params.exerciseId, params.payload),
-    onSuccess: () => {
+    onSuccess: (createdExercise) => {
+      upsertExerciseInCatalogCache(createdExercise)
       invalidateCatalog()
       toast.success('Упражнение добавлено')
     },
@@ -49,7 +102,8 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   const updateExerciseMutation = useMutation({
     mutationFn: async (params: { exerciseId: string; payload: UpsertTrainerExerciseRequest }) =>
       updateTrainerExercise(trainerUserId, params.exerciseId, params.payload),
-    onSuccess: () => {
+    onSuccess: (updatedExercise) => {
+      upsertExerciseInCatalogCache(updatedExercise)
       invalidateCatalog()
       toast.success('Упражнение обновлено')
     },
@@ -58,7 +112,8 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
 
   const archiveExerciseMutation = useMutation({
     mutationFn: async (exerciseId: string) => archiveTrainerExercise(trainerUserId, exerciseId),
-    onSuccess: () => {
+    onSuccess: (_, exerciseId) => {
+      markExerciseArchivedInCatalogCache(exerciseId)
       invalidateCatalog()
       toast.success('Упражнение архивировано')
     },

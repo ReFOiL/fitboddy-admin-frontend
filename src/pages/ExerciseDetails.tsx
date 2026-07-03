@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Dumbbell, Save, Trash2 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { useAuth } from '../hooks/use-auth'
@@ -125,17 +125,52 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
   }
 }
 
+function resolveExerciseById(
+  catalog: TrainerExercise[],
+  exerciseId: string | undefined,
+  preferredRowId: string | null,
+): TrainerExercise | null {
+  if (!exerciseId) return null
+  const matches = catalog.filter((item) => item.exercise_id === exerciseId)
+  if (matches.length === 0) return null
+
+  if (preferredRowId) {
+    const preferred = matches.find((item) => item.row_id === preferredRowId)
+    if (preferred) return preferred
+  }
+
+  const toTimestamp = (value: string): number => {
+    const timestamp = Date.parse(value)
+    return Number.isNaN(timestamp) ? 0 : timestamp
+  }
+
+  return [...matches].sort((left, right) => {
+    if (left.is_active !== right.is_active) return left.is_active ? -1 : 1
+    const updatedDiff = toTimestamp(right.updated_at) - toTimestamp(left.updated_at)
+    if (updatedDiff !== 0) return updatedDiff
+    return toTimestamp(right.created_at) - toTimestamp(left.created_at)
+  })[0]
+}
+
 export function ExerciseDetailsPage() {
   const { user } = useAuth()
   const { exerciseId } = useParams<{ exerciseId: string }>()
+  const [searchParams] = useSearchParams()
+  const preferredRowId = searchParams.get('row')
+  const activeHintParam = searchParams.get('active')
+  const activeHint = activeHintParam === '1' ? true : activeHintParam === '0' ? false : null
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
+  const includeArchived = activeHint === true ? false : true
   const { trainerCatalogQuery, updateExerciseMutation, archiveExerciseMutation } = useExercises({
     trainerUserId,
-    includeArchived: true,
+    includeArchived,
   })
-  const catalog = Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []
-  const exercise = catalog.find((item) => item.exercise_id === exerciseId) ?? null
+  const catalog = useMemo(
+    () => (Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []),
+    [trainerCatalogQuery.data],
+  )
+  const exercise = resolveExerciseById(catalog, exerciseId, preferredRowId)
 
   const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(exerciseSchema),
@@ -147,6 +182,14 @@ export function ExerciseDetailsPage() {
       workout_category: 'upper',
     },
   })
+
+  useEffect(() => {
+    form.register('equipment')
+    form.register('workout_category')
+    form.register('is_cardio')
+    form.register('difficulty')
+  }, [form])
+
   const watchedEquipment = useWatch({ control: form.control, name: 'equipment' })
   const watchedWorkoutCategory = useWatch({ control: form.control, name: 'workout_category' })
   const watchedDifficulty = useWatch({ control: form.control, name: 'difficulty' }) ?? 2
@@ -161,7 +204,7 @@ export function ExerciseDetailsPage() {
   const formDisabled = updateExerciseMutation.isPending || archiveExerciseMutation.isPending || !form.formState.isDirty
   const equipmentDisplayValue = watchedEquipment ?? normalizeEquipment(exercise?.equipment)
   const categoryDisplayValue = watchedWorkoutCategory ?? normalizeCategory(exercise?.workout_category)
-  const exerciseTypeDisplayValue = watchedIsCardio ? 'cardio' : 'strength'
+  const exerciseTypeDisplayValue = (watchedIsCardio ?? normalizeIsCardio(exercise?.is_cardio)) ? 'cardio' : 'strength'
 
   if (!isTrainer) {
     return (
