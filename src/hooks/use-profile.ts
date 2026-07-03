@@ -18,6 +18,7 @@ export function useProfile(targetUserId: string) {
     queryFn: async () => getProfile(targetUserId),
     enabled: Boolean(targetUserId),
     retry: false,
+    refetchOnMount: 'always',
   })
 
   const metaQuery = useQuery({
@@ -29,7 +30,15 @@ export function useProfile(targetUserId: string) {
   const upsertMutation = useMutation({
     mutationFn: async (payload: UpsertProfileRequest) => upsertProfile(targetUserId, payload),
     onSuccess: (profile) => {
-      queryClient.setQueryData(queryKeys.profiles.detail(targetUserId), profile)
+      const resolvedUserId = profile.user_id || targetUserId
+      queryClient.setQueryData(queryKeys.profiles.detail(resolvedUserId), profile)
+      if (resolvedUserId !== targetUserId) {
+        queryClient.setQueryData(queryKeys.profiles.detail(targetUserId), profile)
+      }
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.profiles.detail(resolvedUserId),
+        exact: true,
+      })
       toast.success('Профиль сохранен')
     },
     onError: (error) => {
