@@ -56,9 +56,10 @@ type FancySelectProps = {
   options: SelectOption[]
   placeholder: string
   error?: string
+  disabled?: boolean
 }
 
-function FancySelect({ id, label, value, onChange, options, placeholder, error }: FancySelectProps) {
+function FancySelect({ id, label, value, onChange, options, placeholder, error, disabled }: FancySelectProps) {
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
@@ -69,6 +70,7 @@ function FancySelect({ id, label, value, onChange, options, placeholder, error }
         options={options}
         onChange={(nextValue) => onChange(nextValue || null)}
         className={error ? 'border-destructive/60' : undefined}
+        disabled={disabled}
       />
       {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </div>
@@ -79,9 +81,10 @@ type ChipsMultiSelectProps = {
   options: SelectOption[]
   value: string[]
   onChange: (next: string[]) => void
+  disabled?: boolean
 }
 
-function ChipsMultiSelect({ options, value, onChange }: ChipsMultiSelectProps) {
+function ChipsMultiSelect({ options, value, onChange, disabled }: ChipsMultiSelectProps) {
   const selected = value.filter((item) => options.some((option) => option.value === item))
 
   return (
@@ -95,8 +98,12 @@ function ChipsMultiSelect({ options, value, onChange }: ChipsMultiSelectProps) {
               <button
                 key={item}
                 type="button"
+                disabled={disabled}
                 onClick={() => onChange(value.filter((current) => current !== item))}
-                className="inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/20 px-3 py-1 text-xs text-primary-foreground transition hover:bg-primary/30"
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/20 px-3 py-1 text-xs text-primary-foreground transition',
+                  disabled ? 'cursor-not-allowed opacity-70' : 'hover:bg-primary/30',
+                )}
               >
                 <span>{option.label}</span>
                 <X size={12} />
@@ -115,6 +122,7 @@ function ChipsMultiSelect({ options, value, onChange }: ChipsMultiSelectProps) {
             <button
               key={option.value}
               type="button"
+              disabled={disabled}
               onClick={() =>
                 isSelected
                   ? onChange(value.filter((current) => current !== option.value))
@@ -122,6 +130,7 @@ function ChipsMultiSelect({ options, value, onChange }: ChipsMultiSelectProps) {
               }
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs transition',
+                disabled ? 'cursor-not-allowed opacity-70' : '',
                 isSelected
                   ? 'border-primary/60 bg-primary/20 text-primary-foreground shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
                   : 'border-border bg-background/70 text-secondary-foreground hover:border-primary/40 hover:text-foreground',
@@ -142,24 +151,33 @@ export function ProfilePage() {
   const [searchParams] = useSearchParams()
   const preselectedClient = searchParams.get('client')
   const initialUserId = preselectedClient || user?.user_id || ''
-  const [targetUserIdInput, setTargetUserIdInput] = useState(initialUserId)
+  const [clientSearchQuery, setClientSearchQuery] = useState('')
   const [targetUserId, setTargetUserId] = useState(initialUserId)
   const { profileQuery, metaQuery, upsertMutation, uploadAvatarMutation } = useProfile(targetUserId)
   const trainerUserId = user?.role === 'trainer' ? user.user_id : ''
   const { trainerClientsQuery } = useRelations({ trainerUserId, clientUserId: '' })
   const trainerClients = Array.isArray(trainerClientsQuery.data) ? trainerClientsQuery.data : []
-  const resolveClientUserId = (value: string): string => {
-    const normalizedValue = value.trim()
-    if (!normalizedValue) return ''
-    const byUserId = trainerClients.find((relation) => relation.client_user_id === normalizedValue)
-    if (byUserId) return byUserId.client_user_id
-    const byLogin = trainerClients.find(
-      (relation) => relation.client_login?.toLowerCase() === normalizedValue.toLowerCase(),
-    )
-    return byLogin?.client_user_id ?? normalizedValue
+  const formatClientIdentity = (relation: (typeof trainerClients)[number]): string => {
+    const displayName = relation.client_display_name?.trim()
+    if (displayName) return displayName
+    const login = relation.client_login?.trim()
+    if (login) return login
+    return 'Клиент'
   }
-  const formatClientIdentity = (relation: (typeof trainerClients)[number]): string =>
-    relation.client_login?.trim() ? relation.client_login : relation.client_user_id
+  const normalizedClientSearch = clientSearchQuery.trim().toLowerCase()
+  const selectedClientRelation = trainerClients.find((relation) => relation.client_user_id === targetUserId)
+  const filteredTrainerClients = trainerClients.filter((relation) => {
+    if (!normalizedClientSearch) return true
+    return formatClientIdentity(relation).toLowerCase().includes(normalizedClientSearch)
+  })
+  const filteredClientOptions = filteredTrainerClients.map((relation) => ({
+    value: relation.client_user_id,
+    label: formatClientIdentity(relation),
+  }))
+  const trainerClientOptions =
+    selectedClientRelation && !filteredTrainerClients.some((relation) => relation.client_user_id === targetUserId)
+      ? [{ value: selectedClientRelation.client_user_id, label: formatClientIdentity(selectedClientRelation) }, ...filteredClientOptions]
+      : filteredClientOptions
 
   const goalOptions = metaQuery.data?.goals ?? []
   const levelOptions = metaQuery.data?.levels ?? []
@@ -184,7 +202,6 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (!preselectedClient) return
-    setTargetUserIdInput(preselectedClient)
     setTargetUserId(preselectedClient)
   }, [preselectedClient])
 
@@ -213,6 +230,7 @@ export function ProfilePage() {
   const avatarUrl = form.watch('avatar_url')
   const isTrainerOwnProfile = user?.role === 'trainer' && targetUserId === user.user_id
   const isTrainerClientView = user?.role === 'trainer' && !isTrainerOwnProfile
+  const isProfileReadOnly = isTrainerClientView
   const showClientSelectionCard = isTrainerClientView
   const questionnaireRequired = !isTrainerOwnProfile
   const selectedWorkoutLocation = form.watch('workout_location')
@@ -236,50 +254,38 @@ export function ProfilePage() {
               Профиль клиента
             </CardTitle>
             <CardDescription>
-              Управление анкетой клиента доступно из раздела «Клиенты» и только при активной связи.
+              Просмотр анкеты клиента доступен только при активной связи.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-1.5">
-              <Label htmlFor="target_user_id">Клиент (логин или ID)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="target_user_id"
-                  value={targetUserIdInput}
-                  onChange={(event) => setTargetUserIdInput(event.target.value)}
-                  disabled={!canSwitchUser}
-                  placeholder="например: client_login"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setTargetUserId(resolveClientUserId(targetUserIdInput))}
-                  disabled={!targetUserIdInput.trim() || profileQuery.isFetching}
-                >
-                  Открыть
-                </Button>
-              </div>
+              <Label htmlFor="active_client_search">Поиск по активным клиентам</Label>
+              <Input
+                id="active_client_search"
+                value={clientSearchQuery}
+                onChange={(event) => setClientSearchQuery(event.target.value)}
+                disabled={!canSwitchUser}
+                placeholder="Начни вводить имя или логин клиента..."
+              />
             </div>
 
-            {canSwitchUser ? (
-              <div className="grid gap-1.5">
-                <Label htmlFor="active_client_select">Выбрать из активных клиентов</Label>
-                <StyledSelect
-                  id="active_client_select"
-                  placeholder="Выбери клиента из списка..."
-                  value={hasSelectedClientInList ? targetUserId : undefined}
-                  options={trainerClients.map((relation) => ({
-                    value: relation.client_user_id,
-                    label: formatClientIdentity(relation),
-                  }))}
-                  onChange={(selected) => {
-                    if (!selected) return
-                    setTargetUserIdInput(selected)
-                    setTargetUserId(selected)
-                  }}
-                />
-              </div>
-            ) : null}
+            <div className="grid gap-1.5">
+              <Label htmlFor="active_client_select">Клиент</Label>
+              <StyledSelect
+                id="active_client_select"
+                placeholder="Выбери клиента из результатов поиска..."
+                value={hasSelectedClientInList ? targetUserId : undefined}
+                options={trainerClientOptions}
+                disabled={!canSwitchUser || trainerClientOptions.length === 0}
+                onChange={(selected) => {
+                  if (!selected) return
+                  setTargetUserId(selected)
+                }}
+              />
+              {trainerClientOptions.length === 0 ? (
+                <span className="text-xs text-secondary-foreground">По этому запросу активные клиенты не найдены.</span>
+              ) : null}
+            </div>
 
             {profileQuery.isFetching ? (
               <div className="space-y-2">
@@ -290,7 +296,9 @@ export function ProfilePage() {
 
             {isNotFound ? (
               <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
-                Профиль пока не создан. Заполни форму и нажми «Сохранить профиль».
+                {isProfileReadOnly
+                  ? 'Профиль клиента пока не создан.'
+                  : 'Профиль пока не создан. Заполни форму и нажми «Сохранить профиль».'}
               </span>
             ) : null}
 
@@ -320,6 +328,7 @@ export function ProfilePage() {
             <form
               className="grid gap-4"
               onSubmit={form.handleSubmit((values) => {
+                if (isProfileReadOnly) return
                 const goalValue = values.goal
                 const experienceValue = values.experience_level
                 const workoutLocationValue = values.workout_location
@@ -377,10 +386,15 @@ export function ProfilePage() {
                   Это ваш профиль тренера. Заполните личные данные и фото.
                 </span>
               ) : null}
+              {isProfileReadOnly ? (
+                <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
+                  Профиль клиента доступен только для просмотра. Редактировать данные может только сам клиент.
+                </span>
+              ) : null}
 
               <div className="grid gap-1.5">
                 <Label htmlFor="full_name">Имя и фамилия</Label>
-                <Input id="full_name" {...form.register('full_name')} placeholder="Например: Иван Иванов" />
+                <Input id="full_name" {...form.register('full_name')} placeholder="Например: Иван Иванов" disabled={isProfileReadOnly} />
                 {form.formState.errors.full_name?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.full_name.message}</span>
                 ) : null}
@@ -402,7 +416,7 @@ export function ProfilePage() {
                     })
                     event.currentTarget.value = ''
                   }}
-                  disabled={!targetUserId || uploadAvatarMutation.isPending}
+                  disabled={isProfileReadOnly || !targetUserId || uploadAvatarMutation.isPending}
                 />
                 <span className="text-xs text-secondary-foreground">
                   Поддерживаются JPG/PNG/WebP, до 5MB.
@@ -437,7 +451,7 @@ export function ProfilePage() {
 
               <div className="grid gap-1.5">
                 <Label htmlFor="city">Город</Label>
-                <Input id="city" {...form.register('city')} placeholder="Сидней" />
+                <Input id="city" {...form.register('city')} placeholder="Сидней" disabled={isProfileReadOnly} />
                 {form.formState.errors.city?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.city.message}</span>
                 ) : null}
@@ -450,6 +464,7 @@ export function ProfilePage() {
                   className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70"
                   {...form.register('bio')}
                   placeholder="Коротко о себе, опыте и целях."
+                  disabled={isProfileReadOnly}
                 />
                 {form.formState.errors.bio?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.bio.message}</span>
@@ -466,6 +481,7 @@ export function ProfilePage() {
                     placeholder="Выбери цель..."
                     onChange={(nextValue) => form.setValue('goal', nextValue)}
                     error={form.formState.errors.goal?.message}
+                    disabled={isProfileReadOnly}
                   />
 
                   <FancySelect
@@ -476,6 +492,7 @@ export function ProfilePage() {
                     placeholder="Выбери уровень..."
                     onChange={(nextValue) => form.setValue('experience_level', nextValue)}
                     error={form.formState.errors.experience_level?.message}
+                    disabled={isProfileReadOnly}
                   />
 
                   <FancySelect
@@ -486,6 +503,7 @@ export function ProfilePage() {
                     placeholder="Выбери место..."
                     onChange={(nextValue) => form.setValue('workout_location', nextValue)}
                     error={form.formState.errors.workout_location?.message}
+                    disabled={isProfileReadOnly}
                   />
 
                   {selectedWorkoutLocation === 'home' ? (
@@ -495,6 +513,7 @@ export function ProfilePage() {
                         options={equipmentOptions}
                         value={selectedEquipment}
                         onChange={(nextValue) => form.setValue('equipment', nextValue, { shouldValidate: true })}
+                        disabled={isProfileReadOnly}
                       />
                       {form.formState.errors.equipment?.message ? (
                         <span className="text-xs text-destructive">{form.formState.errors.equipment.message}</span>
@@ -509,6 +528,7 @@ export function ProfilePage() {
                       className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70"
                       {...form.register('limitations')}
                       placeholder="Например: травма колена"
+                      disabled={isProfileReadOnly}
                     />
                     {form.formState.errors.limitations?.message ? (
                       <span className="text-xs text-destructive">{form.formState.errors.limitations.message}</span>
@@ -522,6 +542,7 @@ export function ProfilePage() {
                       className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70"
                       {...form.register('medical_notes')}
                       placeholder="Дополнительная информация"
+                      disabled={isProfileReadOnly}
                     />
                     {form.formState.errors.medical_notes?.message ? (
                       <span className="text-xs text-destructive">{form.formState.errors.medical_notes.message}</span>
@@ -530,7 +551,11 @@ export function ProfilePage() {
                 </>
               ) : null}
 
-              <Button type="submit" size="lg" disabled={upsertMutation.isPending || !targetUserId || !isFormDirty}>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isProfileReadOnly || upsertMutation.isPending || !targetUserId || !isFormDirty}
+              >
                 Сохранить профиль
               </Button>
             </form>
