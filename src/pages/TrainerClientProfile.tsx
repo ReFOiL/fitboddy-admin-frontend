@@ -5,7 +5,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
-import { useRelations } from '../hooks/use-relations'
+import { useTrainerRelations } from '../hooks/use-relations'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Label } from '../components/ui/label'
@@ -30,7 +30,7 @@ export function TrainerClientProfilePage() {
     return clientUserId.trim()
   })
 
-  const { trainerClientsQuery } = useRelations({ trainerUserId, clientUserId: '' })
+  const { trainerClientsQuery } = useTrainerRelations({ trainerUserId })
   const trainerClients = Array.isArray(trainerClientsQuery.data) ? trainerClientsQuery.data : []
 
   const formatClientLabel = (relation: (typeof trainerClients)[number]): string => {

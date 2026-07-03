@@ -2,8 +2,10 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { RoleRoute } from './components/RoleRoute'
+import { RouteErrorBoundary } from './components/RouteErrorBoundary'
 import { MainLayout } from './components/layout/MainLayout'
-import { type AppRole, resolveCatalogPath, resolveDocumentTitle, resolveRelationsPath } from './config/app-routes'
+import { APP_PATHS, type AppRole, resolveCatalogPath, resolveDocumentTitle, resolveRelationsPath } from './config/app-routes'
 import { useAuth } from './hooks/use-auth'
 
 const AnalyticsPage = lazy(async () => ({ default: (await import('./pages/Analytics')).AnalyticsPage }))
@@ -30,36 +32,80 @@ function App() {
   }, [location.pathname, role])
 
   return (
-    <Suspense fallback={<div className="py-10 text-center text-sm text-secondary-foreground">Загрузка страницы...</div>}>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
+    <RouteErrorBoundary>
+      <Suspense fallback={<div className="py-10 text-center text-sm text-secondary-foreground">Загрузка страницы...</div>}>
+        <Routes>
+          <Route path={APP_PATHS.login} element={<LoginPage />} />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={<DashboardPage />} />
-          <Route path="clients" element={isTrainer ? <TrainerRelationsPage /> : <Navigate to={isClient ? '/trainers' : '/home'} replace />} />
-          <Route path="trainers" element={isClient ? <ClientRelationsPage /> : <Navigate to={isTrainer ? '/clients' : '/home'} replace />} />
-          <Route path="clients/profile" element={isTrainer ? <TrainerClientProfilePage /> : <Navigate to="/home" replace />} />
-          <Route path="analytics" element={isTrainer ? <AnalyticsPage /> : <Navigate to="/home" replace />} />
-          <Route path="exercises" element={isTrainer ? <ExercisesPage /> : <Navigate to="/home" replace />} />
-          <Route path="exercises/:exerciseId" element={isTrainer ? <ExerciseDetailsPage /> : <Navigate to="/home" replace />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to={APP_PATHS.home} replace />} />
+            <Route path={APP_PATHS.home.slice(1)} element={<DashboardPage />} />
+            <Route
+              path={APP_PATHS.clients.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={isClient ? APP_PATHS.trainers : APP_PATHS.home}>
+                  <TrainerRelationsPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.trainers.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
+                  <ClientRelationsPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.clientProfile.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <TrainerClientProfilePage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.analytics.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <AnalyticsPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.exercises.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <ExercisesPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.exerciseDetails.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <ExerciseDetailsPage />
+                </RoleRoute>
+              }
+            />
+            <Route path={APP_PATHS.profile.slice(1)} element={<ProfilePage />} />
 
-          <Route path="dashboard" element={<Navigate to="/home" replace />} />
-          <Route path="relations" element={<Navigate to={resolveRelationsPath(role)} replace />} />
-          <Route path="catalog" element={<Navigate to={resolveCatalogPath(role)} replace />} />
-          <Route path="profiles" element={<Navigate to="/profile" replace />} />
-        </Route>
+            <Route path={APP_PATHS.dashboardAlias.slice(1)} element={<Navigate to={APP_PATHS.home} replace />} />
+            <Route path={APP_PATHS.relationsAlias.slice(1)} element={<Navigate to={resolveRelationsPath(role)} replace />} />
+            <Route path={APP_PATHS.catalogAlias.slice(1)} element={<Navigate to={resolveCatalogPath(role)} replace />} />
+            <Route path={APP_PATHS.profilesAlias.slice(1)} element={<Navigate to={APP_PATHS.profile} replace />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/home" replace />} />
-      </Routes>
-    </Suspense>
+          <Route path="*" element={<Navigate to={APP_PATHS.home} replace />} />
+        </Routes>
+      </Suspense>
+    </RouteErrorBoundary>
   )
 }
 

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
@@ -85,7 +85,8 @@ export function LoginPage() {
     },
   })
 
-  const registerPassword = registerForm.watch('password')
+  const registerPassword = useWatch({ control: registerForm.control, name: 'password' }) ?? ''
+  const watchedRole = useWatch({ control: registerForm.control, name: 'role' })
   const passwordStrength = useMemo(() => getPasswordStrengthMeta(registerPassword), [registerPassword])
 
   return (
@@ -205,7 +206,7 @@ export function LoginPage() {
                     <Label htmlFor="register_role">Роль</Label>
                     <StyledSelect
                       id="register_role"
-                      value={registerForm.watch('role')}
+                      value={watchedRole}
                       onChange={(nextRole) =>
                         registerForm.setValue('role', nextRole as RegisterFormValues['role'], {
                           shouldDirty: true,

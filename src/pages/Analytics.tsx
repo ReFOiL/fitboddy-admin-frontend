@@ -1,7 +1,7 @@
 import { BarChart3 } from 'lucide-react'
 
 import { useAuth } from '../hooks/use-auth'
-import { useRelations } from '../hooks/use-relations'
+import { useTrainerRelations } from '../hooks/use-relations'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
 
@@ -9,7 +9,7 @@ export function AnalyticsPage() {
   const { user } = useAuth()
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
-  const { trainerFunnelQuery } = useRelations({ trainerUserId, clientUserId: '' })
+  const { trainerFunnelQuery } = useTrainerRelations({ trainerUserId })
   const trainerFunnel = trainerFunnelQuery.data
 
   if (!isTrainer) {

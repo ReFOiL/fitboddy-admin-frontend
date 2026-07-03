@@ -4,6 +4,7 @@ import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
 import { Skeleton } from '../ui/skeleton'
+import { AsyncTextState } from '../shared/AsyncState'
 import type { TrainerClientRelation } from '../../types/relation'
 import { TrainerClientItem } from './TrainerClientItem'
 
@@ -92,8 +93,8 @@ export function TrainerClientsCard({
             </div>
           ) : null}
           {isError ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Не удалось загрузить список активных клиентов.
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2">
+              <AsyncTextState tone="destructive">Не удалось загрузить список активных клиентов.</AsyncTextState>
             </div>
           ) : null}
           {!isLoading && !isError ? (

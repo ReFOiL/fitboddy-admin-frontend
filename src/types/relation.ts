@@ -1,6 +1,15 @@
-export type RelationMode = 'invite' | 'direct'
+export const RELATION_MODE_VALUES = ['invite', 'direct'] as const
+export type RelationMode = (typeof RELATION_MODE_VALUES)[number]
 
-export type RelationStatus = 'invited' | 'active' | 'declined' | 'ended'
+export const RELATION_STATUS_VALUES = ['invited', 'active', 'declined', 'ended'] as const
+export type RelationStatus = (typeof RELATION_STATUS_VALUES)[number]
+
+export const RELATION_STATUS_LABELS: Record<RelationStatus, string> = {
+  invited: 'Приглашение',
+  active: 'Активна',
+  declined: 'Отклонена',
+  ended: 'Завершена',
+}
 
 export type CreateRelationRequest = {
   acting_user_id: string

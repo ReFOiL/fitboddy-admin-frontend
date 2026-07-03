@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useState } from 'react'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
-import { useRelations } from '../hooks/use-relations'
+import { useClientRelations } from '../hooks/use-relations'
 import { usePlans } from '../hooks/use-plans'
 import { isProfileCompleted } from '../lib/profile-completion'
 import { ClientPlanGeneratorCard } from '../components/dashboard/ClientPlanGeneratorCard'
@@ -21,7 +21,7 @@ export function DashboardPage() {
   const [level, setLevel] = useState('intermediate')
   const [workoutLocation, setWorkoutLocation] = useState('home')
   const [workoutsPerWeek, setWorkoutsPerWeek] = useState(3)
-  const { clientActiveRelationQuery } = useRelations({ trainerUserId: '', clientUserId: user?.user_id ?? '' })
+  const { clientActiveRelationQuery } = useClientRelations({ clientUserId: user?.user_id ?? '' })
   const hasNoActiveRelation =
     !clientActiveRelationQuery.isLoading && !clientActiveRelationQuery.isError && !clientActiveRelationQuery.data
   const activeTrainerUserId = clientActiveRelationQuery.data?.trainer_user_id ?? ''

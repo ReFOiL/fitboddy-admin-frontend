@@ -1,6 +1,7 @@
 import { useProfile } from '../hooks/use-profile'
-import { useRelations } from '../hooks/use-relations'
+import { useClientRelations } from '../hooks/use-relations'
 import { useUserIdGuard } from '../hooks/use-user-id-guard'
+import { useClientRelationActions } from '../hooks/use-relation-actions'
 import { ClientProfileRequiredCard } from '../components/client-relations/ClientProfileRequiredCard'
 import { IncomingInvitesCard } from '../components/client-relations/IncomingInvitesCard'
 import { TrainerSelectionCard } from '../components/client-relations/TrainerSelectionCard'
@@ -10,10 +11,7 @@ export function ClientRelationsPage() {
   const { user, userId, withUserId } = useUserIdGuard()
   const clientUserId = user?.role === 'client' ? userId : ''
   const { trainersQuery, incomingInvitesQuery, clientActiveRelationQuery, createRelationMutation, acceptRelationMutation, leaveRelationMutation } =
-    useRelations({
-      trainerUserId: '',
-      clientUserId,
-    })
+    useClientRelations({ clientUserId })
 
   const trainers = Array.isArray(trainersQuery.data) ? trainersQuery.data : []
   const incomingInvites = Array.isArray(incomingInvitesQuery.data) ? incomingInvitesQuery.data : []
@@ -22,6 +20,12 @@ export function ClientRelationsPage() {
   const mustCompleteQuestionnaire = !questionnaireReady
   const activeRelation = clientActiveRelationQuery.data
   const hasActiveTrainer = Boolean(activeRelation?.trainer_user_id)
+  const { acceptInvite, declineInvite, connectTrainer } = useClientRelationActions({
+    withUserId,
+    acceptRelationMutation,
+    leaveRelationMutation,
+    createRelationMutation,
+  })
 
   return (
     <div className="space-y-6">
@@ -33,22 +37,8 @@ export function ClientRelationsPage() {
         isError={incomingInvitesQuery.isError}
         acceptPending={acceptRelationMutation.isPending}
         declinePending={leaveRelationMutation.isPending}
-        onAccept={(relationId) => {
-          withUserId((actingUserId) => {
-            acceptRelationMutation.mutate({
-              relationId,
-              actingUserId,
-            })
-          })
-        }}
-        onDecline={(relationId) => {
-          withUserId((actingUserId) => {
-            leaveRelationMutation.mutate({
-              relationId,
-              actingUserId,
-            })
-          })
-        }}
+        onAccept={acceptInvite}
+        onDecline={declineInvite}
       />
 
       <TrainerSelectionCard
@@ -62,14 +52,7 @@ export function ClientRelationsPage() {
         createPending={createRelationMutation.isPending}
         onConnect={(trainerUserId) => {
           if (hasActiveTrainer || createRelationMutation.isPending) return
-          withUserId((actingUserId) => {
-            createRelationMutation.mutate({
-              acting_user_id: actingUserId,
-              trainer_user_id: trainerUserId,
-              client_user_id: actingUserId,
-              mode: 'direct',
-            })
-          })
+          connectTrainer(trainerUserId)
         }}
       />
     </div>

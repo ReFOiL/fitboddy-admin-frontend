@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Dumbbell, Save, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useEffect } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
 
@@ -147,23 +147,21 @@ export function ExerciseDetailsPage() {
       workout_category: 'upper',
     },
   })
-  const [equipmentOverride, setEquipmentOverride] = useState<ExerciseFormValues['equipment'] | null>(null)
-  const [categoryOverride, setCategoryOverride] = useState<ExerciseFormValues['workout_category'] | null>(null)
-  const [exerciseTypeOverride, setExerciseTypeOverride] = useState<'strength' | 'cardio' | null>(null)
+  const watchedEquipment = useWatch({ control: form.control, name: 'equipment' })
+  const watchedWorkoutCategory = useWatch({ control: form.control, name: 'workout_category' })
+  const watchedDifficulty = useWatch({ control: form.control, name: 'difficulty' }) ?? 2
+  const watchedIsCardio = useWatch({ control: form.control, name: 'is_cardio' })
 
   useEffect(() => {
     if (!exercise) return
     const nextValues = mapExerciseToFormValues(exercise)
     form.reset(nextValues)
-    setEquipmentOverride(null)
-    setCategoryOverride(null)
-    setExerciseTypeOverride(null)
   }, [exercise, form])
 
   const formDisabled = updateExerciseMutation.isPending || archiveExerciseMutation.isPending || !form.formState.isDirty
-  const equipmentDisplayValue = equipmentOverride ?? normalizeEquipment(exercise?.equipment)
-  const categoryDisplayValue = categoryOverride ?? normalizeCategory(exercise?.workout_category)
-  const exerciseTypeDisplayValue = exerciseTypeOverride ?? (normalizeIsCardio(exercise?.is_cardio) ? 'cardio' : 'strength')
+  const equipmentDisplayValue = watchedEquipment ?? normalizeEquipment(exercise?.equipment)
+  const categoryDisplayValue = watchedWorkoutCategory ?? normalizeCategory(exercise?.workout_category)
+  const exerciseTypeDisplayValue = watchedIsCardio ? 'cardio' : 'strength'
 
   if (!isTrainer) {
     return (
@@ -233,9 +231,6 @@ export function ExerciseDetailsPage() {
                   onSuccess: (updatedExercise) => {
                     const nextValues = mapExerciseToFormValues(updatedExercise)
                     form.reset(nextValues)
-                    setEquipmentOverride(null)
-                    setCategoryOverride(null)
-                    setExerciseTypeOverride(null)
                   },
                 })
               })}
@@ -262,7 +257,6 @@ export function ExerciseDetailsPage() {
                     value={equipmentDisplayValue}
                     onChange={(nextValue) => {
                       const normalizedValue = normalizeEquipment(nextValue)
-                      setEquipmentOverride(normalizedValue)
                       form.setValue('equipment', normalizedValue, {
                         shouldDirty: true,
                         shouldValidate: true,
@@ -281,7 +275,6 @@ export function ExerciseDetailsPage() {
                     value={categoryDisplayValue}
                     onChange={(nextValue) => {
                       const normalizedValue = normalizeCategory(nextValue)
-                      setCategoryOverride(normalizedValue)
                       form.setValue('workout_category', normalizedValue, {
                         shouldDirty: true,
                         shouldValidate: true,
@@ -299,7 +292,7 @@ export function ExerciseDetailsPage() {
                   <Label htmlFor="difficulty">Сложность (1-5)</Label>
                   <DifficultyPicker
                     id="difficulty"
-                    value={form.watch('difficulty')}
+                    value={watchedDifficulty}
                     onChange={(nextDifficulty) => {
                       if (nextDifficulty === form.getValues('difficulty')) return
                       form.setValue('difficulty', nextDifficulty, {
@@ -319,7 +312,6 @@ export function ExerciseDetailsPage() {
                     value={exerciseTypeDisplayValue}
                     onChange={(nextValue) => {
                       const resolvedType = nextValue === 'cardio' ? 'cardio' : 'strength'
-                      setExerciseTypeOverride(resolvedType)
                       form.setValue('is_cardio', resolvedType === 'cardio', {
                         shouldDirty: true,
                         shouldValidate: true,

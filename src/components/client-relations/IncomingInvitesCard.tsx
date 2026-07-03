@@ -3,6 +3,7 @@ import { Check, Sparkles, Users, X } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
+import { AsyncTextState } from '../shared/AsyncState'
 import { formatRelationIdentity } from '../../lib/relations-formatters'
 import type { TrainerClientRelation } from '../../types/relation'
 
@@ -41,11 +42,11 @@ export function IncomingInvitesCard({
             <Skeleton className="h-24 w-full rounded-xl" />
           </div>
         ) : null}
-        {isError ? <span className="text-sm text-destructive">Не удалось загрузить входящие приглашения.</span> : null}
+        {isError ? <AsyncTextState tone="destructive">Не удалось загрузить входящие приглашения.</AsyncTextState> : null}
         {!isLoading && !isError ? (
           <div className="space-y-3">
             {invites.length === 0 ? (
-              <span className="text-sm text-secondary-foreground">Новых приглашений пока нет.</span>
+              <AsyncTextState>Новых приглашений пока нет.</AsyncTextState>
             ) : (
               invites.map((invite) => (
                 <div key={invite.relation_id} className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm">

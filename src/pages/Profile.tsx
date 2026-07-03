@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
 import { Activity, Check, X } from 'lucide-react'
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useAuth } from '../hooks/use-auth'
@@ -190,19 +190,21 @@ export function ProfilePage() {
   const loadErrorStatus = axios.isAxiosError(profileQuery.error) ? profileQuery.error.response?.status : undefined
   const isNotFound = loadErrorStatus === 404
   const isForbidden = loadErrorStatus === 403
-  const avatarUrl = form.watch('avatar_url')
+  const avatarUrl = useWatch({ control: form.control, name: 'avatar_url' })
+  const watchedGoal = useWatch({ control: form.control, name: 'goal' })
+  const watchedExperienceLevel = useWatch({ control: form.control, name: 'experience_level' })
+  const watchedWorkoutLocation = useWatch({ control: form.control, name: 'workout_location' })
+  const selectedEquipment = useWatch({ control: form.control, name: 'equipment' }) ?? []
   const isTrainerOwnProfile = user?.role === 'trainer'
   const questionnaireRequired = !isTrainerOwnProfile
-  const selectedWorkoutLocation = form.watch('workout_location')
-  const selectedEquipment = form.watch('equipment')
   const isFormDirty = form.formState.isDirty
   const metaErrorStatus = axios.isAxiosError(metaQuery.error) ? metaQuery.error.response?.status : undefined
 
   useEffect(() => {
-    if (selectedWorkoutLocation !== 'home') {
+    if (watchedWorkoutLocation !== 'home' && selectedEquipment.length > 0) {
       form.setValue('equipment', [])
     }
-  }, [form, selectedWorkoutLocation])
+  }, [form, watchedWorkoutLocation, selectedEquipment.length])
 
   return (
     <div className="space-y-6">
@@ -374,7 +376,7 @@ export function ProfilePage() {
                   <FancySelect
                     id="goal"
                     label="Цель"
-                    value={form.watch('goal')}
+                    value={watchedGoal}
                     options={goalOptions}
                     placeholder="Выбери цель..."
                     onChange={(nextValue) => form.setValue('goal', nextValue, { shouldDirty: true, shouldValidate: true })}
@@ -384,7 +386,7 @@ export function ProfilePage() {
                   <FancySelect
                     id="experience_level"
                     label="Уровень"
-                    value={form.watch('experience_level')}
+                    value={watchedExperienceLevel}
                     options={levelOptions}
                     placeholder="Выбери уровень..."
                     onChange={(nextValue) =>
@@ -396,7 +398,7 @@ export function ProfilePage() {
                   <FancySelect
                     id="workout_location"
                     label="Место тренировок"
-                    value={form.watch('workout_location')}
+                    value={watchedWorkoutLocation}
                     options={locationOptions}
                     placeholder="Выбери место..."
                     onChange={(nextValue) =>
@@ -405,7 +407,7 @@ export function ProfilePage() {
                     error={form.formState.errors.workout_location?.message}
                   />
 
-                  {selectedWorkoutLocation === 'home' ? (
+                  {watchedWorkoutLocation === 'home' ? (
                     <div className="grid gap-2">
                       <Label>Оборудование (чипы)</Label>
                       <ChipsMultiSelect

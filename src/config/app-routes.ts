@@ -4,6 +4,22 @@ import { APP_BRAND_NAME, formatPageTitle } from './brand'
 
 export type AppRole = 'trainer' | 'client' | null
 
+export const APP_PATHS = {
+  login: '/login',
+  home: '/home',
+  clients: '/clients',
+  trainers: '/trainers',
+  clientProfile: '/clients/profile',
+  analytics: '/analytics',
+  exercises: '/exercises',
+  exerciseDetails: '/exercises/:exerciseId',
+  profile: '/profile',
+  dashboardAlias: '/dashboard',
+  relationsAlias: '/relations',
+  catalogAlias: '/catalog',
+  profilesAlias: '/profiles',
+} as const
+
 type TitleRule = {
   title: string
   matches: (pathname: string, role: AppRole) => boolean
@@ -12,39 +28,39 @@ type TitleRule = {
 const TITLE_RULES: TitleRule[] = [
   {
     title: 'Главная',
-    matches: (pathname) => pathname === '/' || pathname === '/home' || pathname === '/dashboard',
+    matches: (pathname) => pathname === '/' || pathname === APP_PATHS.home || pathname === APP_PATHS.dashboardAlias,
   },
   {
     title: 'Вход',
-    matches: (pathname) => pathname === '/login',
+    matches: (pathname) => pathname === APP_PATHS.login,
   },
   {
     title: 'Клиенты',
-    matches: (pathname, role) => pathname === '/clients' || (pathname === '/relations' && role === 'trainer'),
+    matches: (pathname, role) => pathname === APP_PATHS.clients || (pathname === APP_PATHS.relationsAlias && role === 'trainer'),
   },
   {
     title: 'Тренеры',
-    matches: (pathname, role) => pathname === '/trainers' || (pathname === '/relations' && role !== 'trainer'),
+    matches: (pathname, role) => pathname === APP_PATHS.trainers || (pathname === APP_PATHS.relationsAlias && role !== 'trainer'),
   },
   {
     title: 'Профиль',
-    matches: (pathname) => pathname === '/profile' || pathname === '/profiles',
+    matches: (pathname) => pathname === APP_PATHS.profile || pathname === APP_PATHS.profilesAlias,
   },
   {
     title: 'Профиль клиента',
-    matches: (pathname) => pathname === '/clients/profile',
+    matches: (pathname) => pathname === APP_PATHS.clientProfile,
   },
   {
     title: 'Аналитика',
-    matches: (pathname) => pathname === '/analytics',
+    matches: (pathname) => pathname === APP_PATHS.analytics,
   },
   {
     title: 'Каталог упражнений',
-    matches: (pathname, role) => pathname === '/exercises' || (pathname === '/catalog' && role === 'trainer'),
+    matches: (pathname, role) => pathname === APP_PATHS.exercises || (pathname === APP_PATHS.catalogAlias && role === 'trainer'),
   },
   {
     title: 'Упражнение',
-    matches: (pathname) => Boolean(matchPath('/exercises/:exerciseId', pathname)),
+    matches: (pathname) => Boolean(matchPath(APP_PATHS.exerciseDetails, pathname)),
   },
 ]
 
@@ -54,11 +70,11 @@ export function resolveDocumentTitle(pathname: string, role: AppRole): string {
 }
 
 export function resolveRelationsPath(role: AppRole): string {
-  if (role === 'trainer') return '/clients'
-  if (role === 'client') return '/trainers'
-  return '/home'
+  if (role === 'trainer') return APP_PATHS.clients
+  if (role === 'client') return APP_PATHS.trainers
+  return APP_PATHS.home
 }
 
 export function resolveCatalogPath(role: AppRole): string {
-  return role === 'trainer' ? '/exercises' : '/home'
+  return role === 'trainer' ? APP_PATHS.exercises : APP_PATHS.home
 }

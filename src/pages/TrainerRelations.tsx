@@ -1,6 +1,7 @@
 import { useDeferredValue, useState } from 'react'
 
-import { useRelations } from '../hooks/use-relations'
+import { useTrainerRelations } from '../hooks/use-relations'
+import { useTrainerRelationActions } from '../hooks/use-relation-actions'
 import { useUserIdGuard } from '../hooks/use-user-id-guard'
 import { TrainerClientsCard } from '../components/trainer-relations/TrainerClientsCard'
 import { TrainerVisibilityCard } from '../components/trainer-relations/TrainerVisibilityCard'
@@ -12,15 +13,19 @@ export function TrainerRelationsPage() {
   const [myClientsSearch, setMyClientsSearch] = useState('')
   const myClientsSearchDeferred = useDeferredValue(myClientsSearch)
 
-  const { trainerClientsPaginatedQuery, trainerPublicationStatusQuery, upsertDiscoveryProfileMutation, leaveRelationMutation } = useRelations({
+  const { trainerClientsPaginatedQuery, trainerPublicationStatusQuery, upsertDiscoveryProfileMutation, leaveRelationMutation } = useTrainerRelations({
     trainerUserId,
-    clientUserId: '',
     trainerClientsPage: {
       status: 'active',
       page: myClientsPage,
       pageSize: 6,
       search: myClientsSearchDeferred,
     },
+  })
+  const { togglePublication, leaveClientRelation } = useTrainerRelationActions({
+    withUserId,
+    upsertDiscoveryProfileMutation,
+    leaveRelationMutation,
   })
 
   const selfVisibleAsTrainer = Boolean(trainerPublicationStatusQuery.data?.is_published)
@@ -48,17 +53,7 @@ export function TrainerRelationsPage() {
         visibilityLabel={trainerVisibilityLabel}
         selfVisibleAsTrainer={selfVisibleAsTrainer}
         disabled={trainerVisibilityToggleDisabled}
-        onToggle={() => {
-          withUserId((resolvedUserId) => {
-            upsertDiscoveryProfileMutation.mutate({
-              userId: resolvedUserId,
-              payload: {
-                role: 'trainer',
-                is_visible: !selfVisibleAsTrainer,
-              },
-            })
-          })
-        }}
+        onToggle={() => togglePublication(!selfVisibleAsTrainer)}
       />
 
       <TrainerClientsCard
@@ -76,14 +71,7 @@ export function TrainerRelationsPage() {
         isError={trainerClientsPaginatedQuery.isError}
         clients={myClients}
         leaveDisabled={leaveRelationMutation.isPending}
-        onLeaveClient={(relationId) => {
-          withUserId((actingUserId) => {
-            leaveRelationMutation.mutate({
-              relationId,
-              actingUserId,
-            })
-          })
-        }}
+        onLeaveClient={leaveClientRelation}
         onClearSearch={() => {
           setMyClientsSearch('')
           setMyClientsPage(1)

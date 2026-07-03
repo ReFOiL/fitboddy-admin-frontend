@@ -3,6 +3,7 @@ import { Link2, Search, Users } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
+import { AsyncTextState } from '../shared/AsyncState'
 import { formatRelationIdentity } from '../../lib/relations-formatters'
 import type { DiscoveryProfile } from '../../types/relation'
 
@@ -45,11 +46,11 @@ export function TrainerSelectionCard({
             <Skeleton className="h-24 w-full rounded-xl" />
           </div>
         ) : null}
-        {isError ? <span className="text-sm text-destructive">Не удалось загрузить список тренеров.</span> : null}
+        {isError ? <AsyncTextState tone="destructive">Не удалось загрузить список тренеров.</AsyncTextState> : null}
         {!isLoading && !isError ? (
           <div className="space-y-3">
             {trainers.length === 0 ? (
-              <span className="text-sm text-secondary-foreground">Пока нет доступных тренеров.</span>
+              <AsyncTextState>Пока нет доступных тренеров.</AsyncTextState>
             ) : (
               trainers.map((trainer) => (
                 <div key={trainer.user_id} className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm">
@@ -75,11 +76,11 @@ export function TrainerSelectionCard({
           </div>
         ) : null}
         {!isActiveRelationLoading && !isActiveRelationError && hasActiveTrainer ? (
-          <span className="text-sm text-secondary-foreground">
+          <AsyncTextState>
             Активная связь уже есть. Завершите текущую связь, чтобы выбрать другого тренера.
-          </span>
+          </AsyncTextState>
         ) : null}
-        {isActiveRelationError ? <span className="text-sm text-destructive">Не удалось проверить активную связь с тренером.</span> : null}
+        {isActiveRelationError ? <AsyncTextState tone="destructive">Не удалось проверить активную связь с тренером.</AsyncTextState> : null}
       </CardContent>
     </Card>
   )

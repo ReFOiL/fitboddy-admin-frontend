@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Archive, Dumbbell, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
@@ -111,9 +111,9 @@ export function ExercisesPage() {
     trainerUserId,
     includeArchived,
   })
-  const catalog = Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const filteredCatalog = useMemo(() => {
+    const catalog = Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []
     const byStatus = catalog.filter((exercise) => {
       if (filterMode === 'active') return exercise.is_active
       if (filterMode === 'archived') return !exercise.is_active
@@ -131,12 +131,16 @@ export function ExercisesPage() {
         .toLowerCase()
       return haystack.includes(normalizedSearch)
     })
-  }, [catalog, filterMode, normalizedSearch])
+  }, [filterMode, normalizedSearch, trainerCatalogQuery.data])
 
   const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(exerciseSchema),
     defaultValues,
   })
+  const watchedEquipment = useWatch({ control: form.control, name: 'equipment' }) ?? defaultValues.equipment
+  const watchedWorkoutCategory = useWatch({ control: form.control, name: 'workout_category' }) ?? defaultValues.workout_category
+  const watchedDifficulty = useWatch({ control: form.control, name: 'difficulty' }) ?? defaultValues.difficulty
+  const watchedIsCardio = useWatch({ control: form.control, name: 'is_cardio' })
 
   const formDisabled =
     addExerciseMutation.isPending || updateExerciseMutation.isPending || archiveExerciseMutation.isPending
@@ -215,38 +219,38 @@ export function ExercisesPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-1.5">
                   <Label htmlFor="equipment">Инвентарь</Label>
-                <StyledSelect
-                  id="equipment"
-                  disabled={formDisabled}
-                  options={EQUIPMENT_OPTIONS}
-                  value={form.watch('equipment')}
-                  onChange={(nextValue) => {
-                    if (nextValue === form.getValues('equipment')) return
-                    form.setValue('equipment', nextValue as ExerciseFormValues['equipment'], {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }}
-                />
+                  <StyledSelect
+                    id="equipment"
+                    disabled={formDisabled}
+                    options={EQUIPMENT_OPTIONS}
+                    value={watchedEquipment}
+                    onChange={(nextValue) => {
+                      if (nextValue === form.getValues('equipment')) return
+                      form.setValue('equipment', nextValue as ExerciseFormValues['equipment'], {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
                   {form.formState.errors.equipment?.message ? (
                     <span className="text-xs text-destructive">{form.formState.errors.equipment.message}</span>
                   ) : null}
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="workout_category">Категория</Label>
-                <StyledSelect
-                  id="workout_category"
-                  disabled={formDisabled}
-                  options={CATEGORY_OPTIONS}
-                  value={form.watch('workout_category')}
-                  onChange={(nextValue) => {
-                    if (nextValue === form.getValues('workout_category')) return
-                    form.setValue('workout_category', nextValue as ExerciseFormValues['workout_category'], {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }}
-                />
+                  <StyledSelect
+                    id="workout_category"
+                    disabled={formDisabled}
+                    options={CATEGORY_OPTIONS}
+                    value={watchedWorkoutCategory}
+                    onChange={(nextValue) => {
+                      if (nextValue === form.getValues('workout_category')) return
+                      form.setValue('workout_category', nextValue as ExerciseFormValues['workout_category'], {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
                   {form.formState.errors.workout_category?.message ? (
                     <span className="text-xs text-destructive">{form.formState.errors.workout_category.message}</span>
                   ) : null}
@@ -258,7 +262,7 @@ export function ExercisesPage() {
                   <Label htmlFor="difficulty">Сложность (1-5)</Label>
                   <DifficultyPicker
                     id="difficulty"
-                    value={form.watch('difficulty')}
+                    value={watchedDifficulty}
                     disabled={formDisabled}
                     onChange={(nextDifficulty) => {
                       if (nextDifficulty === form.getValues('difficulty')) return
@@ -273,7 +277,7 @@ export function ExercisesPage() {
                   <Label htmlFor="is_cardio">Тип упражнения</Label>
                   <StyledSelect
                     id="is_cardio"
-                    value={form.watch('is_cardio') ? 'cardio' : 'strength'}
+                    value={watchedIsCardio ? 'cardio' : 'strength'}
                     onChange={(nextValue) => {
                       const nextIsCardio = nextValue === 'cardio'
                       if (nextIsCardio === form.getValues('is_cardio')) return
