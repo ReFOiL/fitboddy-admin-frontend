@@ -23,17 +23,15 @@ export function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Rocket size={18} className="text-primary" />
-              Генерация плана
+              Мой план
             </CardTitle>
-            <CardDescription>
-              Отдельная страница генерации: параметры подтягиваются автоматически из анкеты, без ручного ввода.
-            </CardDescription>
+            <CardDescription>На одной странице: просмотр текущего плана и обновление из анкеты при необходимости.</CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between gap-3">
-            <span className="text-sm text-secondary-foreground">Перейти к генерации плана из текущего профиля</span>
+            <span className="text-sm text-secondary-foreground">Открой активный план и при необходимости обнови его из анкеты</span>
             <Button asChild>
               <Link to="/plan-generation" className="inline-flex items-center gap-2">
-                Открыть
+                К плану
                 <ArrowRight size={16} />
               </Link>
             </Button>

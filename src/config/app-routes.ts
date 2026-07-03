@@ -52,7 +52,7 @@ const TITLE_RULES: TitleRule[] = [
     matches: (pathname) => pathname === APP_PATHS.clientProfile,
   },
   {
-    title: 'Генерация плана',
+    title: 'Мой план',
     matches: (pathname) => pathname === APP_PATHS.planGeneration,
   },
   {
