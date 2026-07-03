@@ -1,13 +1,13 @@
 import { useDeferredValue, useState } from 'react'
 
-import { useAuth } from '../hooks/use-auth'
 import { useRelations } from '../hooks/use-relations'
+import { useUserIdGuard } from '../hooks/use-user-id-guard'
 import { TrainerClientsCard } from '../components/trainer-relations/TrainerClientsCard'
 import { TrainerVisibilityCard } from '../components/trainer-relations/TrainerVisibilityCard'
 
 export function TrainerRelationsPage() {
-  const { user } = useAuth()
-  const trainerUserId = user?.role === 'trainer' ? user.user_id : ''
+  const { user, userId, withUserId } = useUserIdGuard()
+  const trainerUserId = user?.role === 'trainer' ? userId : ''
   const [myClientsPage, setMyClientsPage] = useState(1)
   const [myClientsSearch, setMyClientsSearch] = useState('')
   const myClientsSearchDeferred = useDeferredValue(myClientsSearch)
@@ -49,13 +49,14 @@ export function TrainerRelationsPage() {
         selfVisibleAsTrainer={selfVisibleAsTrainer}
         disabled={trainerVisibilityToggleDisabled}
         onToggle={() => {
-          if (!user?.user_id) return
-          upsertDiscoveryProfileMutation.mutate({
-            userId: user.user_id,
-            payload: {
-              role: 'trainer',
-              is_visible: !selfVisibleAsTrainer,
-            },
+          withUserId((resolvedUserId) => {
+            upsertDiscoveryProfileMutation.mutate({
+              userId: resolvedUserId,
+              payload: {
+                role: 'trainer',
+                is_visible: !selfVisibleAsTrainer,
+              },
+            })
           })
         }}
       />
@@ -76,10 +77,11 @@ export function TrainerRelationsPage() {
         clients={myClients}
         leaveDisabled={leaveRelationMutation.isPending}
         onLeaveClient={(relationId) => {
-          if (!user?.user_id) return
-          leaveRelationMutation.mutate({
-            relationId,
-            actingUserId: user.user_id,
+          withUserId((actingUserId) => {
+            leaveRelationMutation.mutate({
+              relationId,
+              actingUserId,
+            })
           })
         }}
         onClearSearch={() => {

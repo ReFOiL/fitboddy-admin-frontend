@@ -3,6 +3,7 @@ import { Link2, Search, Users } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
+import { formatRelationIdentity } from '../../lib/relations-formatters'
 import type { DiscoveryProfile } from '../../types/relation'
 
 type TrainerSelectionCardProps = {
@@ -15,10 +16,6 @@ type TrainerSelectionCardProps = {
   mustCompleteQuestionnaire: boolean
   createPending: boolean
   onConnect: (trainerUserId: string) => void
-}
-
-function formatIdentity(params: { login?: string | null; userId: string }) {
-  return params.login?.trim() ? params.login : params.userId
 }
 
 export function TrainerSelectionCard({
@@ -60,7 +57,7 @@ export function TrainerSelectionCard({
                     <Users size={16} className="text-primary" />
                     <span className="font-medium">Тренер</span>
                   </div>
-                  <div className="mb-3 text-secondary-foreground">{formatIdentity({ login: trainer.login, userId: trainer.user_id })}</div>
+                  <div className="mb-3 text-secondary-foreground">{formatRelationIdentity({ login: trainer.login, userId: trainer.user_id })}</div>
                   <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
                     Профиль подтвержден
                   </div>

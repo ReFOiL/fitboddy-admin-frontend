@@ -3,6 +3,7 @@ import { Check, Sparkles, Users, X } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
+import { formatRelationIdentity } from '../../lib/relations-formatters'
 import type { TrainerClientRelation } from '../../types/relation'
 
 type IncomingInvitesCardProps = {
@@ -13,10 +14,6 @@ type IncomingInvitesCardProps = {
   declinePending: boolean
   onAccept: (relationId: string) => void
   onDecline: (relationId: string) => void
-}
-
-function formatIdentity(params: { login?: string | null; userId: string }) {
-  return params.login?.trim() ? params.login : params.userId
 }
 
 export function IncomingInvitesCard({
@@ -54,7 +51,7 @@ export function IncomingInvitesCard({
                 <div key={invite.relation_id} className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm">
                   <div className="mb-1 flex items-center gap-2">
                     <Users size={16} className="text-primary" />
-                    <span className="font-medium">Тренер: {formatIdentity({ login: invite.trainer_login, userId: invite.trainer_user_id })}</span>
+                    <span className="font-medium">Тренер: {formatRelationIdentity({ login: invite.trainer_login, userId: invite.trainer_user_id })}</span>
                   </div>
                   <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
                     Статус: приглашение
