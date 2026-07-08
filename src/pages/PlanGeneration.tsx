@@ -313,12 +313,17 @@ export function PlanGenerationPage() {
                           </div>
                           <div className="space-y-2">
                             {day.exercises.map((exercise) => (
-                              <div key={exercise.line_id} className="rounded-lg border border-border/60 bg-background/50 px-3 py-2">
+                              <Link
+                                key={exercise.line_id}
+                                to={`/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(activePlan.trainer_user_id)}`}
+                                className="block rounded-lg border border-border/60 bg-background/50 px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
+                              >
                                 <div className="text-sm font-medium">{exercise.exercise_name}</div>
                                 <div className="text-xs text-secondary-foreground">
                                   {formatExerciseDetails(exercise.sets, exercise.reps, exercise.duration_seconds, exercise.rest_seconds)}
                                 </div>
-                              </div>
+                                <div className="mt-1 text-xs text-primary">Подробнее</div>
+                              </Link>
                             ))}
                           </div>
                         </div>

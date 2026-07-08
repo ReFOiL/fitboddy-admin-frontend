@@ -7,6 +7,9 @@ import { APP_PATHS, type AppRole, resolveCatalogPath, resolveDocumentTitle, reso
 import { useAuth } from './hooks/use-auth'
 
 const AnalyticsPage = lazy(async () => ({ default: (await import('./pages/Analytics')).AnalyticsPage }))
+const ClientExerciseDetailsPage = lazy(async () => ({
+  default: (await import('./pages/ClientExerciseDetails')).ClientExerciseDetailsPage,
+}))
 const DashboardPage = lazy(async () => ({ default: (await import('./pages/Dashboard')).DashboardPage }))
 const ExerciseDetailsPage = lazy(async () => ({ default: (await import('./pages/ExerciseDetails')).ExerciseDetailsPage }))
 const ExercisesPage = lazy(async () => ({ default: (await import('./pages/Exercises')).ExercisesPage }))
@@ -74,6 +77,14 @@ function App() {
               element={
                 <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
                   <PlanGenerationPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.clientExerciseDetails.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
+                  <ClientExerciseDetailsPage />
                 </RoleRoute>
               }
             />

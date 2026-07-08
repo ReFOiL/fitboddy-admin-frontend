@@ -5,9 +5,11 @@ import { toast } from 'sonner'
 import {
   addTrainerExercise,
   archiveTrainerExercise,
+  deleteTrainerExerciseVideo,
   listTrainerExercises,
   queryKeys,
   updateTrainerExercise,
+  uploadTrainerExerciseVideo,
 } from '../api'
 import type { TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
 
@@ -69,6 +71,22 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     writeCatalog(true)
   }
 
+  const patchExerciseVideoInCatalogCache = (exerciseId: string, videoUrl: string | null) => {
+    const writeCatalog = (showArchived: boolean) => {
+      queryClient.setQueryData<TrainerExercise[]>(
+        queryKeys.exercises.trainerCatalog(trainerUserId, showArchived),
+        (current) => {
+          if (!Array.isArray(current)) return current
+          return current.map((exercise) =>
+            exercise.exercise_id === exerciseId ? { ...exercise, video_url: videoUrl } : exercise,
+          )
+        },
+      )
+    }
+    writeCatalog(false)
+    writeCatalog(true)
+  }
+
   const markExerciseArchivedInCatalogCache = (exerciseId: string) => {
     queryClient.setQueryData<TrainerExercise[]>(
       queryKeys.exercises.trainerCatalog(trainerUserId, false),
@@ -120,10 +138,33 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось архивировать упражнение')),
   })
 
+  const uploadVideoMutation = useMutation({
+    mutationFn: async (params: { exerciseId: string; file: File }) =>
+      uploadTrainerExerciseVideo(trainerUserId, params.exerciseId, params.file),
+    onSuccess: (payload) => {
+      patchExerciseVideoInCatalogCache(payload.exercise_id, payload.video_url)
+      invalidateCatalog()
+      toast.success('Видео загружено')
+    },
+    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось загрузить видео')),
+  })
+
+  const deleteVideoMutation = useMutation({
+    mutationFn: async (exerciseId: string) => deleteTrainerExerciseVideo(trainerUserId, exerciseId),
+    onSuccess: (_, exerciseId) => {
+      patchExerciseVideoInCatalogCache(exerciseId, null)
+      invalidateCatalog()
+      toast.success('Видео удалено')
+    },
+    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось удалить видео')),
+  })
+
   return {
     trainerCatalogQuery,
     addExerciseMutation,
     updateExerciseMutation,
     archiveExerciseMutation,
+    uploadVideoMutation,
+    deleteVideoMutation,
   }
 }

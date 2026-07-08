@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Dumbbell, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Dumbbell, Loader2, Save, Trash2, Video } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
@@ -18,6 +18,7 @@ import { StyledSelect } from '../components/ui/styled-select'
 
 const exerciseSchema = z.object({
   exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
+  description: z.string().max(4000, 'Максимум 4000 символов').optional(),
   equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
   is_cardio: z.boolean(),
   difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
@@ -108,6 +109,7 @@ function normalizeIsCardio(value: unknown): boolean {
 function mapExerciseToFormValues(exercise: TrainerExercise): ExerciseFormValues {
   return {
     exercise_name: typeof exercise.exercise_name === 'string' ? exercise.exercise_name : '',
+    description: typeof exercise.description === 'string' ? exercise.description : '',
     equipment: normalizeEquipment(exercise.equipment),
     is_cardio: normalizeIsCardio(exercise.is_cardio),
     difficulty: normalizeDifficulty(exercise.difficulty),
@@ -116,8 +118,10 @@ function mapExerciseToFormValues(exercise: TrainerExercise): ExerciseFormValues 
 }
 
 function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequest {
+  const description = values.description?.trim() ?? ''
   return {
     exercise_name: values.exercise_name.trim(),
+    description: description || null,
     equipment: values.equipment.trim().toLowerCase(),
     is_cardio: values.is_cardio,
     difficulty: values.difficulty,
@@ -162,7 +166,13 @@ export function ExerciseDetailsPage() {
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
   const includeArchived = activeHint === true ? false : true
-  const { trainerCatalogQuery, updateExerciseMutation, archiveExerciseMutation } = useExercises({
+  const {
+    trainerCatalogQuery,
+    updateExerciseMutation,
+    archiveExerciseMutation,
+    uploadVideoMutation,
+    deleteVideoMutation,
+  } = useExercises({
     trainerUserId,
     includeArchived,
   })
@@ -176,6 +186,7 @@ export function ExerciseDetailsPage() {
     resolver: zodResolver(exerciseSchema),
     defaultValues: {
       exercise_name: '',
+      description: '',
       equipment: 'none',
       is_cardio: false,
       difficulty: 2,
@@ -202,6 +213,7 @@ export function ExerciseDetailsPage() {
   }, [exercise, form])
 
   const formDisabled = updateExerciseMutation.isPending || archiveExerciseMutation.isPending || !form.formState.isDirty
+  const isVideoBusy = uploadVideoMutation.isPending || deleteVideoMutation.isPending
   const equipmentDisplayValue = watchedEquipment ?? normalizeEquipment(exercise?.equipment)
   const categoryDisplayValue = watchedWorkoutCategory ?? normalizeCategory(exercise?.workout_category)
   const exerciseTypeDisplayValue = (watchedIsCardio ?? normalizeIsCardio(exercise?.is_cardio)) ? 'cardio' : 'strength'
@@ -288,6 +300,19 @@ export function ExerciseDetailsPage() {
                 <Input id="exercise_name" placeholder="Болгарские выпады" {...form.register('exercise_name')} />
                 {form.formState.errors.exercise_name?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.exercise_name.message}</span>
+                ) : null}
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="description">Описание</Label>
+                <textarea
+                  id="description"
+                  className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70"
+                  placeholder="Техника, акценты, на что обратить внимание."
+                  {...form.register('description')}
+                />
+                {form.formState.errors.description?.message ? (
+                  <span className="text-xs text-destructive">{form.formState.errors.description.message}</span>
                 ) : null}
               </div>
 
@@ -387,6 +412,68 @@ export function ExerciseDetailsPage() {
                 ) : null}
               </div>
             </form>
+          ) : null}
+
+          {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError && exercise ? (
+            <div className="relative grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Video size={16} className="text-primary" />
+                Видео упражнения
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="exercise_video_upload">Загрузить видео</Label>
+                <Input
+                  id="exercise_video_upload"
+                  type="file"
+                  accept=".mp4,.mov,video/mp4,video/quicktime"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) return
+                    uploadVideoMutation.mutate({ exerciseId: exercise.exercise_id, file })
+                    event.currentTarget.value = ''
+                  }}
+                  disabled={isVideoBusy}
+                />
+                <span className="text-xs text-secondary-foreground">Поддерживаются MP4/MOV, до 200MB.</span>
+              </div>
+              {isVideoBusy ? (
+                <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+                  <Loader2 size={18} className="animate-spin text-primary" />
+                  <div>
+                    <div className="font-medium">
+                      {uploadVideoMutation.isPending ? 'Загружаем видео...' : 'Удаляем видео...'}
+                    </div>
+                    <div className="text-xs text-secondary-foreground">
+                      {uploadVideoMutation.isPending
+                        ? 'Большие файлы могут загружаться до нескольких минут. Не закрывай страницу.'
+                        : 'Подожди немного.'}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              {exercise.video_url ? (
+                <div className={`space-y-3 ${isVideoBusy ? 'pointer-events-none opacity-50' : ''}`}>
+                  <video
+                    key={exercise.video_url}
+                    src={exercise.video_url}
+                    controls
+                    className="max-h-72 w-full rounded-xl border border-border/60 bg-background/40"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => deleteVideoMutation.mutate(exercise.exercise_id)}
+                    disabled={isVideoBusy}
+                  >
+                    {deleteVideoMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    {deleteVideoMutation.isPending ? 'Удаление...' : 'Удалить видео'}
+                  </Button>
+                </div>
+              ) : !isVideoBusy ? (
+                <span className="text-sm text-secondary-foreground">Видео ещё не загружено.</span>
+              ) : null}
+            </div>
           ) : null}
         </CardContent>
       </Card>

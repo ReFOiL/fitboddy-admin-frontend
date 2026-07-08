@@ -14,6 +14,7 @@ export const APP_PATHS = {
   analytics: '/analytics',
   exercises: '/exercises',
   exerciseDetails: '/exercises/:exerciseId',
+  clientExerciseDetails: '/plan/exercises/:exerciseId',
   profile: '/profile',
   dashboardAlias: '/dashboard',
   relationsAlias: '/relations',
@@ -65,7 +66,8 @@ const TITLE_RULES: TitleRule[] = [
   },
   {
     title: 'Упражнение',
-    matches: (pathname) => Boolean(matchPath(APP_PATHS.exerciseDetails, pathname)),
+    matches: (pathname) =>
+      Boolean(matchPath(APP_PATHS.exerciseDetails, pathname) || matchPath(APP_PATHS.clientExerciseDetails, pathname)),
   },
 ]
 

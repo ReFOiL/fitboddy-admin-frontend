@@ -23,6 +23,7 @@ const exerciseSchema = z.object({
     .max(64, 'Максимум 64 символа')
     .regex(/^[a-z0-9_]+$/, 'Только латиница, цифры и "_"'),
   exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
+  description: z.string().max(4000, 'Максимум 4000 символов').optional(),
   equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
   is_cardio: z.boolean(),
   difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
@@ -83,6 +84,7 @@ function formatCategory(value: string): string {
 const defaultValues: ExerciseFormValues = {
   exercise_id: '',
   exercise_name: '',
+  description: '',
   equipment: 'none',
   is_cardio: false,
   difficulty: 2,
@@ -90,8 +92,10 @@ const defaultValues: ExerciseFormValues = {
 }
 
 function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequest {
+  const description = values.description?.trim() ?? ''
   return {
     exercise_name: values.exercise_name.trim(),
+    description: description || null,
     equipment: values.equipment.trim().toLowerCase(),
     is_cardio: values.is_cardio,
     difficulty: values.difficulty,
@@ -213,6 +217,20 @@ export function ExercisesPage() {
                 <Input id="exercise_name" placeholder="Болгарские выпады" disabled={formDisabled} {...form.register('exercise_name')} />
                 {form.formState.errors.exercise_name?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.exercise_name.message}</span>
+                ) : null}
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="description">Описание</Label>
+                <textarea
+                  id="description"
+                  className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
+                  placeholder="Техника, акценты, на что обратить внимание."
+                  disabled={formDisabled}
+                  {...form.register('description')}
+                />
+                {form.formState.errors.description?.message ? (
+                  <span className="text-xs text-destructive">{form.formState.errors.description.message}</span>
                 ) : null}
               </div>
 
