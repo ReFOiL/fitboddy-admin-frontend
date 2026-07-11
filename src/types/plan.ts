@@ -19,6 +19,7 @@ export type PlanExercise = {
   reps: number | null
   duration_seconds: number | null
   rest_seconds: number | null
+  weight_kg: number | null
 }
 
 export type PlanDay = {

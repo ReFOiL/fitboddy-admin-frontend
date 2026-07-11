@@ -16,14 +16,30 @@ import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
 import { StyledSelect } from '../components/ui/styled-select'
 
-const exerciseSchema = z.object({
-  exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
-  description: z.string().max(4000, 'Максимум 4000 символов').optional(),
-  equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
-  is_cardio: z.boolean(),
-  difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
-  workout_category: z.enum(['upper', 'lower', 'core', 'full_body']),
-})
+const exerciseSchema = z
+  .object({
+    exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
+    description: z.string().max(4000, 'Максимум 4000 символов').optional(),
+    equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
+    is_cardio: z.boolean(),
+    is_hold: z.boolean(),
+    difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
+    workout_category: z.enum(['upper', 'lower', 'core', 'full_body']),
+    default_sets: z.number().int().min(1, 'Минимум 1').max(10, 'Максимум 10'),
+    default_reps: z.number().int().min(1, 'Минимум 1').max(100, 'Максимум 100').nullable(),
+    default_duration_seconds: z.number().int().min(5, 'Минимум 5 сек').max(3600, 'Максимум 3600 сек').nullable(),
+    default_rest_seconds: z.number().int().min(0, 'Минимум 0').max(600, 'Максимум 600'),
+    default_weight_kg: z.number().min(0, 'Не может быть отрицательным').nullable(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.is_hold) {
+      if (values.default_duration_seconds == null) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_duration_seconds'], message: 'Укажи длительность' })
+      }
+    } else if (values.default_reps == null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_reps'], message: 'Укажи повторения' })
+    }
+  })
 
 type ExerciseFormValues = z.infer<typeof exerciseSchema>
 
@@ -112,8 +128,14 @@ function mapExerciseToFormValues(exercise: TrainerExercise): ExerciseFormValues 
     description: typeof exercise.description === 'string' ? exercise.description : '',
     equipment: normalizeEquipment(exercise.equipment),
     is_cardio: normalizeIsCardio(exercise.is_cardio),
+    is_hold: Boolean(exercise.is_hold),
     difficulty: normalizeDifficulty(exercise.difficulty),
     workout_category: normalizeCategory(exercise.workout_category),
+    default_sets: exercise.default_sets ?? 3,
+    default_reps: exercise.default_reps ?? 10,
+    default_duration_seconds: exercise.default_duration_seconds ?? 35,
+    default_rest_seconds: exercise.default_rest_seconds ?? 60,
+    default_weight_kg: exercise.default_weight_kg ?? null,
   }
 }
 
@@ -124,8 +146,14 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
     description: description || null,
     equipment: values.equipment.trim().toLowerCase(),
     is_cardio: values.is_cardio,
+    is_hold: values.is_hold,
     difficulty: values.difficulty,
     workout_category: values.workout_category.trim().toLowerCase(),
+    default_sets: values.default_sets,
+    default_reps: values.is_hold ? null : values.default_reps,
+    default_duration_seconds: values.is_hold ? values.default_duration_seconds : null,
+    default_rest_seconds: values.default_rest_seconds,
+    default_weight_kg: values.default_weight_kg,
   }
 }
 
@@ -160,8 +188,14 @@ export function ExerciseDetailsPage() {
       description: '',
       equipment: 'none',
       is_cardio: false,
+      is_hold: false,
       difficulty: 2,
       workout_category: 'upper',
+      default_sets: 3,
+      default_reps: 10,
+      default_duration_seconds: 35,
+      default_rest_seconds: 60,
+      default_weight_kg: null,
     },
   })
 
@@ -169,13 +203,25 @@ export function ExerciseDetailsPage() {
     form.register('equipment')
     form.register('workout_category')
     form.register('is_cardio')
+    form.register('is_hold')
     form.register('difficulty')
+    form.register('default_sets')
+    form.register('default_reps')
+    form.register('default_duration_seconds')
+    form.register('default_rest_seconds')
+    form.register('default_weight_kg')
   }, [form])
 
   const watchedEquipment = useWatch({ control: form.control, name: 'equipment' })
   const watchedWorkoutCategory = useWatch({ control: form.control, name: 'workout_category' })
   const watchedDifficulty = useWatch({ control: form.control, name: 'difficulty' }) ?? 2
   const watchedIsCardio = useWatch({ control: form.control, name: 'is_cardio' })
+  const watchedIsHold = useWatch({ control: form.control, name: 'is_hold' })
+  const watchedSets = useWatch({ control: form.control, name: 'default_sets' }) ?? 3
+  const watchedReps = useWatch({ control: form.control, name: 'default_reps' })
+  const watchedDuration = useWatch({ control: form.control, name: 'default_duration_seconds' })
+  const watchedRest = useWatch({ control: form.control, name: 'default_rest_seconds' }) ?? 60
+  const watchedWeight = useWatch({ control: form.control, name: 'default_weight_kg' })
 
   useEffect(() => {
     if (!exercise) return
@@ -187,7 +233,9 @@ export function ExerciseDetailsPage() {
   const isVideoBusy = uploadVideoMutation.isPending || deleteVideoMutation.isPending
   const equipmentDisplayValue = watchedEquipment ?? normalizeEquipment(exercise?.equipment)
   const categoryDisplayValue = watchedWorkoutCategory ?? normalizeCategory(exercise?.workout_category)
-  const exerciseTypeDisplayValue = (watchedIsCardio ?? normalizeIsCardio(exercise?.is_cardio)) ? 'cardio' : 'strength'
+  const stimulusDisplayValue =
+    (watchedIsCardio ?? normalizeIsCardio(exercise?.is_cardio)) ? 'cardio' : 'strength'
+  const dosageDisplayValue = (watchedIsHold ?? Boolean(exercise?.is_hold)) ? 'duration' : 'reps'
 
   if (!isTrainer) {
     return (
@@ -340,13 +388,12 @@ export function ExerciseDetailsPage() {
                   ) : null}
                 </div>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="is_cardio">Тип упражнения</Label>
+                  <Label htmlFor="is_cardio">Тип нагрузки</Label>
                   <StyledSelect
                     id="is_cardio"
-                    value={exerciseTypeDisplayValue}
+                    value={stimulusDisplayValue}
                     onChange={(nextValue) => {
-                      const resolvedType = nextValue === 'cardio' ? 'cardio' : 'strength'
-                      form.setValue('is_cardio', resolvedType === 'cardio', {
+                      form.setValue('is_cardio', nextValue === 'cardio', {
                         shouldDirty: true,
                         shouldValidate: true,
                       })
@@ -356,6 +403,146 @@ export function ExerciseDetailsPage() {
                       { value: 'cardio', label: 'Кардио' },
                     ]}
                   />
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="is_hold">Дозировка</Label>
+                <StyledSelect
+                  id="is_hold"
+                  value={dosageDisplayValue}
+                  onChange={(nextValue) => {
+                    const nextIsHold = nextValue === 'duration'
+                    form.setValue('is_hold', nextIsHold, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                    if (nextIsHold) {
+                      form.setValue('default_rest_seconds', 45, { shouldDirty: true, shouldValidate: true })
+                      if (!form.getValues('default_duration_seconds')) {
+                        form.setValue('default_duration_seconds', 35, { shouldDirty: true, shouldValidate: true })
+                      }
+                    } else {
+                      form.setValue('default_rest_seconds', 60, { shouldDirty: true, shouldValidate: true })
+                      if (!form.getValues('default_reps')) {
+                        form.setValue('default_reps', 10, { shouldDirty: true, shouldValidate: true })
+                      }
+                    }
+                  }}
+                  options={[
+                    { value: 'reps', label: 'На повторы' },
+                    { value: 'duration', label: 'На время' },
+                  ]}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="default_sets">Подходы</Label>
+                  <Input
+                    id="default_sets"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={watchedSets}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value)
+                      form.setValue('default_sets', Number.isFinite(nextValue) ? nextValue : 1, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
+                  {form.formState.errors.default_sets?.message ? (
+                    <span className="text-xs text-destructive">{form.formState.errors.default_sets.message}</span>
+                  ) : null}
+                </div>
+                {dosageDisplayValue === 'duration' ? (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="default_duration_seconds">Длительность (сек)</Label>
+                    <Input
+                      id="default_duration_seconds"
+                      type="number"
+                      min={5}
+                      max={3600}
+                      value={watchedDuration ?? ''}
+                      onChange={(event) => {
+                        const raw = event.target.value
+                        form.setValue('default_duration_seconds', raw === '' ? null : Number(raw), {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }}
+                    />
+                    {form.formState.errors.default_duration_seconds?.message ? (
+                      <span className="text-xs text-destructive">{form.formState.errors.default_duration_seconds.message}</span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="default_reps">Повторения</Label>
+                    <Input
+                      id="default_reps"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={watchedReps ?? ''}
+                      onChange={(event) => {
+                        const raw = event.target.value
+                        form.setValue('default_reps', raw === '' ? null : Number(raw), {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }}
+                    />
+                    {form.formState.errors.default_reps?.message ? (
+                      <span className="text-xs text-destructive">{form.formState.errors.default_reps.message}</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="default_rest_seconds">Отдых (сек)</Label>
+                  <Input
+                    id="default_rest_seconds"
+                    type="number"
+                    min={0}
+                    max={600}
+                    value={watchedRest}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value)
+                      form.setValue('default_rest_seconds', Number.isFinite(nextValue) ? nextValue : 0, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
+                  {form.formState.errors.default_rest_seconds?.message ? (
+                    <span className="text-xs text-destructive">{form.formState.errors.default_rest_seconds.message}</span>
+                  ) : null}
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="default_weight_kg">Базовый вес (кг)</Label>
+                  <Input
+                    id="default_weight_kg"
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={watchedWeight ?? ''}
+                    placeholder="Необязательно"
+                    onChange={(event) => {
+                      const raw = event.target.value
+                      form.setValue('default_weight_kg', raw === '' ? null : Number(raw), {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }}
+                  />
+                  {form.formState.errors.default_weight_kg?.message ? (
+                    <span className="text-xs text-destructive">{form.formState.errors.default_weight_kg.message}</span>
+                  ) : null}
                 </div>
               </div>
 

@@ -36,24 +36,18 @@ function formatExerciseDetails(
   reps: number | null,
   durationSeconds: number | null,
   restSeconds: number | null,
+  weightKg: number | null,
 ): string {
+  const parts: string[] = []
+  if (sets && sets > 0) parts.push(`Подходы: ${sets}`)
   if (durationSeconds && durationSeconds > 0) {
-    return `Длительность: ${durationSeconds} сек${restSeconds ? ` · Отдых: ${restSeconds} сек` : ''}`
+    parts.push(`Длительность: ${durationSeconds} сек`)
+  } else if (reps && reps > 0) {
+    parts.push(`Повторения: ${reps}`)
   }
-
-  if (sets && reps) {
-    return `Подходы: ${sets} · Повторения: ${reps}${restSeconds ? ` · Отдых: ${restSeconds} сек` : ''}`
-  }
-
-  if (sets) {
-    return `Подходы: ${sets}${restSeconds ? ` · Отдых: ${restSeconds} сек` : ''}`
-  }
-
-  if (reps) {
-    return `Повторения: ${reps}${restSeconds ? ` · Отдых: ${restSeconds} сек` : ''}`
-  }
-
-  return restSeconds ? `Отдых: ${restSeconds} сек` : 'Параметры уточняются тренером'
+  if (weightKg != null && weightKg > 0) parts.push(`Вес: ${weightKg} кг`)
+  if (restSeconds) parts.push(`Отдых: ${restSeconds} сек`)
+  return parts.length > 0 ? parts.join(' · ') : 'Параметры уточняются тренером'
 }
 
 export function PlanGenerationPage() {
@@ -320,7 +314,13 @@ export function PlanGenerationPage() {
                               >
                                 <div className="text-sm font-medium">{exercise.exercise_name}</div>
                                 <div className="text-xs text-secondary-foreground">
-                                  {formatExerciseDetails(exercise.sets, exercise.reps, exercise.duration_seconds, exercise.rest_seconds)}
+                                  {formatExerciseDetails(
+                                    exercise.sets,
+                                    exercise.reps,
+                                    exercise.duration_seconds,
+                                    exercise.rest_seconds,
+                                    exercise.weight_kg,
+                                  )}
                                 </div>
                                 <div className="mt-1 text-xs text-primary">Подробнее</div>
                               </Link>

@@ -5,8 +5,14 @@ export type TrainerExercise = {
   description: string | null
   equipment: string
   is_cardio: boolean
+  is_hold: boolean
   difficulty: number
   workout_category: string
+  default_sets: number
+  default_reps: number | null
+  default_duration_seconds: number | null
+  default_rest_seconds: number
+  default_weight_kg: number | null
   is_active: boolean
   video_url: string | null
   created_at: string
@@ -18,8 +24,14 @@ export type UpsertTrainerExerciseRequest = {
   description?: string | null
   equipment: string
   is_cardio: boolean
+  is_hold: boolean
   difficulty: number
   workout_category: string
+  default_sets: number
+  default_reps: number | null
+  default_duration_seconds: number | null
+  default_rest_seconds: number
+  default_weight_kg: number | null
 }
 
 export type ExerciseVideoUploadResponse = {
