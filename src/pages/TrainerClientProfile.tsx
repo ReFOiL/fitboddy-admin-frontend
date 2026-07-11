@@ -32,7 +32,10 @@ export function TrainerClientProfilePage() {
   const requestedClientUserId = (searchParams.get('clientUserId') ?? '').trim()
 
   const { trainerClientsQuery } = useTrainerRelations({ trainerUserId })
-  const trainerClients = Array.isArray(trainerClientsQuery.data) ? trainerClientsQuery.data : []
+  const trainerClients = useMemo(
+    () => (Array.isArray(trainerClientsQuery.data) ? trainerClientsQuery.data : []),
+    [trainerClientsQuery.data],
+  )
 
   const formatClientLabel = (relation: (typeof trainerClients)[number]): string => {
     const displayName = relation.client_display_name?.trim()
@@ -70,10 +73,17 @@ export function TrainerClientProfilePage() {
     queryFn: async () => listTrainerExercises(trainerUserId, false),
     enabled: Boolean(trainerUserId),
   })
-  const weightExercises = (Array.isArray(catalogQuery.data) ? catalogQuery.data : []).filter(
-    (exercise) => exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
+  const weightExercises = useMemo(
+    () =>
+      (Array.isArray(catalogQuery.data) ? catalogQuery.data : []).filter(
+        (exercise) => exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
+      ),
+    [catalogQuery.data],
   )
-  const loads = Array.isArray(loadsQuery.data) ? loadsQuery.data : []
+  const loads = useMemo(
+    () => (Array.isArray(loadsQuery.data) ? loadsQuery.data : []),
+    [loadsQuery.data],
+  )
   const loadsByExercise = useMemo(() => {
     const map = new Map<string, number>()
     for (const item of loads) {

@@ -115,7 +115,7 @@ export function PlanGenerationPage() {
   )
   const unavailableEquipment = useMemo(
     () => (Array.isArray(profile?.unavailable_equipment) ? profile.unavailable_equipment : []),
-    [profile?.unavailable_equipment],
+    [profile],
   )
   const exclusionOptions = useMemo(() => {
     const unavailableKeys = new Set(unavailableEquipment.map((item) => item.toLocaleLowerCase('ru-RU')))

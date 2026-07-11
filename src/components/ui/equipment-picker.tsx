@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ArrowLeft, PencilLine } from 'lucide-react'
 
 import {
@@ -30,22 +30,12 @@ export function EquipmentPicker({
   onChange,
 }: EquipmentPickerProps) {
   const isCustomValue = Boolean(value) && value !== 'none' && !isCanonicalEquipment(value)
-  const [mode, setMode] = useState<'preset' | 'custom'>(isCustomValue ? 'custom' : 'preset')
-  const [draftName, setDraftName] = useState(isCustomValue ? value : '')
+  const [forceCustom, setForceCustom] = useState(false)
+  const [draftName, setDraftName] = useState('')
+  const customMode = isCustomValue || (forceCustom && value !== 'none' && !isCanonicalEquipment(value))
+  const inputValue = isCustomValue ? value : draftName
 
-  useEffect(() => {
-    if (isCustomValue) {
-      setMode('custom')
-      setDraftName(value)
-      return
-    }
-    if (value === 'none' || isCanonicalEquipment(value)) {
-      setMode('preset')
-      setDraftName('')
-    }
-  }, [isCustomValue, value])
-
-  if (mode === 'custom') {
+  if (customMode) {
     return (
       <div className="grid gap-2 rounded-xl border border-primary/25 bg-primary/5 p-3">
         <div className="flex items-start justify-between gap-3">
@@ -63,7 +53,7 @@ export function EquipmentPicker({
             disabled={disabled}
             className="h-8 shrink-0 gap-1 px-2 text-xs"
             onClick={() => {
-              setMode('preset')
+              setForceCustom(false)
               setDraftName('')
               onChange('none')
             }}
@@ -77,12 +67,11 @@ export function EquipmentPicker({
           disabled={disabled}
           autoFocus
           placeholder="Например: турник, TRX, аэробайк"
-          value={draftName}
+          value={inputValue}
           onChange={(event) => {
             const next = event.target.value
             setDraftName(next)
             const normalized = normalizeEquipmentName(next)
-            // Keep raw while typing so the field doesn't fight the user; empty clears.
             if (!next.trim()) {
               onChange('')
               return
@@ -90,7 +79,7 @@ export function EquipmentPicker({
             onChange(normalized ?? next.trim())
           }}
           onBlur={() => {
-            const normalized = normalizeEquipmentName(draftName)
+            const normalized = normalizeEquipmentName(inputValue)
             if (normalized) {
               setDraftName(normalized)
               onChange(normalized)
@@ -115,11 +104,13 @@ export function EquipmentPicker({
         value={isCanonicalEquipment(value) || value === 'none' ? value : 'none'}
         onChange={(nextValue) => {
           if (nextValue === CUSTOM_EQUIPMENT_SENTINEL) {
-            setMode('custom')
+            setForceCustom(true)
             setDraftName('')
             onChange('')
             return
           }
+          setForceCustom(false)
+          setDraftName('')
           onChange(nextValue)
         }}
       />
