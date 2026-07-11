@@ -49,14 +49,14 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
 
           let found = false
           const next = current.map((exercise) => {
-            if (exercise.exercise_id !== updatedExercise.exercise_id) return exercise
+            if (exercise.row_id !== updatedExercise.row_id) return exercise
             found = true
             return updatedExercise
           })
 
           if (found) {
             if (!showArchived && !updatedExercise.is_active) {
-              return next.filter((exercise) => exercise.exercise_id !== updatedExercise.exercise_id)
+              return next.filter((exercise) => exercise.row_id !== updatedExercise.row_id)
             }
             return next
           }
@@ -71,14 +71,14 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     writeCatalog(true)
   }
 
-  const patchExerciseVideoInCatalogCache = (exerciseId: string, videoUrl: string | null) => {
+  const patchExerciseVideoInCatalogCache = (rowId: string, videoUrl: string | null) => {
     const writeCatalog = (showArchived: boolean) => {
       queryClient.setQueryData<TrainerExercise[]>(
         queryKeys.exercises.trainerCatalog(trainerUserId, showArchived),
         (current) => {
           if (!Array.isArray(current)) return current
           return current.map((exercise) =>
-            exercise.exercise_id === exerciseId ? { ...exercise, video_url: videoUrl } : exercise,
+            exercise.row_id === rowId ? { ...exercise, video_url: videoUrl } : exercise,
           )
         },
       )
@@ -87,12 +87,12 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     writeCatalog(true)
   }
 
-  const markExerciseArchivedInCatalogCache = (exerciseId: string) => {
+  const markExerciseArchivedInCatalogCache = (rowId: string) => {
     queryClient.setQueryData<TrainerExercise[]>(
       queryKeys.exercises.trainerCatalog(trainerUserId, false),
       (current) => {
         if (!Array.isArray(current)) return current
-        return current.filter((exercise) => exercise.exercise_id !== exerciseId)
+        return current.filter((exercise) => exercise.row_id !== rowId)
       },
     )
     queryClient.setQueryData<TrainerExercise[]>(
@@ -100,15 +100,14 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
       (current) => {
         if (!Array.isArray(current)) return current
         return current.map((exercise) =>
-          exercise.exercise_id === exerciseId ? { ...exercise, is_active: false } : exercise,
+          exercise.row_id === rowId ? { ...exercise, is_active: false } : exercise,
         )
       },
     )
   }
 
   const addExerciseMutation = useMutation({
-    mutationFn: async (params: { exerciseId: string; payload: UpsertTrainerExerciseRequest }) =>
-      addTrainerExercise(trainerUserId, params.exerciseId, params.payload),
+    mutationFn: async (payload: UpsertTrainerExerciseRequest) => addTrainerExercise(trainerUserId, payload),
     onSuccess: (createdExercise) => {
       upsertExerciseInCatalogCache(createdExercise)
       invalidateCatalog()
@@ -118,8 +117,8 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   })
 
   const updateExerciseMutation = useMutation({
-    mutationFn: async (params: { exerciseId: string; payload: UpsertTrainerExerciseRequest }) =>
-      updateTrainerExercise(trainerUserId, params.exerciseId, params.payload),
+    mutationFn: async (params: { rowId: string; payload: UpsertTrainerExerciseRequest }) =>
+      updateTrainerExercise(trainerUserId, params.rowId, params.payload),
     onSuccess: (updatedExercise) => {
       upsertExerciseInCatalogCache(updatedExercise)
       invalidateCatalog()
@@ -129,9 +128,9 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   })
 
   const archiveExerciseMutation = useMutation({
-    mutationFn: async (exerciseId: string) => archiveTrainerExercise(trainerUserId, exerciseId),
-    onSuccess: (_, exerciseId) => {
-      markExerciseArchivedInCatalogCache(exerciseId)
+    mutationFn: async (rowId: string) => archiveTrainerExercise(trainerUserId, rowId),
+    onSuccess: (_, rowId) => {
+      markExerciseArchivedInCatalogCache(rowId)
       invalidateCatalog()
       toast.success('Упражнение архивировано')
     },
@@ -139,10 +138,10 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   })
 
   const uploadVideoMutation = useMutation({
-    mutationFn: async (params: { exerciseId: string; file: File }) =>
-      uploadTrainerExerciseVideo(trainerUserId, params.exerciseId, params.file),
+    mutationFn: async (params: { rowId: string; file: File }) =>
+      uploadTrainerExerciseVideo(trainerUserId, params.rowId, params.file),
     onSuccess: (payload) => {
-      patchExerciseVideoInCatalogCache(payload.exercise_id, payload.video_url)
+      patchExerciseVideoInCatalogCache(payload.row_id, payload.video_url)
       invalidateCatalog()
       toast.success('Видео загружено')
     },
@@ -150,9 +149,9 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   })
 
   const deleteVideoMutation = useMutation({
-    mutationFn: async (exerciseId: string) => deleteTrainerExerciseVideo(trainerUserId, exerciseId),
-    onSuccess: (_, exerciseId) => {
-      patchExerciseVideoInCatalogCache(exerciseId, null)
+    mutationFn: async (rowId: string) => deleteTrainerExerciseVideo(trainerUserId, rowId),
+    onSuccess: (_, rowId) => {
+      patchExerciseVideoInCatalogCache(rowId, null)
       invalidateCatalog()
       toast.success('Видео удалено')
     },

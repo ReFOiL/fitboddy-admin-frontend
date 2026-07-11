@@ -17,11 +17,6 @@ import { Skeleton } from '../components/ui/skeleton'
 import { StyledSelect } from '../components/ui/styled-select'
 
 const exerciseSchema = z.object({
-  exercise_id: z
-    .string()
-    .min(2, 'Минимум 2 символа')
-    .max(64, 'Максимум 64 символа')
-    .regex(/^[a-z0-9_]+$/, 'Только латиница, цифры и "_"'),
   exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
   description: z.string().max(4000, 'Максимум 4000 символов').optional(),
   equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
@@ -82,7 +77,6 @@ function formatCategory(value: string): string {
 }
 
 const defaultValues: ExerciseFormValues = {
-  exercise_id: '',
   exercise_name: '',
   description: '',
   equipment: 'none',
@@ -127,7 +121,6 @@ export function ExercisesPage() {
     return byStatus.filter((exercise) => {
       const haystack = [
         exercise.exercise_name,
-        exercise.exercise_id,
         exercise.workout_category,
         exercise.equipment,
       ]
@@ -185,33 +178,14 @@ export function ExercisesPage() {
               className="grid gap-4 rounded-xl border border-border/70 bg-secondary/20 p-4"
               onSubmit={form.handleSubmit((values) => {
                 const payload = mapFormToPayload(values)
-                addExerciseMutation.mutate(
-                  {
-                    exerciseId: values.exercise_id.trim().toLowerCase(),
-                    payload,
+                addExerciseMutation.mutate(payload, {
+                  onSuccess: () => {
+                    form.reset(defaultValues)
+                    setIsCreateFormOpen(false)
                   },
-                  {
-                    onSuccess: () => {
-                      form.reset(defaultValues)
-                      setIsCreateFormOpen(false)
-                    },
-                  },
-                )
+                })
               })}
             >
-              <div className="grid gap-1.5">
-                <Label htmlFor="exercise_id">Технический ID упражнения</Label>
-                <Input
-                  id="exercise_id"
-                  placeholder="split_squat"
-                  disabled={formDisabled}
-                  {...form.register('exercise_id')}
-                />
-                {form.formState.errors.exercise_id?.message ? (
-                  <span className="text-xs text-destructive">{form.formState.errors.exercise_id.message}</span>
-                ) : null}
-              </div>
-
               <div className="grid gap-1.5">
                 <Label htmlFor="exercise_name">Название</Label>
                 <Input id="exercise_name" placeholder="Болгарские выпады" disabled={formDisabled} {...form.register('exercise_name')} />
@@ -402,15 +376,13 @@ export function ExercisesPage() {
                       </div>
                     </div>
                     <div className="mb-3 text-xs text-secondary-foreground">
-                      ID: {exercise.exercise_id} · Категория: {formatCategory(exercise.workout_category)} · Инвентарь:{' '}
+                      Категория: {formatCategory(exercise.workout_category)} · Инвентарь:{' '}
                       {formatEquipment(exercise.equipment)} ·
                       Сложность: {exercise.difficulty} · {exercise.is_cardio ? 'Кардио' : 'Силовое'}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button asChild type="button" size="sm" variant="default">
-                        <Link
-                          to={`/exercises/${encodeURIComponent(exercise.exercise_id)}?row=${encodeURIComponent(exercise.row_id)}&active=${exercise.is_active ? '1' : '0'}`}
-                        >
+                        <Link to={`/exercises/${encodeURIComponent(exercise.row_id)}`}>
                           Подробнее
                         </Link>
                       </Button>
@@ -420,7 +392,7 @@ export function ExercisesPage() {
                           size="sm"
                           variant="destructive"
                           className="gap-2"
-                          onClick={() => archiveExerciseMutation.mutate(exercise.exercise_id)}
+                          onClick={() => archiveExerciseMutation.mutate(exercise.row_id)}
                           disabled={formDisabled}
                         >
                           <Trash2 size={14} />

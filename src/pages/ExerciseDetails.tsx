@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowLeft, Dumbbell, Loader2, Save, Trash2, Video } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { useAuth } from '../hooks/use-auth'
@@ -129,43 +129,11 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
   }
 }
 
-function resolveExerciseById(
-  catalog: TrainerExercise[],
-  exerciseId: string | undefined,
-  preferredRowId: string | null,
-): TrainerExercise | null {
-  if (!exerciseId) return null
-  const matches = catalog.filter((item) => item.exercise_id === exerciseId)
-  if (matches.length === 0) return null
-
-  if (preferredRowId) {
-    const preferred = matches.find((item) => item.row_id === preferredRowId)
-    if (preferred) return preferred
-  }
-
-  const toTimestamp = (value: string): number => {
-    const timestamp = Date.parse(value)
-    return Number.isNaN(timestamp) ? 0 : timestamp
-  }
-
-  return [...matches].sort((left, right) => {
-    if (left.is_active !== right.is_active) return left.is_active ? -1 : 1
-    const updatedDiff = toTimestamp(right.updated_at) - toTimestamp(left.updated_at)
-    if (updatedDiff !== 0) return updatedDiff
-    return toTimestamp(right.created_at) - toTimestamp(left.created_at)
-  })[0]
-}
-
 export function ExerciseDetailsPage() {
   const { user } = useAuth()
-  const { exerciseId } = useParams<{ exerciseId: string }>()
-  const [searchParams] = useSearchParams()
-  const preferredRowId = searchParams.get('row')
-  const activeHintParam = searchParams.get('active')
-  const activeHint = activeHintParam === '1' ? true : activeHintParam === '0' ? false : null
+  const { rowId } = useParams<{ rowId: string }>()
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
-  const includeArchived = activeHint === true ? false : true
   const {
     trainerCatalogQuery,
     updateExerciseMutation,
@@ -174,13 +142,16 @@ export function ExerciseDetailsPage() {
     deleteVideoMutation,
   } = useExercises({
     trainerUserId,
-    includeArchived,
+    includeArchived: true,
   })
   const catalog = useMemo(
     () => (Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []),
     [trainerCatalogQuery.data],
   )
-  const exercise = resolveExerciseById(catalog, exerciseId, preferredRowId)
+  const exercise = useMemo(
+    () => (rowId ? catalog.find((item) => item.row_id === rowId) ?? null : null),
+    [catalog, rowId],
+  )
 
   const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(exerciseSchema),
@@ -232,7 +203,7 @@ export function ExerciseDetailsPage() {
     )
   }
 
-  if (!exerciseId) {
+  if (!rowId) {
     return (
       <Card className="border-primary/20">
         <CardHeader>
@@ -256,9 +227,9 @@ export function ExerciseDetailsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Dumbbell size={18} className="text-primary" />
-            Профиль упражнения
+            {exercise?.exercise_name ?? 'Профиль упражнения'}
           </CardTitle>
-          <CardDescription>Просмотр и обновление упражнения по ID: {exerciseId}</CardDescription>
+          <CardDescription>Редактирование упражнения из каталога.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {trainerCatalogQuery.isLoading ? (
@@ -272,7 +243,7 @@ export function ExerciseDetailsPage() {
             <span className="text-sm text-destructive">Не удалось загрузить каталог упражнений.</span>
           ) : null}
           {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError && !exercise ? (
-            <span className="text-sm text-secondary-foreground">Упражнение с таким ID не найдено.</span>
+            <span className="text-sm text-secondary-foreground">Упражнение не найдено.</span>
           ) : null}
 
           {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError && exercise ? (
@@ -280,7 +251,7 @@ export function ExerciseDetailsPage() {
               className="grid gap-4 rounded-xl border border-border/70 bg-secondary/20 p-4"
               onSubmit={form.handleSubmit((values) => {
                 updateExerciseMutation.mutate({
-                  exerciseId: exercise.exercise_id,
+                  rowId: exercise.row_id,
                   payload: mapFormToPayload(values),
                 }, {
                   onSuccess: (updatedExercise) => {
@@ -290,11 +261,6 @@ export function ExerciseDetailsPage() {
                 })
               })}
             >
-              <div className="grid gap-1.5">
-                <Label htmlFor="exercise_id">Технический ID упражнения</Label>
-                <Input id="exercise_id" value={exercise.exercise_id} disabled />
-              </div>
-
               <div className="grid gap-1.5">
                 <Label htmlFor="exercise_name">Название</Label>
                 <Input id="exercise_name" placeholder="Болгарские выпады" {...form.register('exercise_name')} />
@@ -403,7 +369,7 @@ export function ExerciseDetailsPage() {
                     type="button"
                     variant="destructive"
                     className="gap-2"
-                    onClick={() => archiveExerciseMutation.mutate(exercise.exercise_id)}
+                    onClick={() => archiveExerciseMutation.mutate(exercise.row_id)}
                     disabled={archiveExerciseMutation.isPending}
                   >
                     <Trash2 size={14} />
@@ -429,7 +395,7 @@ export function ExerciseDetailsPage() {
                   onChange={(event) => {
                     const file = event.target.files?.[0]
                     if (!file) return
-                    uploadVideoMutation.mutate({ exerciseId: exercise.exercise_id, file })
+                    uploadVideoMutation.mutate({ rowId: exercise.row_id, file })
                     event.currentTarget.value = ''
                   }}
                   disabled={isVideoBusy}
@@ -463,7 +429,7 @@ export function ExerciseDetailsPage() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onClick={() => deleteVideoMutation.mutate(exercise.exercise_id)}
+                    onClick={() => deleteVideoMutation.mutate(exercise.row_id)}
                     disabled={isVideoBusy}
                   >
                     {deleteVideoMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}

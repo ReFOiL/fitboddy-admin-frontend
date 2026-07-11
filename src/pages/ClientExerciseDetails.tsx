@@ -12,14 +12,14 @@ import { useAuth } from '../hooks/use-auth'
 export function ClientExerciseDetailsPage() {
   const { user } = useAuth()
   const isClient = user?.role === 'client'
-  const { exerciseId } = useParams<{ exerciseId: string }>()
+  const { rowId } = useParams<{ rowId: string }>()
   const [searchParams] = useSearchParams()
   const trainerUserId = searchParams.get('trainer') ?? ''
 
   const exerciseQuery = useQuery({
-    queryKey: queryKeys.exercises.trainerExercise(trainerUserId, exerciseId ?? ''),
-    queryFn: async () => getTrainerExercise(trainerUserId, exerciseId ?? ''),
-    enabled: Boolean(isClient && trainerUserId && exerciseId),
+    queryKey: queryKeys.exercises.trainerExercise(trainerUserId, rowId ?? ''),
+    queryFn: async () => getTrainerExercise(trainerUserId, rowId ?? ''),
+    enabled: Boolean(isClient && trainerUserId && rowId),
     retry: false,
   })
 
@@ -39,7 +39,7 @@ export function ClientExerciseDetailsPage() {
     )
   }
 
-  if (!exerciseId || !trainerUserId) {
+  if (!rowId || !trainerUserId) {
     return (
       <Card className="border-primary/20">
         <CardHeader>

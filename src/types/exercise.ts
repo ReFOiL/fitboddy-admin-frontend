@@ -1,7 +1,6 @@
 export type TrainerExercise = {
   row_id: string
   trainer_user_id: string
-  exercise_id: string
   exercise_name: string
   description: string | null
   equipment: string
@@ -25,6 +24,6 @@ export type UpsertTrainerExerciseRequest = {
 
 export type ExerciseVideoUploadResponse = {
   trainer_user_id: string
-  exercise_id: string
+  row_id: string
   video_url: string
 }
