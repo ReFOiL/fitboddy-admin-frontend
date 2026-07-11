@@ -1,11 +1,16 @@
 import axios from 'axios'
-import { ArrowLeft, Target, UserCheck } from 'lucide-react'
+import { ArrowLeft, Scale, Target, UserCheck } from 'lucide-react'
 import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
 import { useTrainerRelations } from '../hooks'
+import { useClientLoads } from '../hooks/use-plans'
+import { listTrainerExercises } from '../api/exercises'
+import { queryKeys } from '../api/queryKeys'
+import { formatEquipmentLabel } from '../lib/equipment'
+import { useQuery } from '@tanstack/react-query'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Label } from '../components/ui/label'
@@ -58,14 +63,27 @@ export function TrainerClientProfilePage() {
   const isForbidden = loadErrorStatus === 403
   const profile = profileQuery.data
 
+  const { loadsQuery } = useClientLoads(profileTargetUserId, trainerUserId)
+  const catalogQuery = useQuery({
+    queryKey: queryKeys.exercises.trainerCatalog(trainerUserId, false),
+    queryFn: async () => listTrainerExercises(trainerUserId, false),
+    enabled: Boolean(trainerUserId),
+  })
+  const weightExercises = (catalogQuery.data ?? []).filter(
+    (exercise) => exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
+  )
+  const filledLoads = new Set((loadsQuery.data ?? []).map((item) => item.exercise_row_id))
+  const filledWeightCount = weightExercises.filter((exercise) => filledLoads.has(exercise.row_id)).length
+  const weightsReady = weightExercises.length === 0 || filledWeightCount === weightExercises.length
+
   const goalLabel = metaQuery.data?.goals.find((item) => item.value === profile?.goal)?.label ?? textOrPlaceholder(profile?.goal)
   const levelLabel =
     metaQuery.data?.levels.find((item) => item.value === profile?.experience_level)?.label ?? textOrPlaceholder(profile?.experience_level)
   const locationLabel =
     metaQuery.data?.workout_locations.find((item) => item.value === profile?.workout_location)?.label ??
     textOrPlaceholder(profile?.workout_location)
-  const equipmentLabels =
-    profile?.equipment?.map((value) => metaQuery.data?.equipment.find((item) => item.value === value)?.label ?? value) ?? []
+  const unavailableLabels =
+    profile?.unavailable_equipment?.map((value) => formatEquipmentLabel(value, metaQuery.data?.equipment)) ?? []
 
   if (!isTrainer) {
     return <Navigate to="/home" replace />
@@ -168,6 +186,21 @@ export function TrainerClientProfilePage() {
                     </div>
                   </div>
                   <div className="mt-3 text-sm text-secondary-foreground">{textOrPlaceholder(profile.bio)}</div>
+                  <div className="mt-4 flex items-start gap-2 rounded-xl border border-border/70 bg-background/50 p-3 text-sm">
+                    <Scale size={16} className="mt-0.5 text-primary" />
+                    <div>
+                      <div className="font-medium">Рабочие веса</div>
+                      <div className="text-xs text-secondary-foreground">
+                        {catalogQuery.isLoading || loadsQuery.isLoading
+                          ? 'Загрузка...'
+                          : weightExercises.length === 0
+                            ? 'В каталоге нет силовых упражнений с весом.'
+                            : weightsReady
+                              ? `Заполнены (${filledWeightCount}/${weightExercises.length})`
+                              : `Частично заполнены (${filledWeightCount}/${weightExercises.length}) — план может опираться на дефолты каталога`}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/15 p-4 lg:col-span-3">
@@ -185,17 +218,20 @@ export function TrainerClientProfilePage() {
                       <span className="text-sm">{locationLabel}</span>
                     </div>
                     <div className="grid gap-1">
-                      <span className="text-xs text-secondary-foreground">Оборудование</span>
-                      {equipmentLabels.length > 0 ? (
+                      <span className="text-xs text-secondary-foreground">
+                        Нет в наличии
+                        {unavailableLabels.length > 0 ? ` (${unavailableLabels.length})` : ''}
+                      </span>
+                      {unavailableLabels.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {equipmentLabels.map((item) => (
+                          {unavailableLabels.map((item) => (
                             <span key={item} className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs">
                               {item}
                             </span>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-sm text-secondary-foreground">Не указано</span>
+                        <span className="text-sm text-secondary-foreground">Исключений нет (считаем, что есть всё)</span>
                       )}
                     </div>
                   </div>

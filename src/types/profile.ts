@@ -5,7 +5,7 @@ export type UpsertProfileRequest = {
   goal: string | null
   experience_level: string | null
   workout_location: string | null
-  equipment: string[]
+  unavailable_equipment: string[]
   limitations: string | null
   medical_notes: string | null
 }
@@ -21,7 +21,7 @@ export type ProfileResponse = {
   goal: string | null
   experience_level: string | null
   workout_location: string | null
-  equipment: string[]
+  unavailable_equipment: string[]
   limitations: string | null
   medical_notes: string | null
   created_at: string

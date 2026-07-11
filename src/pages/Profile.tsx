@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
-import { Activity, Check, X } from 'lucide-react'
+import { Activity } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
@@ -13,7 +13,6 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
 import { StyledSelect } from '../components/ui/styled-select'
-import { cn } from '../lib/utils'
 
 function isValidAvatarReference(value: string): boolean {
   if (!value) return true
@@ -38,7 +37,6 @@ const profileSchema = z.object({
   goal: z.string().nullable(),
   experience_level: z.string().nullable(),
   workout_location: z.string().nullable(),
-  equipment: z.array(z.string()),
   limitations: z.string().max(1000, 'Максимум 1000 символов').optional(),
   medical_notes: z.string().max(1000, 'Максимум 1000 символов').optional(),
 })
@@ -75,75 +73,6 @@ function FancySelect({ id, label, value, onChange, options, placeholder, error, 
   )
 }
 
-type ChipsMultiSelectProps = {
-  options: SelectOption[]
-  value: string[]
-  onChange: (next: string[]) => void
-  disabled?: boolean
-}
-
-function ChipsMultiSelect({ options, value, onChange, disabled }: ChipsMultiSelectProps) {
-  const selected = value.filter((item) => options.some((option) => option.value === item))
-
-  return (
-    <div className="space-y-3 rounded-xl border border-border/70 bg-secondary/15 p-3">
-      {selected.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {selected.map((item) => {
-            const option = options.find((entry) => entry.value === item)
-            if (!option) return null
-            return (
-              <button
-                key={item}
-                type="button"
-                disabled={disabled}
-                onClick={() => onChange(value.filter((current) => current !== item))}
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/20 px-3 py-1 text-xs text-primary-foreground transition',
-                  disabled ? 'cursor-not-allowed opacity-70' : 'hover:bg-primary/30',
-                )}
-              >
-                <span>{option.label}</span>
-                <X size={12} />
-              </button>
-            )
-          })}
-        </div>
-      ) : (
-        <span className="text-xs text-secondary-foreground">Можно оставить пусто, если инвентаря нет.</span>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        {options.map((option) => {
-          const isSelected = selected.includes(option.value)
-          return (
-            <button
-              key={option.value}
-              type="button"
-              disabled={disabled}
-              onClick={() =>
-                isSelected
-                  ? onChange(value.filter((current) => current !== option.value))
-                  : onChange([...value, option.value])
-              }
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs transition',
-                disabled ? 'cursor-not-allowed opacity-70' : '',
-                isSelected
-                  ? 'border-primary/60 bg-primary/20 text-primary-foreground shadow-[0_0_0_1px_rgba(59,130,246,0.25)]'
-                  : 'border-border bg-background/70 text-secondary-foreground hover:border-primary/40 hover:text-foreground',
-              )}
-            >
-              {isSelected ? <Check size={12} /> : null}
-              <span>{option.label}</span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 export function ProfilePage() {
   const { user } = useAuth()
   const targetUserId = user?.user_id ?? ''
@@ -152,7 +81,6 @@ export function ProfilePage() {
   const goalOptions = metaQuery.data?.goals ?? []
   const levelOptions = metaQuery.data?.levels ?? []
   const locationOptions = metaQuery.data?.workout_locations ?? []
-  const equipmentOptions = metaQuery.data?.equipment ?? []
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -164,7 +92,6 @@ export function ProfilePage() {
       goal: null,
       experience_level: null,
       workout_location: null,
-      equipment: [],
       limitations: '',
       medical_notes: '',
     },
@@ -181,7 +108,6 @@ export function ProfilePage() {
       goal: typeof profile.goal === 'string' ? profile.goal : null,
       experience_level: typeof profile.experience_level === 'string' ? profile.experience_level : null,
       workout_location: typeof profile.workout_location === 'string' ? profile.workout_location : null,
-      equipment: Array.isArray(profile.equipment) ? profile.equipment.filter((item): item is string => typeof item === 'string') : [],
       limitations: typeof profile.limitations === 'string' ? profile.limitations : '',
       medical_notes: typeof profile.medical_notes === 'string' ? profile.medical_notes : '',
     })
@@ -194,17 +120,10 @@ export function ProfilePage() {
   const watchedGoal = useWatch({ control: form.control, name: 'goal' })
   const watchedExperienceLevel = useWatch({ control: form.control, name: 'experience_level' })
   const watchedWorkoutLocation = useWatch({ control: form.control, name: 'workout_location' })
-  const selectedEquipment = useWatch({ control: form.control, name: 'equipment' }) ?? []
   const isTrainerOwnProfile = user?.role === 'trainer'
   const questionnaireRequired = !isTrainerOwnProfile
   const isFormDirty = form.formState.isDirty
   const metaErrorStatus = axios.isAxiosError(metaQuery.error) ? metaQuery.error.response?.status : undefined
-
-  useEffect(() => {
-    if (watchedWorkoutLocation !== 'home' && selectedEquipment.length > 0) {
-      form.setValue('equipment', [])
-    }
-  }, [form, watchedWorkoutLocation, selectedEquipment.length])
 
   return (
     <div className="space-y-6">
@@ -231,9 +150,6 @@ export function ProfilePage() {
                 const hasMeta = Boolean(metaQuery.data)
                 const isKnown = (value: string | null, options: { value: string; label: string }[]): boolean =>
                   value === null || options.some((option) => option.value === value)
-                const normalizedEquipment = values.equipment.filter((item) =>
-                  equipmentOptions.some((option) => option.value === item),
-                )
                 if (!hasMeta) {
                   form.setError('goal', { type: 'manual', message: 'Не удалось загрузить параметры профиля, попробуй позже' })
                   return
@@ -271,7 +187,9 @@ export function ProfilePage() {
                   goal: goalValue,
                   experience_level: experienceValue,
                   workout_location: workoutLocationValue,
-                  equipment: workoutLocationValue === 'home' ? normalizedEquipment : [],
+                  unavailable_equipment: Array.isArray(profileQuery.data?.unavailable_equipment)
+                    ? profileQuery.data.unavailable_equipment
+                    : [],
                   limitations: values.limitations?.trim() ? values.limitations.trim() : null,
                   medical_notes: values.medical_notes?.trim() ? values.medical_notes.trim() : null,
                 })
@@ -406,22 +324,6 @@ export function ProfilePage() {
                     }
                     error={form.formState.errors.workout_location?.message}
                   />
-
-                  {watchedWorkoutLocation === 'home' ? (
-                    <div className="grid gap-2">
-                      <Label>Оборудование</Label>
-                      <ChipsMultiSelect
-                        options={equipmentOptions}
-                        value={selectedEquipment}
-                        onChange={(nextValue) =>
-                          form.setValue('equipment', nextValue, { shouldDirty: true, shouldValidate: true })
-                        }
-                      />
-                      {form.formState.errors.equipment?.message ? (
-                        <span className="text-xs text-destructive">{form.formState.errors.equipment.message}</span>
-                      ) : null}
-                    </div>
-                  ) : null}
 
                   <div className="grid gap-1.5">
                     <Label htmlFor="limitations">Ограничения</Label>

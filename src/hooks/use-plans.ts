@@ -2,7 +2,8 @@ import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import { generatePlan, getActivePlan, queryKeys } from '../api'
+import { generatePlan, getActivePlan, listClientLoads, queryKeys, upsertClientLoad } from '../api'
+import type { UpsertClientLoadRequest } from '../types/exercise'
 import type { GeneratePlanRequest } from '../types/plan'
 
 function extractErrorMessage(error: unknown, fallback: string): string {
@@ -34,5 +35,32 @@ export function usePlans(userId: string) {
   return {
     activePlanQuery,
     generatePlanMutation,
+  }
+}
+
+export function useClientLoads(clientUserId: string, trainerUserId: string) {
+  const queryClient = useQueryClient()
+
+  const loadsQuery = useQuery({
+    queryKey: queryKeys.plans.clientLoads(clientUserId, trainerUserId),
+    queryFn: async () => listClientLoads(clientUserId, trainerUserId),
+    enabled: Boolean(clientUserId && trainerUserId),
+  })
+
+  const upsertLoadMutation = useMutation({
+    mutationFn: async (input: { exerciseRowId: string; payload: UpsertClientLoadRequest }) =>
+      upsertClientLoad(clientUserId, trainerUserId, input.exerciseRowId, input.payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.plans.clientLoads(clientUserId, trainerUserId),
+      })
+      toast.success('Рабочий вес сохранён')
+    },
+    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось сохранить вес')),
+  })
+
+  return {
+    loadsQuery,
+    upsertLoadMutation,
   }
 }

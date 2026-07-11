@@ -5,7 +5,15 @@ export type GeneratePlanRequest = {
   level: string
   workout_location: string
   workouts_per_week?: number
-  equipment: string[]
+  unavailable_equipment: string[]
+}
+
+export type SetPrescription = {
+  set_index: number
+  reps: number | null
+  duration_seconds: number | null
+  weight_kg: number | null
+  rest_seconds: number | null
 }
 
 export type PlanExercise = {
@@ -20,6 +28,7 @@ export type PlanExercise = {
   duration_seconds: number | null
   rest_seconds: number | null
   weight_kg: number | null
+  set_prescriptions: SetPrescription[]
 }
 
 export type PlanDay = {

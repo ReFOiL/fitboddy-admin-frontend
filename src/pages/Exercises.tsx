@@ -7,10 +7,17 @@ import { z } from 'zod'
 
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
-import type { UpsertTrainerExerciseRequest } from '../types/exercise'
+import type { LoadScheme, UpsertTrainerExerciseRequest } from '../types/exercise'
+import { formatEquipmentLabel, normalizeEquipmentName } from '../lib/equipment'
+import {
+  getLoadSchemeOptions,
+  parseSchemeStepsInput,
+  previewSchemeSteps,
+} from '../lib/load-schemes'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { DifficultyPicker } from '../components/ui/difficulty-picker'
+import { EquipmentPicker } from '../components/ui/equipment-picker'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
@@ -20,7 +27,12 @@ const exerciseSchema = z
   .object({
     exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
     description: z.string().max(4000, 'Максимум 4000 символов').optional(),
-    equipment: z.enum(['none', 'dumbbells', 'barbell', 'resistance_bands', 'kettlebell', 'treadmill', 'other']),
+    equipment: z
+      .string()
+      .min(2, 'Укажи инвентарь')
+      .refine((value) => value.trim().toLowerCase() === 'none' || normalizeEquipmentName(value) !== null, {
+        message: 'Укажи название инвентаря (2–64 символа)',
+      }),
     is_cardio: z.boolean(),
     is_hold: z.boolean(),
     difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
@@ -30,6 +42,8 @@ const exerciseSchema = z
     default_duration_seconds: z.number().int().min(5, 'Минимум 5 сек').max(3600, 'Максимум 3600 сек').nullable(),
     default_rest_seconds: z.number().int().min(0, 'Минимум 0').max(600, 'Максимум 600'),
     default_weight_kg: z.number().min(0, 'Не может быть отрицательным').nullable(),
+    load_scheme: z.enum(['flat', 'ascending', 'descending', 'custom']),
+    scheme_steps_input: z.string().optional(),
   })
   .superRefine((values, ctx) => {
     if (values.is_hold) {
@@ -38,6 +52,16 @@ const exerciseSchema = z
       }
     } else if (values.default_reps == null) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_reps'], message: 'Укажи повторения' })
+    }
+    if (values.load_scheme === 'custom') {
+      const steps = parseSchemeStepsInput(values.scheme_steps_input ?? '')
+      if (steps.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scheme_steps_input'],
+          message: 'Укажи коэффициенты через запятую, например 0.7, 0.85, 1',
+        })
+      }
     }
   })
 
@@ -61,29 +85,8 @@ function formatExerciseCriteria(exercise: {
   return `${stimulus}, ${dosage}${weight}`
 }
 
-const EQUIPMENT_LABELS: Record<string, string> = {
-  none: 'без инвентаря',
-  dumbbells: 'гантели',
-  barbell: 'штанга',
-  resistance_bands: 'эспандер / резина',
-  kettlebell: 'гиря',
-  treadmill: 'дорожка',
-  other: 'другое',
-}
-
-const EQUIPMENT_OPTIONS: Array<{ value: ExerciseFormValues['equipment']; label: string }> = [
-  { value: 'none', label: 'Без инвентаря' },
-  { value: 'dumbbells', label: 'Гантели' },
-  { value: 'barbell', label: 'Штанга' },
-  { value: 'resistance_bands', label: 'Эспандер / резина' },
-  { value: 'kettlebell', label: 'Гиря' },
-  { value: 'treadmill', label: 'Беговая дорожка' },
-  { value: 'other', label: 'Другое' },
-]
-
 function formatEquipment(code: string): string {
-  const key = code.trim().toLowerCase()
-  return EQUIPMENT_LABELS[key] ?? code
+  return formatEquipmentLabel(code)
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -122,14 +125,19 @@ const defaultValues: ExerciseFormValues = {
   default_duration_seconds: 35,
   default_rest_seconds: 60,
   default_weight_kg: null,
+  load_scheme: 'flat',
+  scheme_steps_input: '',
 }
 
 function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequest {
   const description = values.description?.trim() ?? ''
+  const loadScheme: LoadScheme = values.load_scheme
   return {
     exercise_name: values.exercise_name.trim(),
     description: description || null,
-    equipment: values.equipment.trim().toLowerCase(),
+    equipment: values.equipment.trim().toLowerCase() === 'none'
+      ? 'none'
+      : (normalizeEquipmentName(values.equipment) ?? values.equipment.trim()),
     is_cardio: values.is_cardio,
     is_hold: values.is_hold,
     difficulty: values.difficulty,
@@ -139,6 +147,8 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
     default_duration_seconds: values.is_hold ? values.default_duration_seconds : null,
     default_rest_seconds: values.default_rest_seconds,
     default_weight_kg: values.default_weight_kg,
+    load_scheme: loadScheme,
+    scheme_steps: loadScheme === 'custom' ? parseSchemeStepsInput(values.scheme_steps_input ?? '') : [],
   }
 }
 
@@ -189,6 +199,13 @@ export function ExercisesPage() {
   const watchedDuration = useWatch({ control: form.control, name: 'default_duration_seconds' })
   const watchedRest = useWatch({ control: form.control, name: 'default_rest_seconds' }) ?? defaultValues.default_rest_seconds
   const watchedWeight = useWatch({ control: form.control, name: 'default_weight_kg' })
+  const watchedLoadScheme = useWatch({ control: form.control, name: 'load_scheme' }) ?? 'flat'
+  const watchedSchemeStepsInput = useWatch({ control: form.control, name: 'scheme_steps_input' }) ?? ''
+  const schemePreview = previewSchemeSteps(
+    watchedLoadScheme,
+    watchedSets,
+    parseSchemeStepsInput(watchedSchemeStepsInput),
+  )
 
   const formDisabled =
     addExerciseMutation.isPending || updateExerciseMutation.isPending || archiveExerciseMutation.isPending
@@ -260,25 +277,18 @@ export function ExercisesPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="equipment">Инвентарь</Label>
-                  <StyledSelect
-                    id="equipment"
-                    disabled={formDisabled}
-                    options={EQUIPMENT_OPTIONS}
-                    value={watchedEquipment}
-                    onChange={(nextValue) => {
-                      if (nextValue === form.getValues('equipment')) return
-                      form.setValue('equipment', nextValue as ExerciseFormValues['equipment'], {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }}
-                  />
-                  {form.formState.errors.equipment?.message ? (
-                    <span className="text-xs text-destructive">{form.formState.errors.equipment.message}</span>
-                  ) : null}
-                </div>
+                <EquipmentPicker
+                  id="equipment"
+                  disabled={formDisabled}
+                  value={watchedEquipment}
+                  error={form.formState.errors.equipment?.message}
+                  onChange={(nextValue) => {
+                    form.setValue('equipment', nextValue, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }}
+                />
                 <div className="grid gap-1.5">
                   <Label htmlFor="workout_category">Категория</Label>
                   <StyledSelect
@@ -478,6 +488,57 @@ export function ExercisesPage() {
                   ) : null}
                 </div>
               </div>
+
+              <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/15 p-3">
+                  <div className="grid gap-1.5">
+                    <Label>Схема подходов</Label>
+                    <StyledSelect
+                      value={watchedLoadScheme}
+                      onChange={(value) =>
+                        form.setValue('load_scheme', value as LoadScheme, { shouldDirty: true, shouldValidate: true })
+                      }
+                      options={getLoadSchemeOptions(watchedIsHold)}
+                      disabled={formDisabled}
+                    />
+                  </div>
+                  {watchedLoadScheme === 'custom' ? (
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="scheme_steps_input">
+                        {watchedIsHold
+                          ? 'Коэффициенты от базовой длительности'
+                          : 'Коэффициенты от рабочего веса'}
+                      </Label>
+                      <Input
+                        id="scheme_steps_input"
+                        disabled={formDisabled}
+                        value={watchedSchemeStepsInput}
+                        placeholder="0.7, 0.85, 1, 1.05"
+                        onChange={(event) =>
+                          form.setValue('scheme_steps_input', event.target.value, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }
+                      />
+                      {form.formState.errors.scheme_steps_input?.message ? (
+                        <span className="text-xs text-destructive">{form.formState.errors.scheme_steps_input.message}</span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="text-xs text-secondary-foreground">
+                    Превью: {schemePreview.map((step, index) => `П${index + 1}×${step}`).join(' · ')}
+                    {watchedIsHold && watchedDuration != null && watchedDuration > 0
+                      ? ` → ${schemePreview.map((step) => `${Math.round(watchedDuration * step)} сек`).join(', ')}`
+                      : !watchedIsHold && watchedWeight != null && watchedWeight > 0
+                        ? ` → ${schemePreview
+                            .map((step) => `${Math.round((watchedWeight * step) / 2.5) * 2.5} кг`)
+                            .join(', ')}`
+                        : ''}
+                    {watchedIsHold && watchedWeight != null && watchedWeight > 0
+                      ? ` · вес ${watchedWeight} кг на все подходы`
+                      : ''}
+                  </div>
+                </div>
 
               <div className="flex flex-wrap gap-2">
                 <Button type="submit" size="lg" className="min-w-56" disabled={formDisabled}>
