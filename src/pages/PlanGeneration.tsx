@@ -160,7 +160,8 @@ export function PlanGenerationPage() {
 
   const loadsByExercise = useMemo(() => {
     const map = new Map<string, number>()
-    for (const item of loadsQuery.data ?? []) {
+    const loads = Array.isArray(loadsQuery.data) ? loadsQuery.data : []
+    for (const item of loads) {
       map.set(item.exercise_row_id, item.working_weight_kg)
     }
     return map

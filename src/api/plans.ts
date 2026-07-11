@@ -13,10 +13,10 @@ export async function getActivePlan(userId: string): Promise<TrainingPlan> {
 }
 
 export async function listClientLoads(clientUserId: string, trainerUserId: string): Promise<ClientExerciseLoad[]> {
-  const { data } = await apiClient.get<ClientExerciseLoad[]>(
-    `/api/v1/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/loads`,
+  const { data } = await apiClient.get<ClientExerciseLoad[] | unknown>(
+    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/loads`,
   )
-  return data
+  return Array.isArray(data) ? data : []
 }
 
 export async function upsertClientLoad(
@@ -26,7 +26,7 @@ export async function upsertClientLoad(
   payload: UpsertClientLoadRequest,
 ): Promise<ClientExerciseLoad> {
   const { data } = await apiClient.put<ClientExerciseLoad>(
-    `/api/v1/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/loads/${encodeURIComponent(exerciseRowId)}`,
+    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/loads/${encodeURIComponent(exerciseRowId)}`,
     payload,
   )
   return data

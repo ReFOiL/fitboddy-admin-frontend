@@ -45,6 +45,7 @@ export function useClientLoads(clientUserId: string, trainerUserId: string) {
     queryKey: queryKeys.plans.clientLoads(clientUserId, trainerUserId),
     queryFn: async () => listClientLoads(clientUserId, trainerUserId),
     enabled: Boolean(clientUserId && trainerUserId),
+    select: (data) => (Array.isArray(data) ? data : []),
   })
 
   const upsertLoadMutation = useMutation({

@@ -8,6 +8,8 @@ export type StyledSelectOption = {
   label: string
 }
 
+const PLACEHOLDER_VALUE = '__placeholder__'
+
 type StyledSelectProps = {
   id?: string
   value?: string
@@ -33,11 +35,11 @@ export function StyledSelect({
   const selectedOption =
     options.find((option) => option.value === value) ??
     options.find((option) => option.value.trim().toLowerCase() === normalizedValue)
-  const resolvedValue = selectedOption?.value
+  const resolvedValue = selectedOption?.value ?? PLACEHOLDER_VALUE
   const optionValues = options.map((option) => option.value)
 
   const handleValueChange = (nextValue: string) => {
-    if (!nextValue) return
+    if (!nextValue || nextValue === PLACEHOLDER_VALUE) return
     if (!optionValues.includes(nextValue)) {
       return
     }
@@ -76,6 +78,9 @@ export function StyledSelect({
             )}
           >
             <Select.Viewport className="max-h-56 p-1">
+              <Select.Item value={PLACEHOLDER_VALUE} disabled className="hidden">
+                <Select.ItemText>{placeholder}</Select.ItemText>
+              </Select.Item>
               {options.map((option) => (
                 <Select.Item
                   key={option.value}

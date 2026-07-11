@@ -57,18 +57,18 @@ function App() {
               }
             />
             <Route
-              path={APP_PATHS.trainers.slice(1)}
+              path={`${APP_PATHS.clients.slice(1)}/profile`}
               element={
-                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
-                  <ClientRelationsPage />
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <TrainerClientProfilePage />
                 </RoleRoute>
               }
             />
             <Route
-              path={APP_PATHS.clientProfile.slice(1)}
+              path={APP_PATHS.trainers.slice(1)}
               element={
-                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
-                  <TrainerClientProfilePage />
+                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
+                  <ClientRelationsPage />
                 </RoleRoute>
               }
             />

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Link2Off, UserCheck } from 'lucide-react'
 
 import { Button } from '../ui/button'
+import { APP_PATHS } from '../../config'
 import { formatRussianDate, formatTrainerClientCardSubtitle, formatTrainerClientCardTitle } from '../../lib/relations-formatters'
 import type { TrainerClientRelation } from '../../types/relation'
 
@@ -31,7 +32,7 @@ export function TrainerClientItem({ relation, leaveDisabled, onLeave }: TrainerC
       <div className="mt-3 text-xs text-secondary-foreground">С нами с {formatRussianDate(relation.created_at)}</div>
       <div className="mt-4 grid gap-2 sm:flex sm:gap-2">
         <Button asChild size="sm" className="w-full sm:w-auto">
-          <Link to="/clients/profile" state={{ clientUserId: relation.client_user_id }}>
+          <Link to={`${APP_PATHS.clientProfile}?clientUserId=${encodeURIComponent(relation.client_user_id)}`}>
             Открыть профиль
           </Link>
         </Button>

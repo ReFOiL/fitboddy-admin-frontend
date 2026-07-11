@@ -1,7 +1,8 @@
 import axios from 'axios'
-import { ArrowLeft, Scale, Target, UserCheck } from 'lucide-react'
-import { useState } from 'react'
-import { Link, Navigate, useLocation } from 'react-router-dom'
+import { ArrowLeft, ChevronDown, ChevronUp, Scale, Target, UserCheck } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
@@ -9,8 +10,9 @@ import { useTrainerRelations } from '../hooks'
 import { useClientLoads } from '../hooks/use-plans'
 import { listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
+import { APP_PATHS } from '../config'
 import { formatEquipmentLabel } from '../lib/equipment'
-import { useQuery } from '@tanstack/react-query'
+import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Label } from '../components/ui/label'
@@ -25,15 +27,9 @@ function textOrPlaceholder(value: string | null | undefined): string {
 export function TrainerClientProfilePage() {
   const { user } = useAuth()
   const isTrainer = user?.role === 'trainer'
-  const trainerUserId = isTrainer ? user.user_id : ''
-  const location = useLocation()
-  const [targetUserId, setTargetUserId] = useState(() => {
-    const state = location.state
-    if (!state || typeof state !== 'object') return ''
-    const clientUserId = (state as { clientUserId?: unknown }).clientUserId
-    if (typeof clientUserId !== 'string') return ''
-    return clientUserId.trim()
-  })
+  const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedClientUserId = (searchParams.get('clientUserId') ?? '').trim()
 
   const { trainerClientsQuery } = useTrainerRelations({ trainerUserId })
   const trainerClients = Array.isArray(trainerClientsQuery.data) ? trainerClientsQuery.data : []
@@ -45,9 +41,13 @@ export function TrainerClientProfilePage() {
     if (login) return `@${login}`
     return 'Клиент'
   }
-  const resolvedTargetUserId = trainerClients.some((relation) => relation.client_user_id === targetUserId)
-    ? targetUserId
-    : (trainerClients[0]?.client_user_id ?? '')
+
+  const resolvedTargetUserId = useMemo(() => {
+    if (requestedClientUserId && trainerClients.some((relation) => relation.client_user_id === requestedClientUserId)) {
+      return requestedClientUserId
+    }
+    return trainerClients[0]?.client_user_id ?? ''
+  }, [requestedClientUserId, trainerClients])
 
   const selectOptions = trainerClients.map((relation) => ({
     value: relation.client_user_id,
@@ -61,6 +61,7 @@ export function TrainerClientProfilePage() {
   const loadErrorStatus = axios.isAxiosError(profileQuery.error) ? profileQuery.error.response?.status : undefined
   const isNotFound = loadErrorStatus === 404
   const isForbidden = loadErrorStatus === 403
+  const hasProfileLoadError = Boolean(profileQuery.error) && !isNotFound && !isForbidden
   const profile = profileQuery.data
 
   const { loadsQuery } = useClientLoads(profileTargetUserId, trainerUserId)
@@ -69,12 +70,32 @@ export function TrainerClientProfilePage() {
     queryFn: async () => listTrainerExercises(trainerUserId, false),
     enabled: Boolean(trainerUserId),
   })
-  const weightExercises = (catalogQuery.data ?? []).filter(
+  const weightExercises = (Array.isArray(catalogQuery.data) ? catalogQuery.data : []).filter(
     (exercise) => exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
   )
-  const filledLoads = new Set((loadsQuery.data ?? []).map((item) => item.exercise_row_id))
-  const filledWeightCount = weightExercises.filter((exercise) => filledLoads.has(exercise.row_id)).length
+  const loads = Array.isArray(loadsQuery.data) ? loadsQuery.data : []
+  const loadsByExercise = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const item of loads) {
+      map.set(item.exercise_row_id, item.working_weight_kg)
+    }
+    return map
+  }, [loads])
+  const filledWeightCount = weightExercises.filter((exercise) => loadsByExercise.has(exercise.row_id)).length
   const weightsReady = weightExercises.length === 0 || filledWeightCount === weightExercises.length
+  const [weightsOpen, setWeightsOpen] = useState(false)
+  const weightRows = useMemo(
+    () =>
+      [...weightExercises]
+        .sort((left, right) => left.exercise_name.localeCompare(right.exercise_name, 'ru'))
+        .map((exercise) => ({
+          rowId: exercise.row_id,
+          name: exercise.exercise_name,
+          clientWeight: loadsByExercise.get(exercise.row_id) ?? null,
+          trainerDefault: exercise.default_weight_kg,
+        })),
+    [weightExercises, loadsByExercise],
+  )
 
   const goalLabel = metaQuery.data?.goals.find((item) => item.value === profile?.goal)?.label ?? textOrPlaceholder(profile?.goal)
   const levelLabel =
@@ -82,8 +103,14 @@ export function TrainerClientProfilePage() {
   const locationLabel =
     metaQuery.data?.workout_locations.find((item) => item.value === profile?.workout_location)?.label ??
     textOrPlaceholder(profile?.workout_location)
-  const unavailableLabels =
-    profile?.unavailable_equipment?.map((value) => formatEquipmentLabel(value, metaQuery.data?.equipment)) ?? []
+  const unavailableLabels = Array.isArray(profile?.unavailable_equipment)
+    ? profile.unavailable_equipment.map((value) => formatEquipmentLabel(value, metaQuery.data?.equipment))
+    : []
+
+  const selectClient = (clientUserId: string) => {
+    setWeightsOpen(false)
+    setSearchParams({ clientUserId }, { replace: true })
+  }
 
   if (!isTrainer) {
     return <Navigate to="/home" replace />
@@ -107,7 +134,7 @@ export function TrainerClientProfilePage() {
               </div>
             </div>
             <Button asChild size="sm" variant="secondary" className="w-full sm:w-auto">
-              <Link to="/clients">
+              <Link to={APP_PATHS.clients}>
                 <ArrowLeft size={14} />
                 К списку клиентов
               </Link>
@@ -123,10 +150,7 @@ export function TrainerClientProfilePage() {
               value={selectValue}
               options={selectOptions}
               disabled={trainerClientsQuery.isLoading || selectOptions.length === 0}
-              onChange={(selected) => {
-                if (!selected) return
-                setTargetUserId(selected)
-              }}
+              onChange={selectClient}
             />
           </div>
         </CardContent>
@@ -168,6 +192,16 @@ export function TrainerClientProfilePage() {
                 Доступ запрещен: проверьте активную связь с клиентом.
               </span>
             ) : null}
+            {hasProfileLoadError ? (
+              <span className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                Не удалось загрузить профиль клиента. Если недавно обновляли сервисы — проверьте миграции profile-service.
+              </span>
+            ) : null}
+            {loadsQuery.isError ? (
+              <span className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
+                Не удалось загрузить рабочие веса клиента.
+              </span>
+            ) : null}
 
             {profile && !profileQuery.isFetching ? (
               <div className="grid gap-3 sm:gap-4 lg:grid-cols-5">
@@ -186,20 +220,65 @@ export function TrainerClientProfilePage() {
                     </div>
                   </div>
                   <div className="mt-3 text-sm text-secondary-foreground">{textOrPlaceholder(profile.bio)}</div>
-                  <div className="mt-4 flex items-start gap-2 rounded-xl border border-border/70 bg-background/50 p-3 text-sm">
-                    <Scale size={16} className="mt-0.5 text-primary" />
-                    <div>
-                      <div className="font-medium">Рабочие веса</div>
-                      <div className="text-xs text-secondary-foreground">
-                        {catalogQuery.isLoading || loadsQuery.isLoading
-                          ? 'Загрузка...'
-                          : weightExercises.length === 0
-                            ? 'В каталоге нет силовых упражнений с весом.'
-                            : weightsReady
-                              ? `Заполнены (${filledWeightCount}/${weightExercises.length})`
-                              : `Частично заполнены (${filledWeightCount}/${weightExercises.length}) — план может опираться на дефолты каталога`}
+                  <div className="mt-4 rounded-xl border border-border/70 bg-background/50 text-sm">
+                    <button
+                      type="button"
+                      className="flex w-full items-start gap-2 p-3 text-left transition hover:bg-secondary/30"
+                      onClick={() => setWeightsOpen((open) => !open)}
+                      disabled={weightExercises.length === 0 || catalogQuery.isLoading || loadsQuery.isLoading}
+                      aria-expanded={weightsOpen}
+                    >
+                      <Scale size={16} className="mt-0.5 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium">Рабочие веса</div>
+                        <div className="text-xs text-secondary-foreground">
+                          {catalogQuery.isLoading || loadsQuery.isLoading
+                            ? 'Загрузка...'
+                            : weightExercises.length === 0
+                              ? 'В каталоге нет силовых упражнений с весом.'
+                              : weightsReady
+                                ? `Заполнены (${filledWeightCount}/${weightExercises.length})`
+                                : `Частично заполнены (${filledWeightCount}/${weightExercises.length}) — план может опираться на дефолты каталога`}
+                        </div>
                       </div>
-                    </div>
+                      {weightExercises.length > 0 ? (
+                        weightsOpen ? (
+                          <ChevronUp size={16} className="mt-0.5 shrink-0 text-secondary-foreground" />
+                        ) : (
+                          <ChevronDown size={16} className="mt-0.5 shrink-0 text-secondary-foreground" />
+                        )
+                      ) : null}
+                    </button>
+                    {weightsOpen && weightRows.length > 0 ? (
+                      <div className="border-t border-border/60 px-3 pb-3 pt-2">
+                        <div className="mb-2 text-[11px] uppercase tracking-wide text-secondary-foreground/80">
+                          Вес клиента по упражнениям
+                        </div>
+                        <ul className="max-h-64 space-y-1.5 overflow-y-auto">
+                          {weightRows.map((row) => {
+                            const hasClientWeight = row.clientWeight != null && row.clientWeight > 0
+                            return (
+                              <li
+                                key={row.rowId}
+                                className="flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-secondary/15 px-2.5 py-2"
+                              >
+                                <span className="min-w-0 truncate text-sm">{row.name}</span>
+                                <span
+                                  className={cn(
+                                    'shrink-0 text-xs font-medium',
+                                    hasClientWeight ? 'text-foreground' : 'text-secondary-foreground',
+                                  )}
+                                >
+                                  {hasClientWeight
+                                    ? `${row.clientWeight} кг`
+                                    : `нет · дефолт ${row.trainerDefault} кг`}
+                                </span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
@@ -224,8 +303,11 @@ export function TrainerClientProfilePage() {
                       </span>
                       {unavailableLabels.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
-                          {unavailableLabels.map((item) => (
-                            <span key={item} className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs">
+                          {unavailableLabels.map((item, index) => (
+                            <span
+                              key={`${item}-${index}`}
+                              className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs"
+                            >
                               {item}
                             </span>
                           ))}
