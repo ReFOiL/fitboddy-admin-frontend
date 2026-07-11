@@ -409,7 +409,7 @@ export function ProfilePage() {
 
                   {watchedWorkoutLocation === 'home' ? (
                     <div className="grid gap-2">
-                      <Label>Оборудование (чипы)</Label>
+                      <Label>Оборудование</Label>
                       <ChipsMultiSelect
                         options={equipmentOptions}
                         value={selectedEquipment}
