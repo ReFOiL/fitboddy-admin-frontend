@@ -129,6 +129,7 @@ export function ProfilePage() {
   const isNotFound = loadErrorStatus === 404
   const isForbidden = loadErrorStatus === 403
   const avatarUrl = useWatch({ control: form.control, name: 'avatar_url' })
+  const watchedAge = useWatch({ control: form.control, name: 'age' })
   const watchedGender = useWatch({ control: form.control, name: 'gender' })
   const watchedGoal = useWatch({ control: form.control, name: 'goal' })
   const watchedExperienceLevel = useWatch({ control: form.control, name: 'experience_level' })
@@ -330,7 +331,7 @@ export function ProfilePage() {
                         max={100}
                         step={1}
                         placeholder="Например: 28"
-                        value={form.watch('age') ?? ''}
+                        value={watchedAge ?? ''}
                         onChange={(event) => {
                           const raw = event.target.value
                           form.setValue('age', raw === '' ? null : Number(raw), {
