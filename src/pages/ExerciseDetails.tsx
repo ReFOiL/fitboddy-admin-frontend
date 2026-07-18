@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Dumbbell, Loader2, Save, Trash2, Video } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
 
+import { listMuscles } from '../api/exercises'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import type { LoadScheme, TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
@@ -15,6 +17,7 @@ import {
   parseSchemeStepsInput,
   previewSchemeSteps,
 } from '../lib/load-schemes'
+import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { DifficultyPicker } from '../components/ui/difficulty-picker'
@@ -45,6 +48,8 @@ const exerciseSchema = z
     default_weight_kg: z.number().min(0, 'Не может быть отрицательным').nullable(),
     load_scheme: z.enum(['flat', 'ascending', 'descending', 'custom']),
     scheme_steps_input: z.string().optional(),
+    primary_muscles: z.array(z.string()),
+    secondary_muscles: z.array(z.string()),
   })
   .superRefine((values, ctx) => {
     if (values.is_hold) {
@@ -137,6 +142,8 @@ function mapExerciseToFormValues(exercise: TrainerExercise): ExerciseFormValues 
     default_weight_kg: exercise.default_weight_kg ?? null,
     load_scheme: (exercise.load_scheme as LoadScheme) || 'flat',
     scheme_steps_input: formatSchemeStepsInput(exercise.scheme_steps),
+    primary_muscles: Array.isArray(exercise.primary_muscles) ? [...exercise.primary_muscles] : [],
+    secondary_muscles: Array.isArray(exercise.secondary_muscles) ? [...exercise.secondary_muscles] : [],
   }
 }
 
@@ -160,6 +167,8 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
     default_weight_kg: values.default_weight_kg,
     load_scheme: loadScheme,
     scheme_steps: loadScheme === 'custom' ? parseSchemeStepsInput(values.scheme_steps_input ?? '') : [],
+    primary_muscles: values.primary_muscles,
+    secondary_muscles: values.secondary_muscles,
   }
 }
 
@@ -204,6 +213,8 @@ export function ExerciseDetailsPage() {
       default_weight_kg: null,
       load_scheme: 'flat',
       scheme_steps_input: '',
+      primary_muscles: [],
+      secondary_muscles: [],
     },
   })
 
@@ -220,6 +231,8 @@ export function ExerciseDetailsPage() {
     form.register('default_weight_kg')
     form.register('load_scheme')
     form.register('scheme_steps_input')
+    form.register('primary_muscles')
+    form.register('secondary_muscles')
   }, [form])
 
   const watchedEquipment = useWatch({ control: form.control, name: 'equipment' })
@@ -234,6 +247,12 @@ export function ExerciseDetailsPage() {
   const watchedWeight = useWatch({ control: form.control, name: 'default_weight_kg' })
   const watchedLoadScheme = useWatch({ control: form.control, name: 'load_scheme' }) ?? 'flat'
   const watchedSchemeStepsInput = useWatch({ control: form.control, name: 'scheme_steps_input' }) ?? ''
+  const watchedPrimaryMuscles = useWatch({ control: form.control, name: 'primary_muscles' }) ?? []
+  const watchedSecondaryMuscles = useWatch({ control: form.control, name: 'secondary_muscles' }) ?? []
+  const musclesQuery = useQuery({
+    queryKey: ['muscles-catalog'],
+    queryFn: listMuscles,
+  })
   const schemePreview = previewSchemeSteps(
     watchedLoadScheme,
     watchedSets,
@@ -345,6 +364,26 @@ export function ExerciseDetailsPage() {
                 {form.formState.errors.description?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.description.message}</span>
                 ) : null}
+              </div>
+
+              <div className="grid gap-2 rounded-xl border border-border/70 bg-secondary/15 p-3">
+                <Label>Группы мышц</Label>
+                <p className="text-xs text-secondary-foreground">
+                  Кликни по силуэту или выбери из списка — основные и вспомогательные мышцы.
+                </p>
+                {musclesQuery.isLoading ? (
+                  <Skeleton className="h-48 w-full" />
+                ) : (
+                  <MuscleTargetPicker
+                    muscles={musclesQuery.data ?? []}
+                    primary={watchedPrimaryMuscles}
+                    secondary={watchedSecondaryMuscles}
+                    onChange={({ primary, secondary }) => {
+                      form.setValue('primary_muscles', primary, { shouldDirty: true, shouldValidate: true })
+                      form.setValue('secondary_muscles', secondary, { shouldDirty: true, shouldValidate: true })
+                    }}
+                  />
+                )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">

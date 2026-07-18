@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Dumbbell, Video } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
-import { getTrainerExercise, queryKeys } from '../api'
+import { getTrainerExercise, listMuscles, queryKeys } from '../api'
+import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Skeleton } from '../components/ui/skeleton'
@@ -21,6 +22,12 @@ export function ClientExerciseDetailsPage() {
     queryFn: async () => getTrainerExercise(trainerUserId, rowId ?? ''),
     enabled: Boolean(isClient && trainerUserId && rowId),
     retry: false,
+  })
+
+  const musclesQuery = useQuery({
+    queryKey: ['muscles-catalog'],
+    queryFn: listMuscles,
+    enabled: Boolean(isClient && exerciseQuery.data),
   })
 
   const exercise = exerciseQuery.data
@@ -94,6 +101,20 @@ export function ClientExerciseDetailsPage() {
                   <p className="whitespace-pre-wrap text-sm text-secondary-foreground">{exercise.description}</p>
                 ) : (
                   <span className="text-sm text-secondary-foreground">Тренер пока не добавил описание.</span>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4">
+                <div className="mb-2 text-sm font-medium">Группы мышц</div>
+                {musclesQuery.isLoading ? (
+                  <Skeleton className="h-48 w-full rounded-xl" />
+                ) : (
+                  <MuscleTargetPicker
+                    muscles={musclesQuery.data ?? []}
+                    primary={exercise.primary_muscles ?? []}
+                    secondary={exercise.secondary_muscles ?? []}
+                    readOnly
+                  />
                 )}
               </div>
 

@@ -1,10 +1,16 @@
 import { apiClient } from './client'
 import type {
   ExerciseVideoUploadResponse,
+  Muscle,
   PlatformExercise,
   TrainerExercise,
   UpsertTrainerExerciseRequest,
 } from '../types/exercise'
+
+export async function listMuscles(): Promise<Muscle[]> {
+  const { data } = await apiClient.get<Muscle[]>('/api/v1/muscles')
+  return Array.isArray(data) ? data : []
+}
 
 export async function listTrainerExercises(
   trainerUserId: string,

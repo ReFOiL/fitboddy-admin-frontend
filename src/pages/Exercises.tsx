@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery } from '@tanstack/react-query'
 import { Archive, Dumbbell, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
+import { listMuscles } from '../api/exercises'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import type { LoadScheme, UpsertTrainerExerciseRequest } from '../types/exercise'
@@ -14,6 +16,7 @@ import {
   parseSchemeStepsInput,
   previewSchemeSteps,
 } from '../lib/load-schemes'
+import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { DifficultyPicker } from '../components/ui/difficulty-picker'
@@ -44,6 +47,8 @@ const exerciseSchema = z
     default_weight_kg: z.number().min(0, 'Не может быть отрицательным').nullable(),
     load_scheme: z.enum(['flat', 'ascending', 'descending', 'custom']),
     scheme_steps_input: z.string().optional(),
+    primary_muscles: z.array(z.string()),
+    secondary_muscles: z.array(z.string()),
   })
   .superRefine((values, ctx) => {
     if (values.is_hold) {
@@ -127,6 +132,8 @@ const defaultValues: ExerciseFormValues = {
   default_weight_kg: null,
   load_scheme: 'flat',
   scheme_steps_input: '',
+  primary_muscles: [],
+  secondary_muscles: [],
 }
 
 function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequest {
@@ -149,6 +156,8 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
     default_weight_kg: values.default_weight_kg,
     load_scheme: loadScheme,
     scheme_steps: loadScheme === 'custom' ? parseSchemeStepsInput(values.scheme_steps_input ?? '') : [],
+    primary_muscles: values.primary_muscles,
+    secondary_muscles: values.secondary_muscles,
   }
 }
 
@@ -201,6 +210,13 @@ export function ExercisesPage() {
   const watchedWeight = useWatch({ control: form.control, name: 'default_weight_kg' })
   const watchedLoadScheme = useWatch({ control: form.control, name: 'load_scheme' }) ?? 'flat'
   const watchedSchemeStepsInput = useWatch({ control: form.control, name: 'scheme_steps_input' }) ?? ''
+  const watchedPrimaryMuscles = useWatch({ control: form.control, name: 'primary_muscles' }) ?? []
+  const watchedSecondaryMuscles = useWatch({ control: form.control, name: 'secondary_muscles' }) ?? []
+  const musclesQuery = useQuery({
+    queryKey: ['muscles-catalog'],
+    queryFn: listMuscles,
+    enabled: isCreateFormOpen,
+  })
   const schemePreview = previewSchemeSteps(
     watchedLoadScheme,
     watchedSets,
@@ -274,6 +290,23 @@ export function ExercisesPage() {
                 {form.formState.errors.description?.message ? (
                   <span className="text-xs text-destructive">{form.formState.errors.description.message}</span>
                 ) : null}
+              </div>
+
+              <div className="grid gap-2 rounded-xl border border-border/70 bg-background/40 p-3">
+                <Label>Группы мышц</Label>
+                {musclesQuery.isLoading ? (
+                  <Skeleton className="h-40 w-full" />
+                ) : (
+                  <MuscleTargetPicker
+                    muscles={musclesQuery.data ?? []}
+                    primary={watchedPrimaryMuscles}
+                    secondary={watchedSecondaryMuscles}
+                    onChange={({ primary, secondary }) => {
+                      form.setValue('primary_muscles', primary, { shouldDirty: true, shouldValidate: true })
+                      form.setValue('secondary_muscles', secondary, { shouldDirty: true, shouldValidate: true })
+                    }}
+                  />
+                )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">

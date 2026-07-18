@@ -1,5 +1,13 @@
 export type LoadScheme = 'flat' | 'ascending' | 'descending' | 'custom'
 
+export type Muscle = {
+  slug: string
+  name_ru: string
+  sort_order: number
+  body_view: string
+  region_key: string
+}
+
 export type TrainerExercise = {
   row_id: string
   trainer_user_id: string
@@ -21,6 +29,8 @@ export type TrainerExercise = {
   video_url: string | null
   created_at: string
   updated_at: string
+  primary_muscles: string[]
+  secondary_muscles: string[]
 }
 
 export type UpsertTrainerExerciseRequest = {
@@ -38,6 +48,8 @@ export type UpsertTrainerExerciseRequest = {
   default_weight_kg: number | null
   load_scheme: LoadScheme
   scheme_steps: number[]
+  primary_muscles?: string[]
+  secondary_muscles?: string[]
 }
 
 export type ExerciseVideoUploadResponse = {
@@ -79,6 +91,8 @@ export type PlatformExercise = {
   video_url: string | null
   created_at: string
   updated_at: string
+  primary_muscles: string[]
+  secondary_muscles: string[]
 }
 
 export type UpsertClientLoadRequest = {
