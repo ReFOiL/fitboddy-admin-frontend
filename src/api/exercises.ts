@@ -1,5 +1,10 @@
 import { apiClient } from './client'
-import type { ExerciseVideoUploadResponse, TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
+import type {
+  ExerciseVideoUploadResponse,
+  PlatformExercise,
+  TrainerExercise,
+  UpsertTrainerExerciseRequest,
+} from '../types/exercise'
 
 export async function listTrainerExercises(
   trainerUserId: string,
@@ -10,6 +15,11 @@ export async function listTrainerExercises(
     { params: { include_archived: includeArchived } },
   )
   return data
+}
+
+export async function listPlatformExercises(): Promise<PlatformExercise[]> {
+  const { data } = await apiClient.get<PlatformExercise[] | unknown>('/api/v1/platform-exercises')
+  return Array.isArray(data) ? data : []
 }
 
 export async function getTrainerExercise(trainerUserId: string, rowId: string): Promise<TrainerExercise> {

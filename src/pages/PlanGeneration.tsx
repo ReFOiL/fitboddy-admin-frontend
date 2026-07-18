@@ -1,6 +1,18 @@
 import axios from 'axios'
 import { useMemo, useState } from 'react'
-import { Ban, CalendarDays, ChevronDown, ChevronUp, Dumbbell, PackageX, Rocket, Scale } from 'lucide-react'
+import {
+  Ban,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Dumbbell,
+  PackageX,
+  RefreshCw,
+  Rocket,
+  Scale,
+  Sun,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
@@ -8,8 +20,8 @@ import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
 import { useClientRelations } from '../hooks/use-relations'
-import { useClientLoads, usePlans } from '../hooks/use-plans'
-import { listTrainerExercises } from '../api/exercises'
+import { useClientLoads, useClientPlatformLoads, usePlans } from '../hooks/use-plans'
+import { listPlatformExercises, listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -71,7 +83,15 @@ function formatExerciseSummary(exercise: PlanExercise): string {
   }
   if (exercise.weight_kg != null && exercise.weight_kg > 0) parts.push(`Вес: ${exercise.weight_kg} кг`)
   if (exercise.rest_seconds) parts.push(`Отдых: ${exercise.rest_seconds} сек`)
-  return parts.length > 0 ? parts.join(' · ') : 'Параметры уточняются тренером'
+  return parts.length > 0 ? parts.join(' · ') : 'Параметры по программе'
+}
+
+function localTodayIso(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export function PlanGenerationPage() {
@@ -80,7 +100,13 @@ export function PlanGenerationPage() {
   const clientUserId = isClient && user?.user_id ? user.user_id : ''
 
   const { clientActiveRelationQuery } = useClientRelations({ clientUserId })
-  const { activePlanQuery, generatePlanMutation } = usePlans(clientUserId)
+  const {
+    activePlanQuery,
+    todayWorkoutQuery,
+    generatePlanMutation,
+    completeDayMutation,
+    replaceExerciseMutation,
+  } = usePlans(clientUserId)
   const { profileQuery, metaQuery, upsertMutation } = useProfile(clientUserId)
 
   const profile = profileQuery.data
@@ -101,13 +127,21 @@ export function PlanGenerationPage() {
   const [generationPanelOverride, setGenerationPanelOverride] = useState<boolean | null>(null)
   const isGenerationPanelOpen = generationPanelOverride ?? !hasActivePlan
   const [draftWeights, setDraftWeights] = useState<Record<string, string>>({})
+  const [draftPlatformWeights, setDraftPlatformWeights] = useState<Record<string, string>>({})
 
   const trainerCatalogQuery = useQuery({
     queryKey: queryKeys.exercises.trainerCatalog(activeTrainerUserId, false),
     queryFn: async () => listTrainerExercises(activeTrainerUserId, false),
     enabled: Boolean(activeTrainerUserId),
   })
+  const platformCatalogQuery = useQuery({
+    queryKey: queryKeys.exercises.platformCatalog,
+    queryFn: async () => listPlatformExercises(),
+    enabled: Boolean(clientUserId),
+  })
   const { loadsQuery, upsertLoadMutation } = useClientLoads(clientUserId, activeTrainerUserId)
+  const { loadsQuery: platformLoadsQuery, upsertLoadMutation: upsertPlatformLoadMutation } =
+    useClientPlatformLoads(clientUserId)
 
   const catalogEquipmentTags = useMemo(
     () => collectCatalogEquipmentTags(Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []),
@@ -117,23 +151,28 @@ export function PlanGenerationPage() {
     () => (Array.isArray(profile?.unavailable_equipment) ? profile.unavailable_equipment : []),
     [profile],
   )
+  const metaEquipmentTags = useMemo(
+    () => (metaQuery.data?.equipment ?? []).map((item) => item.value).filter(Boolean),
+    [metaQuery.data?.equipment],
+  )
+  const exclusionSourceTags = catalogEquipmentTags.length > 0 ? catalogEquipmentTags : metaEquipmentTags
   const exclusionOptions = useMemo(() => {
     const unavailableKeys = new Set(unavailableEquipment.map((item) => item.toLocaleLowerCase('ru-RU')))
-    const fromCatalog = catalogEquipmentTags.map((value) => ({
+    const fromSource = exclusionSourceTags.map((value) => ({
       value,
       label: formatEquipmentLabel(value, metaQuery.data?.equipment),
     }))
     const extras = unavailableEquipment
-      .filter((value) => !catalogEquipmentTags.some((tag) => tag.toLocaleLowerCase('ru-RU') === value.toLocaleLowerCase('ru-RU')))
+      .filter((value) => !exclusionSourceTags.some((tag) => tag.toLocaleLowerCase('ru-RU') === value.toLocaleLowerCase('ru-RU')))
       .map((value) => ({
         value,
         label: formatEquipmentLabel(value, metaQuery.data?.equipment),
       }))
-    return [...fromCatalog, ...extras].map((option) => ({
+    return [...fromSource, ...extras].map((option) => ({
       ...option,
       selected: unavailableKeys.has(option.value.toLocaleLowerCase('ru-RU')),
     }))
-  }, [catalogEquipmentTags, unavailableEquipment, metaQuery.data?.equipment])
+  }, [exclusionSourceTags, unavailableEquipment, metaQuery.data?.equipment])
 
   const saveUnavailable = (next: string[]) => {
     if (!profile) return
@@ -158,6 +197,14 @@ export function PlanGenerationPage() {
     )
   }, [trainerCatalogQuery.data])
 
+  const platformWeightExercises = useMemo(() => {
+    const catalog = Array.isArray(platformCatalogQuery.data) ? platformCatalogQuery.data : []
+    return catalog.filter(
+      (exercise) =>
+        exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
+    )
+  }, [platformCatalogQuery.data])
+
   const loadsByExercise = useMemo(() => {
     const map = new Map<string, number>()
     const loads = Array.isArray(loadsQuery.data) ? loadsQuery.data : []
@@ -167,8 +214,21 @@ export function PlanGenerationPage() {
     return map
   }, [loadsQuery.data])
 
+  const platformLoadsByExercise = useMemo(() => {
+    const map = new Map<string, number>()
+    const loads = Array.isArray(platformLoadsQuery.data) ? platformLoadsQuery.data : []
+    for (const item of loads) {
+      map.set(item.exercise_row_id, item.working_weight_kg)
+    }
+    return map
+  }, [platformLoadsQuery.data])
+
   const missingWeightCount = weightExercises.filter((exercise) => !loadsByExercise.has(exercise.row_id)).length
   const showWeightsCta = weightExercises.length > 0 && missingWeightCount > 0
+  const missingPlatformWeightCount = platformWeightExercises.filter(
+    (exercise) => !platformLoadsByExercise.has(exercise.row_id),
+  ).length
+  const showPlatformWeightsCta = platformWeightExercises.length > 0 && missingPlatformWeightCount > 0
 
   const goalLabel =
     metaQuery.data?.goals.find((item) => item.value === profile?.goal)?.label ?? textOrFallback(profile?.goal)
@@ -178,14 +238,44 @@ export function PlanGenerationPage() {
     metaQuery.data?.workout_locations.find((item) => item.value === profile?.workout_location)?.label ??
     textOrFallback(profile?.workout_location)
 
-  const canGeneratePlan = Boolean(
-    isClient &&
-      user?.user_id &&
-      activeTrainerUserId &&
-      questionnaireReady &&
-      profile &&
-      !generatePlanMutation.isPending,
+  const canGenerateSystemPlan = Boolean(
+    isClient && user?.user_id && questionnaireReady && profile && !generatePlanMutation.isPending,
   )
+  const canGenerateTrainerPlan = Boolean(canGenerateSystemPlan && activeTrainerUserId)
+  const isSystemPlan = activePlan?.source === 'system'
+  const planSourceLabel = isSystemPlan
+    ? 'Самостоятельно (система)'
+    : activeTrainerDisplay || activePlan?.trainer_user_id || 'Тренер'
+  const todayIso = localTodayIso()
+  const todayWorkout = todayWorkoutQuery.data
+  const todayErrorStatus = axios.isAxiosError(todayWorkoutQuery.error)
+    ? todayWorkoutQuery.error.response?.status
+    : undefined
+  const hasNoTodayWorkout = todayErrorStatus === 404
+  const todayBusy = completeDayMutation.isPending || replaceExerciseMutation.isPending
+  const completedDaysCount = activePlan
+    ? activePlan.days.filter((day) => day.is_completed).length
+    : 0
+  const totalPlanDays = activePlan?.days.length ?? 0
+  const currentAdherence =
+    totalPlanDays > 0 ? Math.round((completedDaysCount / totalPlanDays) * 100) : null
+  const cycleEnded = Boolean(activePlan && todayIso > activePlan.end_date)
+  const cycleFullyDone = Boolean(totalPlanDays > 0 && completedDaysCount === totalPlanDays)
+  const showNextCycleCta = Boolean(hasActivePlan && (cycleEnded || cycleFullyDone))
+
+  function runGenerate(source: 'trainer' | 'system') {
+    if (!user?.user_id || !profile) return
+    if (source === 'trainer' && !activeTrainerUserId) return
+    generatePlanMutation.mutate({
+      source,
+      trainer_user_id: source === 'trainer' ? activeTrainerUserId : undefined,
+      user_id: user.user_id,
+      goal: profile.goal ?? 'maintenance',
+      level: profile.experience_level ?? 'intermediate',
+      workout_location: profile.workout_location ?? 'both',
+      unavailable_equipment: profile.unavailable_equipment ?? [],
+    })
+  }
   const sortedPlanDays = activePlan
     ? [...activePlan.days].sort((left, right) => {
         if (left.week !== right.week) return left.week - right.week
@@ -227,10 +317,10 @@ export function PlanGenerationPage() {
           <div className="space-y-1.5">
             <CardTitle className="flex items-center gap-2">
               <Rocket size={18} className="text-primary" />
-              Обновить план из анкеты
+              План из анкеты
             </CardTitle>
             <CardDescription>
-              Параметры подтягиваются из профиля автоматически.
+              Можно тренироваться самостоятельно или с тренером. Параметры берутся из профиля.
             </CardDescription>
           </div>
           {hasActivePlan ? (
@@ -248,18 +338,9 @@ export function PlanGenerationPage() {
         {isGenerationPanelOpen ? (
           <CardContent className="space-y-4">
             {clientActiveRelationQuery.isLoading || profileQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
-            {hasNoActiveRelation ? (
-              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm">
-                Сначала выбери тренера в разделе{' '}
-                <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
-                  Тренеры
-                </Link>
-                .
-              </div>
-            ) : null}
             {hasRelationError ? (
               <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-                Не удалось загрузить активного тренера.
+                Не удалось загрузить активного тренера. Самостоятельный режим всё равно доступен.
               </div>
             ) : null}
             {hasNoProfile ? (
@@ -276,12 +357,14 @@ export function PlanGenerationPage() {
                 Не удалось загрузить профиль.
               </div>
             ) : null}
-            {profile && !hasNoActiveRelation && activeTrainerUserId ? (
+            {profile && questionnaireReady ? (
               <div className="space-y-4">
                 <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
-                    <div className="text-xs text-secondary-foreground">Тренер</div>
-                    <div className="font-medium">{activeTrainerDisplay}</div>
+                    <div className="text-xs text-secondary-foreground">Режим</div>
+                    <div className="font-medium">
+                      {activeTrainerUserId ? `С тренером · ${activeTrainerDisplay}` : 'Самостоятельно'}
+                    </div>
                   </div>
                   <div>
                     <div className="text-xs text-secondary-foreground">Цель</div>
@@ -296,31 +379,70 @@ export function PlanGenerationPage() {
                     <div className="font-medium">{locationLabel}</div>
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  disabled={!canGeneratePlan}
-                  onClick={() => {
-                    if (!user?.user_id || !profile) return
-                    generatePlanMutation.mutate({
-                      trainer_user_id: activeTrainerUserId,
-                      user_id: user.user_id,
-                      goal: profile.goal ?? 'maintenance',
-                      level: profile.experience_level ?? 'intermediate',
-                      workout_location: profile.workout_location ?? 'both',
-                      workouts_per_week: 3,
-                      unavailable_equipment: profile.unavailable_equipment ?? [],
-                    })
-                  }}
-                >
-                  {generatePlanMutation.isPending ? 'Генерируем...' : hasActivePlan ? 'Обновить план' : 'Сгенерировать план'}
-                </Button>
+
+                {hasActivePlan && currentAdherence != null ? (
+                  <div className="rounded-xl border border-border/70 bg-secondary/20 px-4 py-3 text-sm">
+                    Прогресс цикла: {completedDaysCount}/{totalPlanDays} дней · adherence {currentAdherence}%
+                    {showNextCycleCta
+                      ? ' · можно запускать следующий цикл — частота подстроится под выполнение.'
+                      : null}
+                  </div>
+                ) : null}
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <Button
+                    type="button"
+                    disabled={!canGenerateSystemPlan}
+                    onClick={() => runGenerate('system')}
+                  >
+                    {generatePlanMutation.isPending
+                      ? 'Генерируем...'
+                      : showNextCycleCta && (!activeTrainerUserId || isSystemPlan)
+                        ? 'Следующий цикл'
+                        : hasActivePlan
+                          ? 'Пересобрать системный план'
+                          : 'Тренироваться самостоятельно'}
+                  </Button>
+                  {activeTrainerUserId ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={!canGenerateTrainerPlan}
+                      onClick={() => runGenerate('trainer')}
+                    >
+                      {generatePlanMutation.isPending
+                        ? 'Генерируем...'
+                        : showNextCycleCta && !isSystemPlan
+                          ? 'Следующий цикл тренера'
+                          : hasActivePlan
+                            ? 'Пересобрать план тренера'
+                            : 'План от тренера'}
+                    </Button>
+                  ) : (
+                    <div className="text-sm text-secondary-foreground self-center">
+                      Или выбери тренера в{' '}
+                      <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
+                        разделе «Тренеры»
+                      </Link>
+                      .
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+            {profile && !questionnaireReady && !hasNoProfile ? (
+              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm">
+                Дополни анкету в{' '}
+                <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.profile}>
+                  профиле
+                </Link>
+                , чтобы сгенерировать план.
               </div>
             ) : null}
           </CardContent>
         ) : null}
       </Card>
 
-      {activeTrainerUserId && profile && questionnaireReady ? (
+      {profile && questionnaireReady ? (
         <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -328,15 +450,18 @@ export function PlanGenerationPage() {
               Чего у тебя нет
             </CardTitle>
             <CardDescription>
-              Всё из каталога тренера считается доступным. Нажми на то, чего нет — эти упражнения не попадут в
-              план.
+              {activeTrainerUserId
+                ? 'Всё из каталога тренера считается доступным. Отметь то, чего нет — эти упражнения не попадут в план.'
+                : 'Отметь недоступный инвентарь — системный план учтёт это при генерации.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {trainerCatalogQuery.isLoading ? <Skeleton className="h-16 w-full rounded-xl" /> : null}
+            {activeTrainerUserId && trainerCatalogQuery.isLoading ? (
+              <Skeleton className="h-16 w-full rounded-xl" />
+            ) : null}
             {!trainerCatalogQuery.isLoading && exclusionOptions.length === 0 ? (
               <div className="text-sm text-secondary-foreground">
-                В каталоге тренера пока нет упражнений с инвентарём — отмечать нечего.
+                Пока нет вариантов инвентаря для исключения.
               </div>
             ) : null}
             {exclusionOptions.length > 0 ? (
@@ -412,15 +537,194 @@ export function PlanGenerationPage() {
         </Card>
       ) : null}
 
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sun size={18} className="text-primary" />
+            Сегодня
+          </CardTitle>
+          <CardDescription>Тренировка на сегодня: замена упражнений и отметка выполнения.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {todayWorkoutQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
+          {!todayWorkoutQuery.isLoading && hasNoTodayWorkout ? (
+            <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm text-secondary-foreground">
+              {hasActivePlan
+                ? 'Сегодня в плане день отдыха или тренировки нет.'
+                : 'Сначала сгенерируй план — тогда здесь появится тренировка на сегодня.'}
+            </div>
+          ) : null}
+          {!todayWorkoutQuery.isLoading && todayWorkoutQuery.isError && !hasNoTodayWorkout ? (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+              Не удалось загрузить тренировку на сегодня.
+            </div>
+          ) : null}
+          {todayWorkout ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4">
+                <div>
+                  <div className="font-medium">{formatWeekday(todayWorkout.day_of_week)}</div>
+                  <div className="text-xs text-secondary-foreground">
+                    {formatDate(todayWorkout.scheduled_for)} · неделя {todayWorkout.week} ·{' '}
+                    {todayWorkout.source === 'system' ? 'системный план' : 'план тренера'}
+                  </div>
+                </div>
+                {todayWorkout.is_completed ? (
+                  <div className="inline-flex items-center gap-1.5 text-sm text-primary">
+                    <CheckCircle2 size={16} />
+                    Выполнено
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={todayBusy}
+                    onClick={() => completeDayMutation.mutate(todayWorkout.day_index)}
+                  >
+                    <CheckCircle2 size={14} />
+                    {completeDayMutation.isPending ? 'Сохраняем...' : 'Отметить выполненной'}
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {todayWorkout.exercises.map((exercise) => {
+                  const prescriptions = Array.isArray(exercise.set_prescriptions)
+                    ? exercise.set_prescriptions
+                    : []
+                  const showSetList = hasSetProgression(prescriptions)
+                  return (
+                    <div
+                      key={exercise.line_id}
+                      className="flex flex-col gap-2 rounded-lg border border-border/60 bg-background/50 px-3 py-2 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{exercise.exercise_name}</div>
+                        {showSetList ? (
+                          <ul className="mt-1 space-y-0.5 text-xs text-secondary-foreground">
+                            {prescriptions.map((item) => (
+                              <li key={`${exercise.line_id}-${item.set_index}`}>{formatSetLine(item)}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <div className="text-xs text-secondary-foreground">{formatExerciseSummary(exercise)}</div>
+                        )}
+                      </div>
+                      {!todayWorkout.is_completed ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="shrink-0"
+                          disabled={todayBusy}
+                          onClick={() =>
+                            replaceExerciseMutation.mutate({
+                              dayIndex: todayWorkout.day_index,
+                              lineId: exercise.line_id,
+                            })
+                          }
+                        >
+                          <RefreshCw size={14} />
+                          Заменить
+                        </Button>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Scale size={18} className="text-primary" />
+            Рабочие веса · система
+          </CardTitle>
+          <CardDescription>
+            Веса для самостоятельной тренировки. Новый системный план подставит их вместо дефолта каталога.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {showPlatformWeightsCta ? (
+            <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+              Заполни веса — системный план станет точнее. Осталось упражнений без веса:{' '}
+              {missingPlatformWeightCount}.
+            </div>
+          ) : null}
+          {platformCatalogQuery.isLoading || platformLoadsQuery.isLoading ? (
+            <Skeleton className="h-24 w-full rounded-xl" />
+          ) : null}
+          {!platformCatalogQuery.isLoading && platformWeightExercises.length === 0 ? (
+            <div className="text-sm text-secondary-foreground">
+              В платформенном каталоге пока нет силовых упражнений с базовым весом.
+            </div>
+          ) : null}
+          <div className="space-y-2">
+            {platformWeightExercises.map((exercise) => {
+              const saved = platformLoadsByExercise.get(exercise.row_id)
+              const draft = draftPlatformWeights[exercise.row_id]
+              const value = draft ?? (saved != null ? String(saved) : '')
+              return (
+                <div
+                  key={exercise.row_id}
+                  className="flex flex-col gap-2 rounded-xl border border-border/70 bg-secondary/15 p-3 sm:flex-row sm:items-center"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium">{exercise.exercise_name}</div>
+                    <div className="text-xs text-secondary-foreground">
+                      Дефолт каталога: {exercise.default_weight_kg} кг
+                      {saved != null ? ` · твой вес: ${saved} кг` : ' · вес ещё не указан'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={0.5}
+                      step={0.5}
+                      className="w-28"
+                      value={value}
+                      placeholder="кг"
+                      onChange={(event) =>
+                        setDraftPlatformWeights((current) => ({
+                          ...current,
+                          [exercise.row_id]: event.target.value,
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={upsertPlatformLoadMutation.isPending || !value || Number(value) <= 0}
+                      onClick={() => {
+                        const next = Number(value)
+                        if (!Number.isFinite(next) || next <= 0) return
+                        upsertPlatformLoadMutation.mutate({
+                          exerciseRowId: exercise.row_id,
+                          payload: { working_weight_kg: next },
+                        })
+                      }}
+                    >
+                      Сохранить
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {activeTrainerUserId ? (
         <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Scale size={18} className="text-primary" />
-              Рабочие веса
+              Рабочие веса · тренер
             </CardTitle>
             <CardDescription>
-              Укажи вес, с которым уже работаешь. Новый план подставит его вместо дефолта каталога.
+              Укажи вес, с которым уже работаешь. Новый план тренера подставит его вместо дефолта каталога.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -500,15 +804,15 @@ export function PlanGenerationPage() {
           {activePlanQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
           {!activePlanQuery.isLoading && hasNoActivePlan ? (
             <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm text-secondary-foreground">
-              Активного плана пока нет. Сгенерируй его выше.
+              Активного плана пока нет. Сгенерируй системный план или план от тренера выше.
             </div>
           ) : null}
           {!activePlanQuery.isLoading && activePlan ? (
             <>
               <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <div className="text-xs text-secondary-foreground">Тренер</div>
-                  <div className="font-medium">{activeTrainerDisplay || activePlan.trainer_user_id}</div>
+                  <div className="text-xs text-secondary-foreground">Источник</div>
+                  <div className="font-medium">{planSourceLabel}</div>
                 </div>
                 <div>
                   <div className="text-xs text-secondary-foreground">Период</div>
@@ -544,9 +848,25 @@ export function PlanGenerationPage() {
                     </div>
                     <div className="grid gap-3">
                       {days.map((day) => (
-                        <div key={day.day_id} className="rounded-xl border border-border/70 bg-background/40 p-4">
+                        <div
+                          key={day.day_id}
+                          className={cn(
+                            'rounded-xl border bg-background/40 p-4',
+                            day.scheduled_for === todayIso
+                              ? 'border-primary/50 bg-primary/5'
+                              : 'border-border/70',
+                          )}
+                        >
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <div className="font-medium">{formatWeekday(day.day_of_week)}</div>
+                            <div className="font-medium">
+                              {formatWeekday(day.day_of_week)}
+                              {day.scheduled_for === todayIso ? (
+                                <span className="ml-2 text-xs font-normal text-primary">сегодня</span>
+                              ) : null}
+                              {day.is_completed ? (
+                                <span className="ml-2 text-xs font-normal text-secondary-foreground">выполнено</span>
+                              ) : null}
+                            </div>
                             <div className="text-xs text-secondary-foreground">Дата: {formatDate(day.scheduled_for)}</div>
                           </div>
                           <div className="space-y-2">
@@ -555,12 +875,8 @@ export function PlanGenerationPage() {
                                 ? exercise.set_prescriptions
                                 : []
                               const showSetList = hasSetProgression(prescriptions)
-                              return (
-                                <Link
-                                  key={exercise.line_id}
-                                  to={`/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(activePlan.trainer_user_id)}`}
-                                  className="block rounded-lg border border-border/60 bg-background/50 px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
-                                >
+                              const summary = (
+                                <>
                                   <div className="text-sm font-medium">{exercise.exercise_name}</div>
                                   {showSetList ? (
                                     <ul className="mt-1 space-y-0.5 text-xs text-secondary-foreground">
@@ -571,8 +887,27 @@ export function PlanGenerationPage() {
                                   ) : (
                                     <div className="text-xs text-secondary-foreground">{formatExerciseSummary(exercise)}</div>
                                   )}
-                                  <div className="mt-1 text-xs text-primary">Подробнее</div>
-                                </Link>
+                                </>
+                              )
+                              if (activePlan.trainer_user_id) {
+                                return (
+                                  <Link
+                                    key={exercise.line_id}
+                                    to={`/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(activePlan.trainer_user_id)}`}
+                                    className="block rounded-lg border border-border/60 bg-background/50 px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
+                                  >
+                                    {summary}
+                                    <div className="mt-1 text-xs text-primary">Подробнее</div>
+                                  </Link>
+                                )
+                              }
+                              return (
+                                <div
+                                  key={exercise.line_id}
+                                  className="rounded-lg border border-border/60 bg-background/50 px-3 py-2"
+                                >
+                                  {summary}
+                                </div>
                               )
                             })}
                           </div>

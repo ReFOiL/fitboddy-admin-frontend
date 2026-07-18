@@ -25,10 +25,14 @@ export function DashboardPage() {
               <Rocket size={18} className="text-primary" />
               Мой план
             </CardTitle>
-            <CardDescription>На одной странице: просмотр текущего плана и обновление из анкеты при необходимости.</CardDescription>
+            <CardDescription>
+              Самостоятельно или с тренером: генерация плана из анкеты и просмотр расписания.
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex items-center justify-between gap-3">
-            <span className="text-sm text-secondary-foreground">Открой активный план и при необходимости обнови его из анкеты</span>
+            <span className="text-sm text-secondary-foreground">
+              Можно начать без тренера — «Тренироваться самостоятельно»
+            </span>
             <Button asChild>
               <Link to="/plan-generation" className="inline-flex items-center gap-2">
                 К плану

@@ -27,10 +27,13 @@ export const queryKeys = {
       ['exercises', 'trainer-catalog', trainerUserId, includeArchived ? 'all' : 'active'] as const,
     trainerExercise: (trainerUserId: string, rowId: string) =>
       ['exercises', 'trainer-exercise', trainerUserId, rowId] as const,
+    platformCatalog: ['exercises', 'platform-catalog'] as const,
   },
   plans: {
     activeByUser: (userId: string) => ['plans', 'active-by-user', userId] as const,
+    today: ['plans', 'today'] as const,
     clientLoads: (clientUserId: string, trainerUserId: string) =>
       ['plans', 'client-loads', clientUserId, trainerUserId] as const,
+    clientPlatformLoads: (clientUserId: string) => ['plans', 'client-platform-loads', clientUserId] as const,
   },
 }

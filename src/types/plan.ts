@@ -1,5 +1,8 @@
+export type PlanSource = 'trainer' | 'system'
+
 export type GeneratePlanRequest = {
-  trainer_user_id: string
+  source?: PlanSource
+  trainer_user_id?: string | null
   user_id: string
   goal: string
   level: string
@@ -38,12 +41,30 @@ export type PlanDay = {
   week: number
   day_of_week: number
   volume_multiplier: number
+  is_completed?: boolean
+  completed_at?: string | null
+  exercises: PlanExercise[]
+}
+
+export type TodayWorkout = {
+  plan_id: string
+  source: PlanSource
+  trainer_user_id: string | null
+  day_id: string
+  day_index: number
+  scheduled_for: string
+  week: number
+  day_of_week: number
+  volume_multiplier: number
+  is_completed: boolean
+  completed_at: string | null
   exercises: PlanExercise[]
 }
 
 export type TrainingPlan = {
   plan_id: string
-  trainer_user_id: string
+  source: PlanSource
+  trainer_user_id: string | null
   user_id: string
   status: string
   goal: string
@@ -54,4 +75,5 @@ export type TrainingPlan = {
   created_at: string
   updated_at: string
   days: PlanDay[]
+  previous_adherence?: number | null
 }
