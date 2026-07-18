@@ -35,7 +35,7 @@ const profileSchema = z.object({
   city: z.string().max(120, 'Максимум 120 символов').optional(),
   bio: z.string().max(2000, 'Максимум 2000 символов').optional(),
   age: z
-    .number({ invalid_type_error: 'Укажи возраст числом' })
+    .number({ error: 'Укажи возраст числом' })
     .int('Возраст должен быть целым числом')
     .min(10, 'Минимальный возраст — 10')
     .max(100, 'Максимальный возраст — 100')
