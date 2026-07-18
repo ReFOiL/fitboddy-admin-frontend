@@ -34,6 +34,13 @@ const profileSchema = z.object({
     .or(z.literal('')),
   city: z.string().max(120, 'Максимум 120 символов').optional(),
   bio: z.string().max(2000, 'Максимум 2000 символов').optional(),
+  age: z
+    .number({ invalid_type_error: 'Укажи возраст числом' })
+    .int('Возраст должен быть целым числом')
+    .min(10, 'Минимальный возраст — 10')
+    .max(100, 'Максимальный возраст — 100')
+    .nullable(),
+  gender: z.string().nullable(),
   goal: z.string().nullable(),
   experience_level: z.string().nullable(),
   workout_location: z.string().nullable(),
@@ -81,6 +88,7 @@ export function ProfilePage() {
   const goalOptions = metaQuery.data?.goals ?? []
   const levelOptions = metaQuery.data?.levels ?? []
   const locationOptions = metaQuery.data?.workout_locations ?? []
+  const genderOptions = metaQuery.data?.genders ?? []
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -89,6 +97,8 @@ export function ProfilePage() {
       avatar_url: '',
       city: '',
       bio: '',
+      age: null,
+      gender: null,
       goal: null,
       experience_level: null,
       workout_location: null,
@@ -105,6 +115,8 @@ export function ProfilePage() {
       avatar_url: typeof profile.avatar_url === 'string' ? profile.avatar_url : '',
       city: typeof profile.city === 'string' ? profile.city : '',
       bio: typeof profile.bio === 'string' ? profile.bio : '',
+      age: typeof profile.age === 'number' ? profile.age : null,
+      gender: typeof profile.gender === 'string' ? profile.gender : null,
       goal: typeof profile.goal === 'string' ? profile.goal : null,
       experience_level: typeof profile.experience_level === 'string' ? profile.experience_level : null,
       workout_location: typeof profile.workout_location === 'string' ? profile.workout_location : null,
@@ -117,6 +129,7 @@ export function ProfilePage() {
   const isNotFound = loadErrorStatus === 404
   const isForbidden = loadErrorStatus === 403
   const avatarUrl = useWatch({ control: form.control, name: 'avatar_url' })
+  const watchedGender = useWatch({ control: form.control, name: 'gender' })
   const watchedGoal = useWatch({ control: form.control, name: 'goal' })
   const watchedExperienceLevel = useWatch({ control: form.control, name: 'experience_level' })
   const watchedWorkoutLocation = useWatch({ control: form.control, name: 'workout_location' })
@@ -144,6 +157,8 @@ export function ProfilePage() {
             <form
               className="grid gap-4"
               onSubmit={form.handleSubmit((values) => {
+                const ageValue = values.age
+                const genderValue = values.gender
                 const goalValue = values.goal
                 const experienceValue = values.experience_level
                 const workoutLocationValue = values.workout_location
@@ -155,6 +170,14 @@ export function ProfilePage() {
                   return
                 }
                 if (questionnaireRequired) {
+                  if (ageValue == null) {
+                    form.setError('age', { type: 'manual', message: 'Для профиля клиента возраст обязателен' })
+                    return
+                  }
+                  if (!genderValue) {
+                    form.setError('gender', { type: 'manual', message: 'Для профиля клиента пол обязателен' })
+                    return
+                  }
                   if (!goalValue) {
                     form.setError('goal', { type: 'manual', message: 'Для профиля клиента цель обязательна' })
                     return
@@ -167,6 +190,10 @@ export function ProfilePage() {
                     form.setError('workout_location', { type: 'manual', message: 'Укажи место тренировок' })
                     return
                   }
+                }
+                if (!isKnown(genderValue, genderOptions)) {
+                  form.setError('gender', { type: 'manual', message: 'Выбери пол из списка' })
+                  return
                 }
                 if (!isKnown(goalValue, goalOptions)) {
                   form.setError('goal', { type: 'manual', message: 'Выбери цель из списка' })
@@ -184,6 +211,8 @@ export function ProfilePage() {
                   full_name: values.full_name?.trim() ? values.full_name.trim() : null,
                   city: values.city?.trim() ? values.city.trim() : null,
                   bio: values.bio?.trim() ? values.bio.trim() : null,
+                  age: ageValue,
+                  gender: genderValue,
                   goal: goalValue,
                   experience_level: experienceValue,
                   workout_location: workoutLocationValue,
@@ -291,6 +320,43 @@ export function ProfilePage() {
 
               {!isTrainerOwnProfile ? (
                 <>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="age">Возраст</Label>
+                      <Input
+                        id="age"
+                        type="number"
+                        min={10}
+                        max={100}
+                        step={1}
+                        placeholder="Например: 28"
+                        value={form.watch('age') ?? ''}
+                        onChange={(event) => {
+                          const raw = event.target.value
+                          form.setValue('age', raw === '' ? null : Number(raw), {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          })
+                        }}
+                      />
+                      {form.formState.errors.age?.message ? (
+                        <span className="text-xs text-destructive">{form.formState.errors.age.message}</span>
+                      ) : null}
+                    </div>
+
+                    <FancySelect
+                      id="gender"
+                      label="Пол"
+                      value={watchedGender}
+                      options={genderOptions}
+                      placeholder="Выбери пол..."
+                      onChange={(nextValue) =>
+                        form.setValue('gender', nextValue, { shouldDirty: true, shouldValidate: true })
+                      }
+                      error={form.formState.errors.gender?.message}
+                    />
+                  </div>
+
                   <FancySelect
                     id="goal"
                     label="Цель"

@@ -107,6 +107,9 @@ export function TrainerClientProfilePage() {
     [weightExercises, loadsByExercise],
   )
 
+  const ageLabel = profile?.age != null ? String(profile.age) : textOrPlaceholder(null)
+  const genderLabel =
+    metaQuery.data?.genders.find((item) => item.value === profile?.gender)?.label ?? textOrPlaceholder(profile?.gender)
   const goalLabel = metaQuery.data?.goals.find((item) => item.value === profile?.goal)?.label ?? textOrPlaceholder(profile?.goal)
   const levelLabel =
     metaQuery.data?.levels.find((item) => item.value === profile?.experience_level)?.label ?? textOrPlaceholder(profile?.experience_level)
@@ -294,6 +297,14 @@ export function TrainerClientProfilePage() {
 
                 <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/15 p-4 lg:col-span-3">
                   <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-1">
+                      <span className="text-xs text-secondary-foreground">Возраст</span>
+                      <span className="text-sm">{ageLabel}</span>
+                    </div>
+                    <div className="grid gap-1">
+                      <span className="text-xs text-secondary-foreground">Пол</span>
+                      <span className="text-sm">{genderLabel}</span>
+                    </div>
                     <div className="grid gap-1">
                       <span className="text-xs text-secondary-foreground">Цель</span>
                       <span className="text-sm">{goalLabel}</span>

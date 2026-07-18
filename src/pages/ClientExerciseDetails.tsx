@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Dumbbell, Video } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
-import { getTrainerExercise, listMuscles, queryKeys } from '../api'
+import { getPlatformExercise, getTrainerExercise, listMuscles, queryKeys } from '../api'
 import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -16,13 +16,23 @@ export function ClientExerciseDetailsPage() {
   const { rowId } = useParams<{ rowId: string }>()
   const [searchParams] = useSearchParams()
   const trainerUserId = searchParams.get('trainer') ?? ''
+  const isPlatform = !trainerUserId
 
-  const exerciseQuery = useQuery({
+  const trainerExerciseQuery = useQuery({
     queryKey: queryKeys.exercises.trainerExercise(trainerUserId, rowId ?? ''),
     queryFn: async () => getTrainerExercise(trainerUserId, rowId ?? ''),
     enabled: Boolean(isClient && trainerUserId && rowId),
     retry: false,
   })
+
+  const platformExerciseQuery = useQuery({
+    queryKey: queryKeys.exercises.platformExercise(rowId ?? ''),
+    queryFn: async () => getPlatformExercise(rowId ?? ''),
+    enabled: Boolean(isClient && isPlatform && rowId),
+    retry: false,
+  })
+
+  const exerciseQuery = isPlatform ? platformExerciseQuery : trainerExerciseQuery
 
   const musclesQuery = useQuery({
     queryKey: ['muscles-catalog'],
@@ -46,7 +56,7 @@ export function ClientExerciseDetailsPage() {
     )
   }
 
-  if (!rowId || !trainerUserId) {
+  if (!rowId) {
     return (
       <Card className="border-primary/20">
         <CardHeader>
@@ -80,7 +90,11 @@ export function ClientExerciseDetailsPage() {
             <Dumbbell size={18} className="text-primary" />
             {exercise?.exercise_name ?? 'Упражнение'}
           </CardTitle>
-          <CardDescription>Подробности упражнения из каталога твоего тренера.</CardDescription>
+          <CardDescription>
+            {isPlatform
+              ? 'Подробности упражнения из системного каталога.'
+              : 'Подробности упражнения из каталога твоего тренера.'}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           {exerciseQuery.isLoading ? (
@@ -100,7 +114,9 @@ export function ClientExerciseDetailsPage() {
                 {exercise.description?.trim() ? (
                   <p className="whitespace-pre-wrap text-sm text-secondary-foreground">{exercise.description}</p>
                 ) : (
-                  <span className="text-sm text-secondary-foreground">Тренер пока не добавил описание.</span>
+                  <span className="text-sm text-secondary-foreground">
+                    {isPlatform ? 'Описание пока не добавлено.' : 'Тренер пока не добавил описание.'}
+                  </span>
                 )}
               </div>
 

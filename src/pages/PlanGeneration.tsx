@@ -592,12 +592,15 @@ export function PlanGenerationPage() {
                     ? exercise.set_prescriptions
                     : []
                   const showSetList = hasSetProgression(prescriptions)
+                  const detailsTo = todayWorkout.trainer_user_id
+                    ? `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(todayWorkout.trainer_user_id)}`
+                    : `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}`
                   return (
                     <div
                       key={exercise.line_id}
                       className="flex flex-col gap-2 rounded-lg border border-border/60 bg-background/50 px-3 py-2 sm:flex-row sm:items-start sm:justify-between"
                     >
-                      <div className="min-w-0">
+                      <Link to={detailsTo} className="min-w-0 flex-1 transition hover:opacity-90">
                         <div className="text-sm font-medium">{exercise.exercise_name}</div>
                         {showSetList ? (
                           <ul className="mt-1 space-y-0.5 text-xs text-secondary-foreground">
@@ -608,7 +611,8 @@ export function PlanGenerationPage() {
                         ) : (
                           <div className="text-xs text-secondary-foreground">{formatExerciseSummary(exercise)}</div>
                         )}
-                      </div>
+                        <div className="mt-1 text-xs text-primary">Подробнее</div>
+                      </Link>
                       {!todayWorkout.is_completed ? (
                         <Button
                           type="button"
@@ -889,25 +893,18 @@ export function PlanGenerationPage() {
                                   )}
                                 </>
                               )
-                              if (activePlan.trainer_user_id) {
-                                return (
-                                  <Link
-                                    key={exercise.line_id}
-                                    to={`/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(activePlan.trainer_user_id)}`}
-                                    className="block rounded-lg border border-border/60 bg-background/50 px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
-                                  >
-                                    {summary}
-                                    <div className="mt-1 text-xs text-primary">Подробнее</div>
-                                  </Link>
-                                )
-                              }
+                              const detailsTo = activePlan.trainer_user_id
+                                ? `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(activePlan.trainer_user_id)}`
+                                : `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}`
                               return (
-                                <div
+                                <Link
                                   key={exercise.line_id}
-                                  className="rounded-lg border border-border/60 bg-background/50 px-3 py-2"
+                                  to={detailsTo}
+                                  className="block rounded-lg border border-border/60 bg-background/50 px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
                                 >
                                   {summary}
-                                </div>
+                                  <div className="mt-1 text-xs text-primary">Подробнее</div>
+                                </Link>
                               )
                             })}
                           </div>

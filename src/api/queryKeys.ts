@@ -27,6 +27,7 @@ export const queryKeys = {
       ['exercises', 'trainer-catalog', trainerUserId, includeArchived ? 'all' : 'active'] as const,
     trainerExercise: (trainerUserId: string, rowId: string) =>
       ['exercises', 'trainer-exercise', trainerUserId, rowId] as const,
+    platformExercise: (rowId: string) => ['exercises', 'platform-exercise', rowId] as const,
     platformCatalog: ['exercises', 'platform-catalog'] as const,
   },
   plans: {

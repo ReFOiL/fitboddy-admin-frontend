@@ -28,6 +28,13 @@ export async function listPlatformExercises(): Promise<PlatformExercise[]> {
   return Array.isArray(data) ? data : []
 }
 
+export async function getPlatformExercise(rowId: string): Promise<PlatformExercise> {
+  const { data } = await apiClient.get<PlatformExercise>(
+    `/api/v1/platform-exercises/${encodeURIComponent(rowId)}`,
+  )
+  return data
+}
+
 export async function getTrainerExercise(trainerUserId: string, rowId: string): Promise<TrainerExercise> {
   const { data } = await apiClient.get<TrainerExercise>(
     `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/exercises/${encodeURIComponent(rowId)}`,

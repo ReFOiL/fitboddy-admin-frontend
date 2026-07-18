@@ -25,7 +25,7 @@ export function MuscleTargetPicker({
   readOnly = false,
   onChange,
 }: MuscleTargetPickerProps) {
-  const [view, setView] = useState<'front' | 'back'>('front')
+  const [facing, setFacing] = useState<'front' | 'back'>('front')
   const [roleMode, setRoleMode] = useState<MuscleRoleMode>('primary')
   const [query, setQuery] = useState('')
 
@@ -49,8 +49,8 @@ export function MuscleTargetPicker({
     () =>
       query.trim()
         ? filtered
-        : muscles.filter((item) => item.body_view === view).sort((a, b) => a.sort_order - b.sort_order),
-    [filtered, muscles, query, view],
+        : muscles.filter((item) => item.body_view === facing).sort((a, b) => a.sort_order - b.sort_order),
+    [facing, filtered, muscles, query],
   )
 
   function toggleSlug(slug: string, role: MuscleRoleMode = roleMode) {
@@ -84,29 +84,6 @@ export function MuscleTargetPicker({
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ['front', 'Спереди'],
-            ['back', 'Сзади'],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={[
-              'rounded-full px-3 py-1.5 text-sm',
-              view === value
-                ? 'bg-primary text-primary-foreground'
-                : 'border border-border bg-background hover:bg-secondary/40',
-            ].join(' ')}
-            onClick={() => setView(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       {!readOnly ? (
         <div className="flex flex-wrap gap-2">
           {(
@@ -132,13 +109,13 @@ export function MuscleTargetPicker({
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-border/70 bg-secondary/15 p-3">
+      <div className="rounded-2xl border border-border/70 bg-gradient-to-b from-background to-secondary/20 p-3 shadow-inner">
         <MuscleAnatomyMap
-          view={view}
           primaryRegions={primaryRegions}
           secondaryRegions={secondaryRegions}
           interactive={!readOnly}
           onRegionClick={onRegionClick}
+          onFacingChange={setFacing}
         />
       </div>
 

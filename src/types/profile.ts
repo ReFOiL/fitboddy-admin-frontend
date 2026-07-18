@@ -2,6 +2,8 @@ export type UpsertProfileRequest = {
   full_name: string | null
   city: string | null
   bio: string | null
+  age: number | null
+  gender: string | null
   goal: string | null
   experience_level: string | null
   workout_location: string | null
@@ -18,6 +20,8 @@ export type ProfileResponse = {
   avatar_url: string | null
   city: string | null
   bio: string | null
+  age: number | null
+  gender: string | null
   goal: string | null
   experience_level: string | null
   workout_location: string | null
@@ -42,5 +46,6 @@ export type ProfileMetaResponse = {
   goals: ProfileMetaOption[]
   levels: ProfileMetaOption[]
   workout_locations: ProfileMetaOption[]
+  genders: ProfileMetaOption[]
   equipment: ProfileMetaOption[]
 }
