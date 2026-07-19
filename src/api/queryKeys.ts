@@ -36,5 +36,7 @@ export const queryKeys = {
     clientLoads: (clientUserId: string, trainerUserId: string) =>
       ['plans', 'client-loads', clientUserId, trainerUserId] as const,
     clientPlatformLoads: (clientUserId: string) => ['plans', 'client-platform-loads', clientUserId] as const,
+    trainerGenerationPolicy: (trainerUserId: string) =>
+      ['plans', 'trainer-generation-policy', trainerUserId] as const,
   },
 }

@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BarChart3, ClipboardList, Dumbbell, Home, Rocket, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Dumbbell, Home, ListChecks, Rocket, Users } from 'lucide-react'
 
-import { APP_BRAND_NAME } from '../../config'
+import { APP_BRAND_NAME, APP_PATHS } from '../../config'
 import { useAuth } from '../../hooks/use-auth'
 import { Button } from '../ui/button'
 
@@ -11,7 +11,7 @@ export function MainLayout() {
   const isClient = user?.role === 'client'
   const relationsTabLabel = isTrainer ? 'Клиенты' : 'Тренеры'
   const relationsTabPath = isTrainer ? '/clients' : '/trainers'
-  const mobileGridClass = isTrainer ? 'grid-cols-5' : isClient ? 'grid-cols-4' : 'grid-cols-3'
+  const mobileGridClass = isTrainer ? 'grid-cols-6' : isClient ? 'grid-cols-4' : 'grid-cols-3'
   const navItemClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-lg px-3 py-2 font-medium transition ${
       isActive ? 'bg-primary/20 text-foreground' : 'text-secondary-foreground hover:bg-secondary/70 hover:text-foreground'
@@ -40,6 +40,11 @@ export function MainLayout() {
             {isTrainer ? (
               <NavLink className={navItemClass} to="/exercises">
                 Каталог
+              </NavLink>
+            ) : null}
+            {isTrainer ? (
+              <NavLink className={navItemClass} to={APP_PATHS.planRules}>
+                Правила планов
               </NavLink>
             ) : null}
             {isClient ? (
@@ -98,6 +103,14 @@ export function MainLayout() {
               <span className="mx-auto flex flex-col items-center gap-0.5">
                 <Dumbbell size={16} />
                 Каталог
+              </span>
+            </NavLink>
+          ) : null}
+          {isTrainer ? (
+            <NavLink className={navItemClass} to={APP_PATHS.planRules}>
+              <span className="mx-auto flex flex-col items-center gap-0.5">
+                <ListChecks size={16} />
+                Правила
               </span>
             </NavLink>
           ) : null}

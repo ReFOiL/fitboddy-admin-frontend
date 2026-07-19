@@ -15,6 +15,7 @@ export const APP_PATHS = {
   exercises: '/exercises',
   exerciseDetails: '/exercises/:rowId',
   clientExerciseDetails: '/plan/exercises/:rowId',
+  planRules: '/plan-rules',
   profile: '/profile',
   dashboardAlias: '/dashboard',
   relationsAlias: '/relations',
@@ -63,6 +64,10 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Каталог упражнений',
     matches: (pathname, role) => pathname === APP_PATHS.exercises || (pathname === APP_PATHS.catalogAlias && role === 'trainer'),
+  },
+  {
+    title: 'Правила планов',
+    matches: (pathname) => pathname === APP_PATHS.planRules,
   },
   {
     title: 'Упражнение',

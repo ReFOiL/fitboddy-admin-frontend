@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import type { ClientExerciseLoad, UpsertClientLoadRequest } from '../types/exercise'
+import type { GenerationPolicy } from '../types/generation-policy'
 import type { GeneratePlanRequest, TodayWorkout, TrainingPlan } from '../types/plan'
 
 export async function generatePlan(payload: GeneratePlanRequest): Promise<TrainingPlan> {
@@ -63,6 +64,24 @@ export async function upsertClientPlatformLoad(
 ): Promise<ClientExerciseLoad> {
   const { data } = await apiClient.put<ClientExerciseLoad>(
     `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/platform/loads/${encodeURIComponent(exerciseRowId)}`,
+    payload,
+  )
+  return data
+}
+
+export async function getTrainerGenerationPolicy(trainerUserId: string): Promise<GenerationPolicy> {
+  const { data } = await apiClient.get<GenerationPolicy>(
+    `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/generation-policy`,
+  )
+  return data
+}
+
+export async function upsertTrainerGenerationPolicy(
+  trainerUserId: string,
+  payload: GenerationPolicy,
+): Promise<GenerationPolicy> {
+  const { data } = await apiClient.put<GenerationPolicy>(
+    `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/generation-policy`,
     payload,
   )
   return data
