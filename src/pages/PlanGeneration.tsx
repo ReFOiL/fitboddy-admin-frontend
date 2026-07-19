@@ -3,15 +3,17 @@ import { useMemo, useState } from 'react'
 import {
   Ban,
   CalendarDays,
+  Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
+  ChevronLeft,
   Dumbbell,
   PackageX,
+  Play,
   RefreshCw,
   Rocket,
   Scale,
-  Sun,
+  Settings2,
+  X,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -23,14 +25,16 @@ import { useClientRelations } from '../hooks/use-relations'
 import { useClientLoads, useClientPlatformLoads, usePlans } from '../hooks/use-plans'
 import { listPlatformExercises, listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
+import { PlanCollapsible } from '../components/plan/PlanCollapsible'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Skeleton } from '../components/ui/skeleton'
 import { collectCatalogEquipmentTags, formatEquipmentLabel } from '../lib/equipment'
+import { clearSessionChecks, loadSessionChecks, saveSessionChecks } from '../lib/plan-session'
 import { isProfileCompleted } from '../lib/profile-completion'
 import { cn } from '../lib/utils'
-import type { PlanExercise, SetPrescription } from '../types/plan'
+import type { PlanDay, PlanExercise, SetPrescription } from '../types/plan'
 
 function textOrFallback(value: string | null | undefined): string {
   const normalized = value?.trim()
@@ -40,7 +44,14 @@ function textOrFallback(value: string | null | undefined): string {
 function formatDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('ru-RU')
+  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+}
+
+function formatWeekdayShort(dayOfWeek: number): string {
+  const labels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+  if (dayOfWeek >= 0 && dayOfWeek <= 6) return labels[dayOfWeek]
+  if (dayOfWeek >= 1 && dayOfWeek <= 7) return labels[dayOfWeek - 1]
+  return '—'
 }
 
 function formatWeekday(dayOfWeek: number): string {
@@ -75,15 +86,14 @@ function hasSetProgression(prescriptions: SetPrescription[]): boolean {
 
 function formatExerciseSummary(exercise: PlanExercise): string {
   const parts: string[] = []
-  if (exercise.sets && exercise.sets > 0) parts.push(`Подходы: ${exercise.sets}`)
+  if (exercise.sets && exercise.sets > 0) parts.push(`${exercise.sets}×`)
   if (exercise.duration_seconds && exercise.duration_seconds > 0) {
-    parts.push(`Длительность: ${exercise.duration_seconds} сек`)
+    parts.push(`${exercise.duration_seconds} сек`)
   } else if (exercise.reps && exercise.reps > 0) {
-    parts.push(`Повторения: ${exercise.reps}`)
+    parts.push(`${exercise.reps} повт.`)
   }
-  if (exercise.weight_kg != null && exercise.weight_kg > 0) parts.push(`Вес: ${exercise.weight_kg} кг`)
-  if (exercise.rest_seconds) parts.push(`Отдых: ${exercise.rest_seconds} сек`)
-  return parts.length > 0 ? parts.join(' · ') : 'Параметры по программе'
+  if (exercise.weight_kg != null && exercise.weight_kg > 0) parts.push(`${exercise.weight_kg} кг`)
+  return parts.length > 0 ? parts.join(' ') : 'По программе'
 }
 
 function localTodayIso(): string {
@@ -92,6 +102,12 @@ function localTodayIso(): string {
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function exerciseDetailsTo(exerciseId: string, trainerUserId: string | null | undefined): string {
+  return trainerUserId
+    ? `/plan/exercises/${encodeURIComponent(exerciseId)}?trainer=${encodeURIComponent(trainerUserId)}`
+    : `/plan/exercises/${encodeURIComponent(exerciseId)}`
 }
 
 export function PlanGenerationPage() {
@@ -120,28 +136,33 @@ export function PlanGenerationPage() {
   const hasNoProfile = profileErrorStatus === 404
   const hasProfileError = !profileQuery.isLoading && profileQuery.isError && !hasNoProfile
   const hasRelationError = clientActiveRelationQuery.isError && !hasNoActiveRelation
-  const activePlanErrorStatus = axios.isAxiosError(activePlanQuery.error) ? activePlanQuery.error.response?.status : undefined
+  const activePlanErrorStatus = axios.isAxiosError(activePlanQuery.error)
+    ? activePlanQuery.error.response?.status
+    : undefined
   const hasNoActivePlan = activePlanErrorStatus === 404
   const activePlan = activePlanQuery.data
   const hasActivePlan = Boolean(!activePlanQuery.isLoading && !hasNoActivePlan && activePlan)
-  const [generationPanelOverride, setGenerationPanelOverride] = useState<boolean | null>(null)
-  const isGenerationPanelOpen = generationPanelOverride ?? !hasActivePlan
   const [draftWeights, setDraftWeights] = useState<Record<string, string>>({})
   const [draftPlatformWeights, setDraftPlatformWeights] = useState<Record<string, string>>({})
+  const [sessionActive, setSessionActive] = useState(false)
+  const [sessionDraft, setSessionDraft] = useState<{ dayId: string; ids: Set<string> } | null>(null)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [selectedDayId, setSelectedDayId] = useState<string | null>(null)
 
   const trainerCatalogQuery = useQuery({
     queryKey: queryKeys.exercises.trainerCatalog(activeTrainerUserId, false),
     queryFn: async () => listTrainerExercises(activeTrainerUserId, false),
     enabled: Boolean(activeTrainerUserId),
   })
+  const hasActiveTrainer = Boolean(activeTrainerUserId)
   const platformCatalogQuery = useQuery({
     queryKey: queryKeys.exercises.platformCatalog,
     queryFn: async () => listPlatformExercises(),
-    enabled: Boolean(clientUserId),
+    enabled: Boolean(clientUserId) && !hasActiveTrainer,
   })
   const { loadsQuery, upsertLoadMutation } = useClientLoads(clientUserId, activeTrainerUserId)
   const { loadsQuery: platformLoadsQuery, upsertLoadMutation: upsertPlatformLoadMutation } =
-    useClientPlatformLoads(clientUserId)
+    useClientPlatformLoads(hasActiveTrainer ? '' : clientUserId)
 
   const catalogEquipmentTags = useMemo(
     () => collectCatalogEquipmentTags(Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []),
@@ -163,7 +184,10 @@ export function PlanGenerationPage() {
       label: formatEquipmentLabel(value, metaQuery.data?.equipment),
     }))
     const extras = unavailableEquipment
-      .filter((value) => !exclusionSourceTags.some((tag) => tag.toLocaleLowerCase('ru-RU') === value.toLocaleLowerCase('ru-RU')))
+      .filter(
+        (value) =>
+          !exclusionSourceTags.some((tag) => tag.toLocaleLowerCase('ru-RU') === value.toLocaleLowerCase('ru-RU')),
+      )
       .map((value) => ({
         value,
         label: formatEquipmentLabel(value, metaQuery.data?.equipment),
@@ -194,23 +218,20 @@ export function PlanGenerationPage() {
   const weightExercises = useMemo(() => {
     const catalog = Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []
     return catalog.filter(
-      (exercise) =>
-        exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
+      (exercise) => exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
     )
   }, [trainerCatalogQuery.data])
 
   const platformWeightExercises = useMemo(() => {
     const catalog = Array.isArray(platformCatalogQuery.data) ? platformCatalogQuery.data : []
     return catalog.filter(
-      (exercise) =>
-        exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
+      (exercise) => exercise.is_active && exercise.default_weight_kg != null && exercise.default_weight_kg > 0,
     )
   }, [platformCatalogQuery.data])
 
   const loadsByExercise = useMemo(() => {
     const map = new Map<string, number>()
-    const loads = Array.isArray(loadsQuery.data) ? loadsQuery.data : []
-    for (const item of loads) {
+    for (const item of Array.isArray(loadsQuery.data) ? loadsQuery.data : []) {
       map.set(item.exercise_row_id, item.working_weight_kg)
     }
     return map
@@ -218,8 +239,7 @@ export function PlanGenerationPage() {
 
   const platformLoadsByExercise = useMemo(() => {
     const map = new Map<string, number>()
-    const loads = Array.isArray(platformLoadsQuery.data) ? platformLoadsQuery.data : []
-    for (const item of loads) {
+    for (const item of Array.isArray(platformLoadsQuery.data) ? platformLoadsQuery.data : []) {
       map.set(item.exercise_row_id, item.working_weight_kg)
     }
     return map
@@ -235,18 +255,23 @@ export function PlanGenerationPage() {
   const goalLabel =
     metaQuery.data?.goals.find((item) => item.value === profile?.goal)?.label ?? textOrFallback(profile?.goal)
   const levelLabel =
-    metaQuery.data?.levels.find((item) => item.value === profile?.experience_level)?.label ?? textOrFallback(profile?.experience_level)
+    metaQuery.data?.levels.find((item) => item.value === profile?.experience_level)?.label ??
+    textOrFallback(profile?.experience_level)
   const locationLabel =
     metaQuery.data?.workout_locations.find((item) => item.value === profile?.workout_location)?.label ??
     textOrFallback(profile?.workout_location)
 
-  const canGenerateSystemPlan = Boolean(
+  const canGenerateBase = Boolean(
     isClient && user?.user_id && questionnaireReady && profile && !generatePlanMutation.isPending,
   )
-  const canGenerateTrainerPlan = Boolean(canGenerateSystemPlan && activeTrainerUserId)
+  // С тренером — только план тренера; system доступен без тренера или если relation не удалось загрузить.
+  const canGenerateSystemPlan = Boolean(
+    canGenerateBase && !hasActiveTrainer && (hasNoActiveRelation || hasRelationError),
+  )
+  const canGenerateTrainerPlan = Boolean(canGenerateBase && hasActiveTrainer)
   const isSystemPlan = activePlan?.source === 'system'
   const planSourceLabel = isSystemPlan
-    ? 'Самостоятельно (система)'
+    ? 'Самостоятельно'
     : activeTrainerDisplay || activePlan?.trainer_user_id || 'Тренер'
   const todayIso = localTodayIso()
   const todayWorkout = todayWorkoutQuery.data
@@ -255,12 +280,9 @@ export function PlanGenerationPage() {
     : undefined
   const hasNoTodayWorkout = todayErrorStatus === 404
   const todayBusy = completeDayMutation.isPending || replaceExerciseMutation.isPending
-  const completedDaysCount = activePlan
-    ? activePlan.days.filter((day) => day.is_completed).length
-    : 0
+  const completedDaysCount = activePlan ? activePlan.days.filter((day) => day.is_completed).length : 0
   const totalPlanDays = activePlan?.days.length ?? 0
-  const currentAdherence =
-    totalPlanDays > 0 ? Math.round((completedDaysCount / totalPlanDays) * 100) : null
+  const currentAdherence = totalPlanDays > 0 ? Math.round((completedDaysCount / totalPlanDays) * 100) : null
   const cycleEnded = Boolean(activePlan && todayIso > activePlan.end_date)
   const cycleFullyDone = Boolean(totalPlanDays > 0 && completedDaysCount === totalPlanDays)
   const showNextCycleCta = Boolean(hasActivePlan && (cycleEnded || cycleFullyDone))
@@ -268,6 +290,7 @@ export function PlanGenerationPage() {
   function runGenerate(source: 'trainer' | 'system') {
     if (!user?.user_id || !profile) return
     if (source === 'trainer' && !activeTrainerUserId) return
+    if (source === 'system' && hasActiveTrainer) return
     generatePlanMutation.mutate({
       source,
       trainer_user_id: source === 'trainer' ? activeTrainerUserId : undefined,
@@ -278,16 +301,34 @@ export function PlanGenerationPage() {
       unavailable_equipment: profile.unavailable_equipment ?? [],
     })
   }
-  const sortedPlanDays = activePlan
-    ? [...activePlan.days].sort((left, right) => {
-        if (left.week !== right.week) return left.week - right.week
-        return left.day_index - right.day_index
-      })
-    : []
-  const daysByWeek = sortedPlanDays.reduce<Record<number, typeof sortedPlanDays>>((grouped, day) => {
-    if (!grouped[day.week]) {
-      grouped[day.week] = []
+
+  const sortedPlanDays = useMemo(() => {
+    if (!activePlan) return [] as PlanDay[]
+    return [...activePlan.days].sort((left, right) => {
+      if (left.week !== right.week) return left.week - right.week
+      return left.day_index - right.day_index
+    })
+  }, [activePlan])
+
+  const weekStripDays = useMemo(() => {
+    if (sortedPlanDays.length === 0) return [] as PlanDay[]
+    const todayDay = sortedPlanDays.find((day) => day.scheduled_for === todayIso)
+    const week = todayDay?.week ?? todayWorkout?.week ?? sortedPlanDays[0].week
+    return sortedPlanDays.filter((day) => day.week === week)
+  }, [sortedPlanDays, todayIso, todayWorkout?.week])
+
+  const focusedDay = useMemo(() => {
+    if (selectedDayId) {
+      return sortedPlanDays.find((day) => day.day_id === selectedDayId) ?? null
     }
+    return sortedPlanDays.find((day) => day.scheduled_for === todayIso) ?? null
+  }, [selectedDayId, sortedPlanDays, todayIso])
+
+  const focusedDayId = focusedDay?.day_id ?? null
+  const isFocusedToday = Boolean(focusedDay && focusedDay.scheduled_for === todayIso)
+
+  const daysByWeek = sortedPlanDays.reduce<Record<number, PlanDay[]>>((grouped, day) => {
+    if (!grouped[day.week]) grouped[day.week] = []
     grouped[day.week].push(day)
     return grouped
   }, {})
@@ -297,6 +338,40 @@ export function PlanGenerationPage() {
     metaQuery.data?.goals.find((item) => item.value === activePlan?.goal)?.label ?? textOrFallback(activePlan?.goal)
   const activeLevelLabel =
     metaQuery.data?.levels.find((item) => item.value === activePlan?.level)?.label ?? textOrFallback(activePlan?.level)
+
+  const todayDayId = todayWorkout?.day_id
+  const checkedLineIds =
+    !todayDayId
+      ? new Set<string>()
+      : sessionDraft?.dayId === todayDayId
+        ? sessionDraft.ids
+        : loadSessionChecks(todayDayId)
+
+  const toggleChecked = (lineId: string) => {
+    if (!todayWorkout || !todayDayId || todayWorkout.is_completed) return
+    const next = new Set(checkedLineIds)
+    if (next.has(lineId)) next.delete(lineId)
+    else next.add(lineId)
+    saveSessionChecks(todayDayId, next)
+    setSessionDraft({ dayId: todayDayId, ids: next })
+  }
+
+  const finishWorkout = () => {
+    if (!todayWorkout || todayWorkout.is_completed) return
+    completeDayMutation.mutate(todayWorkout.day_index, {
+      onSuccess: () => {
+        clearSessionChecks(todayWorkout.day_id)
+        setSessionDraft(null)
+        setSessionActive(false)
+      },
+    })
+  }
+
+  const checkedCount = todayWorkout
+    ? todayWorkout.exercises.filter((item) => checkedLineIds.has(item.line_id)).length
+    : 0
+  const exerciseTotal = todayWorkout?.exercises.length ?? 0
+  const inSession = Boolean(sessionActive && todayWorkout && !todayWorkout.is_completed)
 
   if (!isClient) {
     return (
@@ -312,162 +387,404 @@ export function PlanGenerationPage() {
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <Card id="plan-generation-panel" className="border-primary/20">
-        <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-          <div className="space-y-1.5">
-            <CardTitle className="flex items-center gap-2">
-              <Rocket size={18} className="text-primary" />
-              План из анкеты
-            </CardTitle>
-            <CardDescription>
-              Можно тренироваться самостоятельно или с тренером. Параметры берутся из профиля.
-            </CardDescription>
+  /* ——— Session mode ——— */
+  if (inSession && todayWorkout) {
+    return (
+      <div className="mx-auto flex min-h-[70dvh] w-full max-w-lg flex-col gap-4 pb-28">
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="secondary" size="sm" onClick={() => setSessionActive(false)}>
+            <ChevronLeft size={16} />
+            Свернуть
+          </Button>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold">{formatWeekday(todayWorkout.day_of_week)}</div>
+            <div className="text-xs text-secondary-foreground">
+              {checkedCount}/{exerciseTotal} упражнений
+            </div>
           </div>
-          {hasActivePlan ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setGenerationPanelOverride((current) => !(current ?? false))}
-            >
-              {isGenerationPanelOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              {isGenerationPanelOpen ? 'Скрыть' : 'Показать'}
-            </Button>
-          ) : null}
-        </CardHeader>
-        {isGenerationPanelOpen ? (
-          <CardContent className="space-y-4">
-            {clientActiveRelationQuery.isLoading || profileQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
-            {hasRelationError ? (
-              <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-                Не удалось загрузить активного тренера. Самостоятельный режим всё равно доступен.
-              </div>
-            ) : null}
-            {hasNoProfile ? (
-              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm">
-                Заполни анкету в{' '}
-                <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.profile}>
-                  профиле
-                </Link>
-                , затем вернись сюда.
-              </div>
-            ) : null}
-            {hasProfileError ? (
-              <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-                Не удалось загрузить профиль.
-              </div>
-            ) : null}
-            {profile && questionnaireReady ? (
-              <div className="space-y-4">
-                <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <div className="text-xs text-secondary-foreground">Режим</div>
-                    <div className="font-medium">
-                      {activeTrainerUserId ? `С тренером · ${activeTrainerDisplay}` : 'Самостоятельно'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-secondary-foreground">Цель</div>
-                    <div className="font-medium">{goalLabel}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-secondary-foreground">Уровень</div>
-                    <div className="font-medium">{levelLabel}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-secondary-foreground">Локация</div>
-                    <div className="font-medium">{locationLabel}</div>
-                  </div>
-                </div>
+        </div>
 
-                {hasActivePlan && currentAdherence != null ? (
-                  <div className="rounded-xl border border-border/70 bg-secondary/20 px-4 py-3 text-sm">
-                    Прогресс цикла: {completedDaysCount}/{totalPlanDays} дней · adherence {currentAdherence}%
-                    {showNextCycleCta
-                      ? ' · можно запускать следующий цикл — частота подстроится под выполнение.'
-                      : null}
-                  </div>
-                ) : null}
-                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <Button
+        <div className="h-1.5 overflow-hidden rounded-full bg-secondary/60">
+          <div
+            className="h-full rounded-full bg-primary transition-[width]"
+            style={{ width: exerciseTotal > 0 ? `${(checkedCount / exerciseTotal) * 100}%` : '0%' }}
+          />
+        </div>
+
+        <div className="space-y-3">
+          {todayWorkout.exercises.map((exercise, index) => {
+            const prescriptions = Array.isArray(exercise.set_prescriptions) ? exercise.set_prescriptions : []
+            const showSetList = hasSetProgression(prescriptions)
+            const done = checkedLineIds.has(exercise.line_id)
+            const detailsTo = exerciseDetailsTo(exercise.exercise_id, todayWorkout.trainer_user_id)
+            return (
+              <div
+                key={exercise.line_id}
+                className={cn(
+                  'rounded-2xl border px-3 py-3 transition',
+                  done ? 'border-primary/40 bg-primary/10' : 'border-border/70 bg-secondary/15',
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <button
                     type="button"
-                    disabled={!canGenerateSystemPlan}
-                    onClick={() => runGenerate('system')}
+                    className={cn(
+                      'mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold transition',
+                      done
+                        ? 'border-primary bg-primary text-primary-foreground'
+                        : 'border-border bg-background text-secondary-foreground',
+                    )}
+                    aria-pressed={done}
+                    aria-label={done ? 'Снять отметку' : 'Отметить выполненным'}
+                    onClick={() => toggleChecked(exercise.line_id)}
                   >
-                    {generatePlanMutation.isPending
-                      ? 'Генерируем...'
-                      : showNextCycleCta && (!activeTrainerUserId || isSystemPlan)
-                        ? 'Следующий цикл'
-                        : hasActivePlan
-                          ? 'Пересобрать системный план'
-                          : 'Тренироваться самостоятельно'}
-                  </Button>
-                  {activeTrainerUserId ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      disabled={!canGenerateTrainerPlan}
-                      onClick={() => runGenerate('trainer')}
-                    >
-                      {generatePlanMutation.isPending
-                        ? 'Генерируем...'
-                        : showNextCycleCta && !isSystemPlan
-                          ? 'Следующий цикл тренера'
-                          : hasActivePlan
-                            ? 'Пересобрать план тренера'
-                            : 'План от тренера'}
-                    </Button>
-                  ) : (
-                    <div className="text-sm text-secondary-foreground self-center">
-                      Или выбери тренера в{' '}
-                      <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
-                        разделе «Тренеры»
-                      </Link>
-                      .
+                    {done ? <Check size={20} /> : index + 1}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <div className={cn('text-base font-semibold', done && 'text-secondary-foreground line-through')}>
+                      {exercise.exercise_name}
                     </div>
-                  )}
+                    {showSetList ? (
+                      <ul className="mt-1 space-y-0.5 text-xs text-secondary-foreground">
+                        {prescriptions.map((item) => (
+                          <li key={`${exercise.line_id}-${item.set_index}`}>{formatSetLine(item)}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="mt-1 text-xs text-secondary-foreground">{formatExerciseSummary(exercise)}</div>
+                    )}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button asChild type="button" size="sm" variant="secondary">
+                        <Link to={detailsTo}>Подробнее</Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={todayBusy}
+                        onClick={() =>
+                          replaceExerciseMutation.mutate({
+                            dayIndex: todayWorkout.day_index,
+                            lineId: exercise.line_id,
+                          })
+                        }
+                      >
+                        <RefreshCw size={14} />
+                        Заменить
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ) : null}
-            {profile && !questionnaireReady && !hasNoProfile ? (
-              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm">
-                Дополни анкету в{' '}
-                <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.profile}>
-                  профиле
-                </Link>
-                , чтобы сгенерировать план.
-              </div>
-            ) : null}
-          </CardContent>
-        ) : null}
-      </Card>
+            )
+          })}
+        </div>
 
-      {profile && questionnaireReady ? (
+        <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border/80 bg-background/95 px-4 py-3 backdrop-blur md:bottom-0">
+          <div className="mx-auto flex w-full max-w-lg flex-col gap-2">
+            <div className="text-center text-xs text-secondary-foreground">
+              {checkedCount}/{exerciseTotal} готово
+            </div>
+            <Button type="button" size="lg" className="h-12 w-full text-base" disabled={todayBusy} onClick={finishWorkout}>
+              <CheckCircle2 size={18} />
+              {completeDayMutation.isPending ? 'Сохраняем…' : 'Завершить тренировку'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* ——— Home ——— */
+  return (
+    <div className="mx-auto w-full max-w-lg space-y-4 md:max-w-3xl">
+      {(clientActiveRelationQuery.isLoading || profileQuery.isLoading || activePlanQuery.isLoading) &&
+      !hasActivePlan &&
+      !hasNoActivePlan ? (
+        <Skeleton className="h-40 w-full rounded-2xl" />
+      ) : null}
+
+      {hasNoProfile || (profile && !questionnaireReady) ? (
         <Card className="border-primary/20">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PackageX size={18} className="text-primary" />
-              Чего у тебя нет
-            </CardTitle>
+            <CardTitle className="text-xl">Сначала анкета</CardTitle>
+            <CardDescription>Нужны цель, уровень, место тренировок, возраст и пол.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild type="button" size="lg" className="h-12 w-full">
+              <Link to={APP_PATHS.profile}>Заполнить профиль</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {hasProfileError ? (
+        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          Не удалось загрузить профиль.
+        </div>
+      ) : null}
+
+      {questionnaireReady && !hasActivePlan && !activePlanQuery.isLoading ? (
+        <Card className="border-primary/30 bg-gradient-to-b from-primary/10 to-transparent">
+          <CardHeader>
+            <CardTitle className="text-xl">Собери план</CardTitle>
             <CardDescription>
               {activeTrainerUserId
-                ? 'Всё из каталога тренера считается доступным. Отметь то, чего нет — эти упражнения не попадут в план.'
-                : 'Отметь недоступный инвентарь — системный план учтёт это при генерации.'}
+                ? `Можно тренироваться самостоятельно или с ${activeTrainerDisplay}.`
+                : 'Системный план по анкете — или выбери тренера.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {activeTrainerUserId && trainerCatalogQuery.isLoading ? (
-              <Skeleton className="h-16 w-full rounded-xl" />
-            ) : null}
-            {!trainerCatalogQuery.isLoading && exclusionOptions.length === 0 ? (
-              <div className="text-sm text-secondary-foreground">
-                Пока нет вариантов инвентаря для исключения.
+            <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+              <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-2">
+                <div className="text-[11px] text-secondary-foreground">Цель</div>
+                <div className="font-medium">{goalLabel}</div>
               </div>
+              <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-2">
+                <div className="text-[11px] text-secondary-foreground">Уровень</div>
+                <div className="font-medium">{levelLabel}</div>
+              </div>
+              <div className="col-span-2 rounded-xl border border-border/60 bg-background/50 px-3 py-2 sm:col-span-1">
+                <div className="text-[11px] text-secondary-foreground">Место</div>
+                <div className="font-medium">{locationLabel}</div>
+              </div>
+            </div>
+            {hasActiveTrainer ? (
+              <Button
+                type="button"
+                size="lg"
+                className="h-12 w-full"
+                disabled={!canGenerateTrainerPlan}
+                onClick={() => runGenerate('trainer')}
+              >
+                {generatePlanMutation.isPending ? 'Генерируем…' : 'План от тренера'}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-12 w-full"
+                  disabled={!canGenerateSystemPlan}
+                  onClick={() => runGenerate('system')}
+                >
+                  {generatePlanMutation.isPending ? 'Генерируем…' : 'Тренироваться самостоятельно'}
+                </Button>
+                <p className="text-center text-sm text-secondary-foreground">
+                  Или{' '}
+                  <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
+                    выбери тренера
+                  </Link>
+                </p>
+              </>
+            )}
+            {hasRelationError ? (
+              <p className="text-xs text-destructive">Не удалось загрузить тренера — самостоятельный режим доступен.</p>
             ) : null}
-            {exclusionOptions.length > 0 ? (
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {hasActivePlan ? (
+        <>
+          {weekStripDays.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {weekStripDays.map((day) => {
+                const isToday = day.scheduled_for === todayIso
+                const isSelected = day.day_id === focusedDayId
+                return (
+                  <button
+                    key={day.day_id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => setSelectedDayId(day.day_id)}
+                    className={cn(
+                      'flex min-w-[3.25rem] flex-col items-center rounded-2xl border px-2.5 py-2 text-center transition',
+                      isSelected
+                        ? 'border-primary bg-primary/15 text-foreground ring-2 ring-primary/30'
+                        : day.is_completed
+                          ? 'border-border/50 bg-secondary/20 text-secondary-foreground'
+                          : 'border-border/70 bg-background/60',
+                      !isSelected && isToday ? 'border-primary/50' : null,
+                    )}
+                  >
+                    <span className="text-[11px] font-medium uppercase tracking-wide">
+                      {formatWeekdayShort(day.day_of_week)}
+                    </span>
+                    <span className="text-sm font-semibold">{formatDate(day.scheduled_for).split(' ')[0]}</span>
+                    {day.is_completed ? <Check size={12} className="mt-0.5 text-primary" /> : null}
+                    {isToday && !day.is_completed ? (
+                      <span className="mt-0.5 text-[10px] font-semibold text-primary">сегодня</span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+
+          <Card className="overflow-hidden border-primary/25">
+            <CardContent className="space-y-4 p-4 sm:p-5">
+              {!focusedDay && todayWorkoutQuery.isLoading ? (
+                <Skeleton className="h-28 w-full rounded-xl" />
+              ) : null}
+
+              {!focusedDay && !todayWorkoutQuery.isLoading && hasNoTodayWorkout ? (
+                <div className="space-y-3 py-2 text-center">
+                  <SunRestIcon />
+                  <div>
+                    <div className="text-lg font-semibold">День отдыха</div>
+                    <p className="mt-1 text-sm text-secondary-foreground">
+                      Сегодня в плане нет тренировки. Выбери день в полоске выше или открой расписание.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              {!focusedDay && !todayWorkoutQuery.isLoading && todayWorkoutQuery.isError && !hasNoTodayWorkout ? (
+                <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+                  Не удалось загрузить тренировку на сегодня.
+                </div>
+              ) : null}
+
+              {focusedDay ? (
+                <>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium uppercase tracking-wide text-secondary-foreground">
+                      {isFocusedToday ? 'Сегодня' : formatDate(focusedDay.scheduled_for)}
+                    </div>
+                    <div className="text-2xl font-semibold tracking-tight">
+                      {formatWeekday(focusedDay.day_of_week)}
+                    </div>
+                    <div className="text-sm text-secondary-foreground">
+                      {formatDate(focusedDay.scheduled_for)} · {planSourceLabel} · {focusedDay.exercises.length} упр.
+                    </div>
+                  </div>
+
+                  {focusedDay.is_completed ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-medium text-primary">
+                      <CheckCircle2 size={18} />
+                      Тренировка выполнена
+                    </div>
+                  ) : isFocusedToday && todayWorkout ? (
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="h-14 w-full text-base"
+                      onClick={() => setSessionActive(true)}
+                    >
+                      <Play size={18} />
+                      Начать тренировку
+                    </Button>
+                  ) : isFocusedToday && todayWorkoutQuery.isLoading ? (
+                    <Skeleton className="h-14 w-full rounded-xl" />
+                  ) : (
+                    <p className="rounded-xl border border-border/60 bg-secondary/15 px-4 py-3 text-sm text-secondary-foreground">
+                      {focusedDay.scheduled_for > todayIso
+                        ? 'Превью будущей тренировки — начать можно в день по расписанию.'
+                        : 'Просмотр прошедшей тренировки.'}
+                    </p>
+                  )}
+
+                  <ul className="space-y-2">
+                    {(isFocusedToday && !focusedDay.is_completed
+                      ? focusedDay.exercises.slice(0, 4)
+                      : focusedDay.exercises
+                    ).map((exercise) => (
+                      <li
+                        key={exercise.line_id}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-secondary/10 px-3 py-2.5 text-sm"
+                      >
+                        <span className="min-w-0 truncate font-medium">{exercise.exercise_name}</span>
+                        <span className="shrink-0 text-xs text-secondary-foreground">
+                          {formatExerciseSummary(exercise)}
+                        </span>
+                      </li>
+                    ))}
+                    {isFocusedToday && !focusedDay.is_completed && focusedDay.exercises.length > 4 ? (
+                      <li className="px-1 text-xs text-secondary-foreground">
+                        ещё {focusedDay.exercises.length - 4}…
+                      </li>
+                    ) : null}
+                  </ul>
+                </>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          {showNextCycleCta ? (
+            <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+              Цикл завершён{currentAdherence != null ? ` · adherence ${currentAdherence}%` : ''}. Можно запустить
+              следующий в настройках ниже.
+            </div>
+          ) : null}
+
+          <PlanCollapsible
+            title="Настройки плана"
+            subtitle="Веса, инвентарь, пересборка, расписание"
+            icon={<Settings2 size={18} />}
+            defaultOpen={false}
+          >
+            <PlanCollapsible
+              title="Пересобрать план"
+              subtitle={`${planSourceLabel} · ${activeGoalLabel} · ${activeLevelLabel}`}
+              icon={<Rocket size={16} />}
+            >
               <div className="space-y-3">
+                {currentAdherence != null ? (
+                  <p className="text-xs text-secondary-foreground">
+                    Прогресс: {completedDaysCount}/{totalPlanDays} · {currentAdherence}%
+                  </p>
+                ) : null}
+                {hasActiveTrainer ? (
+                  <Button
+                    type="button"
+                    className="w-full"
+                    disabled={!canGenerateTrainerPlan}
+                    onClick={() => runGenerate('trainer')}
+                  >
+                    {generatePlanMutation.isPending
+                      ? 'Генерируем…'
+                      : showNextCycleCta
+                        ? 'Следующий цикл'
+                        : 'Пересобрать план тренера'}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={!canGenerateSystemPlan}
+                      onClick={() => runGenerate('system')}
+                    >
+                      {generatePlanMutation.isPending
+                        ? 'Генерируем…'
+                        : showNextCycleCta
+                          ? 'Следующий цикл'
+                          : 'Пересобрать системный'}
+                    </Button>
+                    <p className="text-xs text-secondary-foreground">
+                      Нет тренера —{' '}
+                      <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
+                        выбрать
+                      </Link>
+                    </p>
+                  </>
+                )}
+              </div>
+            </PlanCollapsible>
+
+            <PlanCollapsible
+              title="Чего нет"
+              subtitle={
+                unavailableEquipment.length > 0
+                  ? `Исключено: ${unavailableEquipment.length}`
+                  : 'Инвентарь для исключения'
+              }
+              icon={<PackageX size={16} />}
+            >
+              {exclusionOptions.length === 0 ? (
+                <p className="text-sm text-secondary-foreground">Пока нет вариантов для исключения.</p>
+              ) : (
                 <div className="flex flex-wrap gap-2">
                   {exclusionOptions.map((option) => {
                     const missing = option.selected
@@ -477,7 +794,6 @@ export function PlanGenerationPage() {
                         type="button"
                         disabled={upsertMutation.isPending}
                         aria-pressed={missing}
-                        title={missing ? 'Вернуть в доступные' : 'Отметить: этого нет'}
                         onClick={() => {
                           const key = option.value.toLocaleLowerCase('ru-RU')
                           const next = missing
@@ -486,440 +802,203 @@ export function PlanGenerationPage() {
                           saveUnavailable(next)
                         }}
                         className={cn(
-                          'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition',
+                          'inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-sm',
                           missing
                             ? 'border-destructive/35 bg-destructive/10 text-destructive'
-                            : 'border-border/70 bg-background/80 text-secondary-foreground hover:border-destructive/25 hover:bg-destructive/[0.04] hover:text-foreground',
+                            : 'border-border/70 bg-background/80',
                         )}
                       >
-                        {missing ? <Ban size={14} className="shrink-0 opacity-90" aria-hidden /> : null}
-                        <span className={cn(missing && 'line-through decoration-destructive/50')}>{option.label}</span>
-                        {missing ? (
-                          <span className="rounded-md bg-destructive/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                            нет
-                          </span>
-                        ) : null}
+                        {missing ? <Ban size={14} /> : null}
+                        <span className={cn(missing && 'line-through')}>{option.label}</span>
                       </button>
                     )
                   })}
                 </div>
-                <div className="text-xs text-secondary-foreground">
-                  {unavailableEquipment.length === 0
-                    ? 'Пока ничего не исключено — в план пойдёт весь каталог.'
-                    : `Не будет в плане: ${unavailableEquipment
-                        .map((item) => formatEquipmentLabel(item, metaQuery.data?.equipment))
-                        .join(', ')}`}
-                </div>
-                {hasActivePlan ? (
-                  <div className="flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm">
-                      Уже есть активный план — после изменений перегенерируй его, чтобы упражнения с этим
-                      инвентарём появились или исчезли.
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      className="shrink-0"
-                      onClick={() => {
-                        setGenerationPanelOverride(true)
-                        document.getElementById('plan-generation-panel')?.scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'start',
-                        })
-                      }}
-                    >
-                      К обновлению плана
-                    </Button>
-                  </div>
+              )}
+            </PlanCollapsible>
+
+            {!hasActiveTrainer ? (
+              <PlanCollapsible
+                title="Рабочие веса · система"
+                subtitle={
+                  showPlatformWeightsCta ? `Не заполнено: ${missingPlatformWeightCount}` : 'Для системного плана'
+                }
+                icon={<Scale size={16} />}
+              >
+                {platformCatalogQuery.isLoading || platformLoadsQuery.isLoading ? (
+                  <Skeleton className="h-20 w-full rounded-xl" />
                 ) : null}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sun size={18} className="text-primary" />
-            Сегодня
-          </CardTitle>
-          <CardDescription>Тренировка на сегодня: замена упражнений и отметка выполнения.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {todayWorkoutQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
-          {!todayWorkoutQuery.isLoading && hasNoTodayWorkout ? (
-            <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm text-secondary-foreground">
-              {hasActivePlan
-                ? 'Сегодня в плане день отдыха или тренировки нет.'
-                : 'Сначала сгенерируй план — тогда здесь появится тренировка на сегодня.'}
-            </div>
-          ) : null}
-          {!todayWorkoutQuery.isLoading && todayWorkoutQuery.isError && !hasNoTodayWorkout ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-              Не удалось загрузить тренировку на сегодня.
-            </div>
-          ) : null}
-          {todayWorkout ? (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4">
-                <div>
-                  <div className="font-medium">{formatWeekday(todayWorkout.day_of_week)}</div>
-                  <div className="text-xs text-secondary-foreground">
-                    {formatDate(todayWorkout.scheduled_for)} · неделя {todayWorkout.week} ·{' '}
-                    {todayWorkout.source === 'system' ? 'системный план' : 'план тренера'}
-                  </div>
-                </div>
-                {todayWorkout.is_completed ? (
-                  <div className="inline-flex items-center gap-1.5 text-sm text-primary">
-                    <CheckCircle2 size={16} />
-                    Выполнено
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={todayBusy}
-                    onClick={() => completeDayMutation.mutate(todayWorkout.day_index)}
-                  >
-                    <CheckCircle2 size={14} />
-                    {completeDayMutation.isPending ? 'Сохраняем...' : 'Отметить выполненной'}
-                  </Button>
-                )}
-              </div>
-              <div className="space-y-2">
-                {todayWorkout.exercises.map((exercise) => {
-                  const prescriptions = Array.isArray(exercise.set_prescriptions)
-                    ? exercise.set_prescriptions
-                    : []
-                  const showSetList = hasSetProgression(prescriptions)
-                  const detailsTo = todayWorkout.trainer_user_id
-                    ? `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(todayWorkout.trainer_user_id)}`
-                    : `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}`
-                  return (
-                    <div
-                      key={exercise.line_id}
-                      className="flex flex-col gap-2 rounded-lg border border-border/60 bg-background/50 px-3 py-2 sm:flex-row sm:items-start sm:justify-between"
-                    >
-                      <Link to={detailsTo} className="min-w-0 flex-1 transition hover:opacity-90">
+                <div className="space-y-2">
+                  {platformWeightExercises.map((exercise) => {
+                    const saved = platformLoadsByExercise.get(exercise.row_id)
+                    const draft = draftPlatformWeights[exercise.row_id]
+                    const value = draft ?? (saved != null ? String(saved) : '')
+                    return (
+                      <div key={exercise.row_id} className="rounded-xl border border-border/60 bg-background/40 p-3">
                         <div className="text-sm font-medium">{exercise.exercise_name}</div>
-                        {showSetList ? (
-                          <ul className="mt-1 space-y-0.5 text-xs text-secondary-foreground">
-                            {prescriptions.map((item) => (
-                              <li key={`${exercise.line_id}-${item.set_index}`}>{formatSetLine(item)}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="text-xs text-secondary-foreground">{formatExerciseSummary(exercise)}</div>
-                        )}
-                        <div className="mt-1 text-xs text-primary">Подробнее</div>
-                      </Link>
-                      {!todayWorkout.is_completed ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="shrink-0"
-                          disabled={todayBusy}
-                          onClick={() =>
-                            replaceExerciseMutation.mutate({
-                              dayIndex: todayWorkout.day_index,
-                              lineId: exercise.line_id,
-                            })
-                          }
-                        >
-                          <RefreshCw size={14} />
-                          Заменить
-                        </Button>
-                      ) : null}
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Scale size={18} className="text-primary" />
-            Рабочие веса · система
-          </CardTitle>
-          <CardDescription>
-            Веса для самостоятельной тренировки. Новый системный план подставит их вместо дефолта каталога.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {showPlatformWeightsCta ? (
-            <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-              Заполни веса — системный план станет точнее. Осталось упражнений без веса:{' '}
-              {missingPlatformWeightCount}.
-            </div>
-          ) : null}
-          {platformCatalogQuery.isLoading || platformLoadsQuery.isLoading ? (
-            <Skeleton className="h-24 w-full rounded-xl" />
-          ) : null}
-          {!platformCatalogQuery.isLoading && platformWeightExercises.length === 0 ? (
-            <div className="text-sm text-secondary-foreground">
-              В платформенном каталоге пока нет силовых упражнений с базовым весом.
-            </div>
-          ) : null}
-          <div className="space-y-2">
-            {platformWeightExercises.map((exercise) => {
-              const saved = platformLoadsByExercise.get(exercise.row_id)
-              const draft = draftPlatformWeights[exercise.row_id]
-              const value = draft ?? (saved != null ? String(saved) : '')
-              return (
-                <div
-                  key={exercise.row_id}
-                  className="flex flex-col gap-2 rounded-xl border border-border/70 bg-secondary/15 p-3 sm:flex-row sm:items-center"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium">{exercise.exercise_name}</div>
-                    <div className="text-xs text-secondary-foreground">
-                      Дефолт каталога: {exercise.default_weight_kg} кг
-                      {saved != null ? ` · твой вес: ${saved} кг` : ' · вес ещё не указан'}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={0.5}
-                      step={0.5}
-                      className="w-28"
-                      value={value}
-                      placeholder="кг"
-                      onChange={(event) =>
-                        setDraftPlatformWeights((current) => ({
-                          ...current,
-                          [exercise.row_id]: event.target.value,
-                        }))
-                      }
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={upsertPlatformLoadMutation.isPending || !value || Number(value) <= 0}
-                      onClick={() => {
-                        const next = Number(value)
-                        if (!Number.isFinite(next) || next <= 0) return
-                        upsertPlatformLoadMutation.mutate({
-                          exerciseRowId: exercise.row_id,
-                          payload: { working_weight_kg: next },
-                        })
-                      }}
-                    >
-                      Сохранить
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {activeTrainerUserId ? (
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Scale size={18} className="text-primary" />
-              Рабочие веса · тренер
-            </CardTitle>
-            <CardDescription>
-              Укажи вес, с которым уже работаешь. Новый план тренера подставит его вместо дефолта каталога.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {showWeightsCta ? (
-              <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-                Заполни веса — план станет точнее. Осталось упражнений без веса: {missingWeightCount}.
-              </div>
-            ) : null}
-            {trainerCatalogQuery.isLoading || loadsQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
-            {!trainerCatalogQuery.isLoading && weightExercises.length === 0 ? (
-              <div className="text-sm text-secondary-foreground">
-                У активного тренера пока нет силовых упражнений с базовым весом.
-              </div>
-            ) : null}
-            <div className="space-y-2">
-              {weightExercises.map((exercise) => {
-                const saved = loadsByExercise.get(exercise.row_id)
-                const draft = draftWeights[exercise.row_id]
-                const value = draft ?? (saved != null ? String(saved) : '')
-                return (
-                  <div
-                    key={exercise.row_id}
-                    className="flex flex-col gap-2 rounded-xl border border-border/70 bg-secondary/15 p-3 sm:flex-row sm:items-center"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium">{exercise.exercise_name}</div>
-                      <div className="text-xs text-secondary-foreground">
-                        Дефолт тренера: {exercise.default_weight_kg} кг
-                        {saved != null ? ` · твой вес: ${saved} кг` : ' · вес ещё не указан'}
+                        <div className="mt-2 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0.5}
+                            step={0.5}
+                            className="h-11 flex-1"
+                            value={value}
+                            placeholder={`${exercise.default_weight_kg}`}
+                            onChange={(event) =>
+                              setDraftPlatformWeights((current) => ({
+                                ...current,
+                                [exercise.row_id]: event.target.value,
+                              }))
+                            }
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-11"
+                            disabled={upsertPlatformLoadMutation.isPending || !value || Number(value) <= 0}
+                            onClick={() => {
+                              const next = Number(value)
+                              if (!Number.isFinite(next) || next <= 0) return
+                              upsertPlatformLoadMutation.mutate({
+                                exerciseRowId: exercise.row_id,
+                                payload: { working_weight_kg: next },
+                              })
+                            }}
+                          >
+                            OK
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min={0.5}
-                        step={0.5}
-                        className="w-28"
-                        value={value}
-                        placeholder="кг"
-                        onChange={(event) =>
-                          setDraftWeights((current) => ({ ...current, [exercise.row_id]: event.target.value }))
-                        }
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={upsertLoadMutation.isPending || !value || Number(value) <= 0}
-                        onClick={() => {
-                          const next = Number(value)
-                          if (!Number.isFinite(next) || next <= 0) return
-                          upsertLoadMutation.mutate({
-                            exerciseRowId: exercise.row_id,
-                            payload: { working_weight_kg: next },
-                          })
-                        }}
-                      >
-                        Сохранить
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
+                    )
+                  })}
+                </div>
+              </PlanCollapsible>
+            ) : null}
 
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Dumbbell size={18} className="text-primary" />
-            Активный план
-          </CardTitle>
-          <CardDescription>Расписание тренировок на ближайшие недели.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {activePlanQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
-          {!activePlanQuery.isLoading && hasNoActivePlan ? (
-            <div className="rounded-xl border border-border/70 bg-secondary/20 p-4 text-sm text-secondary-foreground">
-              Активного плана пока нет. Сгенерируй системный план или план от тренера выше.
-            </div>
-          ) : null}
-          {!activePlanQuery.isLoading && activePlan ? (
-            <>
-              <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <div className="text-xs text-secondary-foreground">Источник</div>
-                  <div className="font-medium">{planSourceLabel}</div>
+            {hasActiveTrainer ? (
+              <PlanCollapsible
+                title="Рабочие веса · тренер"
+                subtitle={showWeightsCta ? `Не заполнено: ${missingWeightCount}` : 'Для плана тренера'}
+                icon={<Scale size={16} />}
+              >
+                {trainerCatalogQuery.isLoading || loadsQuery.isLoading ? (
+                  <Skeleton className="h-20 w-full rounded-xl" />
+                ) : null}
+                <div className="space-y-2">
+                  {weightExercises.map((exercise) => {
+                    const saved = loadsByExercise.get(exercise.row_id)
+                    const draft = draftWeights[exercise.row_id]
+                    const value = draft ?? (saved != null ? String(saved) : '')
+                    return (
+                      <div key={exercise.row_id} className="rounded-xl border border-border/60 bg-background/40 p-3">
+                        <div className="text-sm font-medium">{exercise.exercise_name}</div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={0.5}
+                            step={0.5}
+                            className="h-11 flex-1"
+                            value={value}
+                            placeholder={`${exercise.default_weight_kg}`}
+                            onChange={(event) =>
+                              setDraftWeights((current) => ({ ...current, [exercise.row_id]: event.target.value }))
+                            }
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-11"
+                            disabled={upsertLoadMutation.isPending || !value || Number(value) <= 0}
+                            onClick={() => {
+                              const next = Number(value)
+                              if (!Number.isFinite(next) || next <= 0) return
+                              upsertLoadMutation.mutate({
+                                exerciseRowId: exercise.row_id,
+                                payload: { working_weight_kg: next },
+                              })
+                            }}
+                          >
+                            OK
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-                <div>
-                  <div className="text-xs text-secondary-foreground">Период</div>
-                  <div className="font-medium">
-                    {formatDate(activePlan.start_date)} - {formatDate(activePlan.end_date)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-secondary-foreground">Цель / уровень</div>
-                  <div className="font-medium">
-                    {activeGoalLabel} · {activeLevelLabel}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-secondary-foreground">Объем</div>
-                  <div className="font-medium">
+              </PlanCollapsible>
+            ) : null}
+
+            <div className="rounded-2xl border border-border/70">
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
+                onClick={() => setScheduleOpen((value) => !value)}
+                aria-expanded={scheduleOpen}
+              >
+                <CalendarDays size={18} className="text-primary" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">Расписание</span>
+                  <span className="mt-0.5 block text-xs text-secondary-foreground">
                     {sortedPlanDays.length} тренировок · {totalExercises} упражнений
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4">
-                {weekEntries.map(([week, days]) => (
-                  <div key={week} className="rounded-xl border border-border/70 bg-secondary/20 p-4">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-sm font-semibold">
-                        <CalendarDays size={15} className="text-primary" />
+                  </span>
+                </span>
+                {scheduleOpen ? <X size={16} className="opacity-60" /> : <Dumbbell size={16} className="opacity-60" />}
+              </button>
+              {scheduleOpen ? (
+                <div className="space-y-3 border-t border-border/60 px-4 py-4">
+                  {weekEntries.map(([week, days]) => (
+                    <div key={week} className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-secondary-foreground">
                         Неделя {week}
                       </div>
-                      <span className="text-xs text-secondary-foreground">
-                        {days.length} {days.length === 1 ? 'тренировка' : 'тренировки'}
-                      </span>
-                    </div>
-                    <div className="grid gap-3">
                       {days.map((day) => (
                         <div
                           key={day.day_id}
                           className={cn(
-                            'rounded-xl border bg-background/40 p-4',
-                            day.scheduled_for === todayIso
-                              ? 'border-primary/50 bg-primary/5'
-                              : 'border-border/70',
+                            'rounded-xl border px-3 py-2.5',
+                            day.scheduled_for === todayIso ? 'border-primary/40 bg-primary/5' : 'border-border/60',
                           )}
                         >
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <div className="font-medium">
-                              {formatWeekday(day.day_of_week)}
-                              {day.scheduled_for === todayIso ? (
-                                <span className="ml-2 text-xs font-normal text-primary">сегодня</span>
-                              ) : null}
-                              {day.is_completed ? (
-                                <span className="ml-2 text-xs font-normal text-secondary-foreground">выполнено</span>
-                              ) : null}
-                            </div>
-                            <div className="text-xs text-secondary-foreground">Дата: {formatDate(day.scheduled_for)}</div>
+                          <div className="flex items-center justify-between gap-2 text-sm">
+                            <span className="font-medium">
+                              {formatWeekdayShort(day.day_of_week)} · {formatDate(day.scheduled_for)}
+                            </span>
+                            {day.is_completed ? (
+                              <CheckCircle2 size={14} className="text-primary" />
+                            ) : (
+                              <span className="text-xs text-secondary-foreground">{day.exercises.length} упр.</span>
+                            )}
                           </div>
-                          <div className="space-y-2">
-                            {day.exercises.map((exercise) => {
-                              const prescriptions = Array.isArray(exercise.set_prescriptions)
-                                ? exercise.set_prescriptions
-                                : []
-                              const showSetList = hasSetProgression(prescriptions)
-                              const summary = (
-                                <>
-                                  <div className="text-sm font-medium">{exercise.exercise_name}</div>
-                                  {showSetList ? (
-                                    <ul className="mt-1 space-y-0.5 text-xs text-secondary-foreground">
-                                      {prescriptions.map((item) => (
-                                        <li key={`${exercise.line_id}-${item.set_index}`}>{formatSetLine(item)}</li>
-                                      ))}
-                                    </ul>
-                                  ) : (
-                                    <div className="text-xs text-secondary-foreground">{formatExerciseSummary(exercise)}</div>
-                                  )}
-                                </>
-                              )
-                              const detailsTo = activePlan.trainer_user_id
-                                ? `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}?trainer=${encodeURIComponent(activePlan.trainer_user_id)}`
-                                : `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}`
-                              return (
+                          <ul className="mt-1 space-y-0.5 text-xs text-secondary-foreground">
+                            {day.exercises.map((exercise) => (
+                              <li key={exercise.line_id}>
                                 <Link
-                                  key={exercise.line_id}
-                                  to={detailsTo}
-                                  className="block rounded-lg border border-border/60 bg-background/50 px-3 py-2 transition hover:border-primary/40 hover:bg-primary/5"
+                                  to={exerciseDetailsTo(exercise.exercise_id, activePlan?.trainer_user_id)}
+                                  className="hover:text-primary"
                                 >
-                                  {summary}
-                                  <div className="mt-1 text-xs text-primary">Подробнее</div>
+                                  {exercise.exercise_name}
                                 </Link>
-                              )
-                            })}
-                          </div>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </PlanCollapsible>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+function SunRestIcon() {
+  return (
+    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-secondary/30 text-primary">
+      <CalendarDays size={26} />
     </div>
   )
 }

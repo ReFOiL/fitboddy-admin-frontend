@@ -102,6 +102,10 @@ export function useClientLoads(clientUserId: string, trainerUserId: string) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.clientLoads(clientUserId, trainerUserId),
       })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.plans.activeByUser(clientUserId),
+      })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today })
       toast.success('Рабочий вес сохранён')
     },
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось сохранить вес')),
@@ -130,6 +134,10 @@ export function useClientPlatformLoads(clientUserId: string) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.clientPlatformLoads(clientUserId),
       })
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.plans.activeByUser(clientUserId),
+      })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today })
       toast.success('Рабочий вес сохранён')
     },
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось сохранить вес')),
