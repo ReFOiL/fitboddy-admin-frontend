@@ -13,8 +13,8 @@ type MuscleAnatomyMapProps = {
   interactive?: boolean
   onRegionClick?: (regionKey: string) => void
   onFacingChange?: (view: 'front' | 'back') => void
-  /** Silhouette from profile questionnaire; user can still toggle. */
-  defaultGender?: BodyGender
+  /** Silhouette from profile questionnaire. */
+  gender?: BodyGender
   bodyColor?: string
   primaryColor?: string
   secondaryColor?: string
@@ -26,14 +26,12 @@ export function MuscleAnatomyMap({
   interactive = false,
   onRegionClick,
   onFacingChange,
-  defaultGender,
+  gender = 'male',
   bodyColor = '#3d4a5c',
   primaryColor = '#3b82f6',
   secondaryColor = '#60a5fa',
 }: MuscleAnatomyMapProps) {
   const [facing, setFacing] = useState<'front' | 'back'>('front')
-  const [manualGender, setManualGender] = useState<BodyGender | null>(null)
-  const gender = manualGender ?? defaultGender ?? 'male'
 
   useEffect(() => {
     onFacingChange?.(facing)
@@ -63,26 +61,6 @@ export function MuscleAnatomyMap({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap justify-center gap-2">
-        {(
-          [
-            ['male', 'Муж'],
-            ['female', 'Жен'],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={[
-              'rounded-full px-3 py-1.5 text-sm',
-              gender === value
-                ? 'bg-primary/20 text-foreground ring-1 ring-primary'
-                : 'border border-border bg-background hover:bg-secondary/40',
-            ].join(' ')}
-            onClick={() => setManualGender(value)}
-          >
-            {label}
-          </button>
-        ))}
         {(
           [
             ['front', 'Спереди'],

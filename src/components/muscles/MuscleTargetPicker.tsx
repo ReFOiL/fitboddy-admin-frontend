@@ -120,7 +120,7 @@ export function MuscleTargetPicker({
           interactive={!readOnly}
           onRegionClick={onRegionClick}
           onFacingChange={setFacing}
-          defaultGender={toBodyGender(bodyGender)}
+          gender={toBodyGender(bodyGender) ?? 'male'}
         />
       </div>
 
