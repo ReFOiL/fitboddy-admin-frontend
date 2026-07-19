@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 
-import { MuscleAnatomyMap, toBodyGender } from './MuscleAnatomyMap'
+import { toBodyGender } from '../../lib/bodyHighlighterMap'
 import {
   REGION_DEFAULT_SLUG,
   regionsForSlugs,
   type Muscle,
   type MuscleRoleMode,
 } from '../../lib/muscles'
+import { MuscleAnatomyMap } from './MuscleAnatomyMap'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 

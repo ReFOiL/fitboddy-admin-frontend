@@ -77,3 +77,9 @@ export function regionsToSlugs(regions: Set<string>): Slug[] {
   }
   return [...out]
 }
+
+export type BodyGender = 'male' | 'female'
+
+export function toBodyGender(value: string | null | undefined): BodyGender | undefined {
+  return value === 'male' || value === 'female' ? value : undefined
+}

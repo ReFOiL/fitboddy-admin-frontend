@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import Body, { type ExtendedBodyPart } from 'react-muscle-highlighter'
 
-import { regionsToSlugs, slugToRegion } from '../../lib/bodyHighlighterMap'
-
-export type BodyGender = 'male' | 'female'
-
-export function toBodyGender(value: string | null | undefined): BodyGender | undefined {
-  return value === 'male' || value === 'female' ? value : undefined
-}
+import {
+  regionsToSlugs,
+  slugToRegion,
+  type BodyGender,
+} from '../../lib/bodyHighlighterMap'
 
 type MuscleAnatomyMapProps = {
   primaryRegions: Set<string>
@@ -15,7 +13,7 @@ type MuscleAnatomyMapProps = {
   interactive?: boolean
   onRegionClick?: (regionKey: string) => void
   onFacingChange?: (view: 'front' | 'back') => void
-  /** Initial silhouette from profile questionnaire; user can still toggle. */
+  /** Silhouette from profile questionnaire; user can still toggle. */
   defaultGender?: BodyGender
   bodyColor?: string
   primaryColor?: string
@@ -34,15 +32,12 @@ export function MuscleAnatomyMap({
   secondaryColor = '#60a5fa',
 }: MuscleAnatomyMapProps) {
   const [facing, setFacing] = useState<'front' | 'back'>('front')
-  const [gender, setGender] = useState<BodyGender>(defaultGender ?? 'male')
+  const [manualGender, setManualGender] = useState<BodyGender | null>(null)
+  const gender = manualGender ?? defaultGender ?? 'male'
 
   useEffect(() => {
     onFacingChange?.(facing)
   }, [facing, onFacingChange])
-
-  useEffect(() => {
-    if (defaultGender) setGender(defaultGender)
-  }, [defaultGender])
 
   const data = useMemo((): ExtendedBodyPart[] => {
     const secondary = regionsToSlugs(secondaryRegions)
@@ -83,7 +78,7 @@ export function MuscleAnatomyMap({
                 ? 'bg-primary/20 text-foreground ring-1 ring-primary'
                 : 'border border-border bg-background hover:bg-secondary/40',
             ].join(' ')}
-            onClick={() => setGender(value)}
+            onClick={() => setManualGender(value)}
           >
             {label}
           </button>
