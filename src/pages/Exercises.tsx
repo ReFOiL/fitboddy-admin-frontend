@@ -18,6 +18,7 @@ import {
   previewSchemeSteps,
 } from '../lib/load-schemes'
 import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
+import { deriveWorkoutCategory, formatWorkoutCategory } from '../lib/muscles'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { DifficultyPicker } from '../components/ui/difficulty-picker'
@@ -40,7 +41,6 @@ const exerciseSchema = z
     is_cardio: z.boolean(),
     is_hold: z.boolean(),
     difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
-    workout_category: z.enum(['upper', 'lower', 'core', 'full_body']),
     default_sets: z.number().int().min(1, 'Минимум 1').max(10, 'Максимум 10'),
     default_reps: z.number().int().min(1, 'Минимум 1').max(100, 'Максимум 100').nullable(),
     default_duration_seconds: z.number().int().min(5, 'Минимум 5 сек').max(3600, 'Максимум 3600 сек').nullable(),
@@ -106,16 +106,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   lower_body: 'низ тела',
 }
 
-const CATEGORY_OPTIONS: Array<{ value: ExerciseFormValues['workout_category']; label: string }> = [
-  { value: 'upper', label: 'Верх тела' },
-  { value: 'lower', label: 'Низ тела' },
-  { value: 'core', label: 'Корпус' },
-  { value: 'full_body', label: 'Все тело' },
-]
-
 function formatCategory(value: string): string {
   const key = value.trim().toLowerCase()
-  return CATEGORY_LABELS[key] ?? value
+  return CATEGORY_LABELS[key] ?? formatWorkoutCategory(key)
 }
 
 const defaultValues: ExerciseFormValues = {
@@ -125,7 +118,6 @@ const defaultValues: ExerciseFormValues = {
   is_cardio: false,
   is_hold: false,
   difficulty: 2,
-  workout_category: 'upper',
   default_sets: 3,
   default_reps: 10,
   default_duration_seconds: 35,
@@ -149,7 +141,7 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
     is_cardio: values.is_cardio,
     is_hold: values.is_hold,
     difficulty: values.difficulty,
-    workout_category: values.workout_category.trim().toLowerCase(),
+    workout_category: deriveWorkoutCategory(values.primary_muscles),
     default_sets: values.default_sets,
     default_reps: values.is_hold ? null : values.default_reps,
     default_duration_seconds: values.is_hold ? values.default_duration_seconds : null,
@@ -201,7 +193,6 @@ export function ExercisesPage() {
     defaultValues,
   })
   const watchedEquipment = useWatch({ control: form.control, name: 'equipment' }) ?? defaultValues.equipment
-  const watchedWorkoutCategory = useWatch({ control: form.control, name: 'workout_category' }) ?? defaultValues.workout_category
   const watchedDifficulty = useWatch({ control: form.control, name: 'difficulty' }) ?? defaultValues.difficulty
   const watchedIsCardio = useWatch({ control: form.control, name: 'is_cardio' }) ?? false
   const watchedIsHold = useWatch({ control: form.control, name: 'is_hold' }) ?? false
@@ -295,7 +286,12 @@ export function ExercisesPage() {
               </div>
 
               <div className="grid gap-2 rounded-xl border border-border/70 bg-background/40 p-3">
-                <Label>Группы мышц</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Группы мышц</Label>
+                  <span className="text-xs text-secondary-foreground">
+                    Категория: {formatWorkoutCategory(deriveWorkoutCategory(watchedPrimaryMuscles))}
+                  </span>
+                </div>
                 {musclesQuery.isLoading ? (
                   <Skeleton className="h-40 w-full" />
                 ) : (
@@ -312,39 +308,18 @@ export function ExercisesPage() {
                 )}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <EquipmentPicker
-                  id="equipment"
-                  disabled={formDisabled}
-                  value={watchedEquipment}
-                  error={form.formState.errors.equipment?.message}
-                  onChange={(nextValue) => {
-                    form.setValue('equipment', nextValue, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }}
-                />
-                <div className="grid gap-1.5">
-                  <Label htmlFor="workout_category">Категория</Label>
-                  <StyledSelect
-                    id="workout_category"
-                    disabled={formDisabled}
-                    options={CATEGORY_OPTIONS}
-                    value={watchedWorkoutCategory}
-                    onChange={(nextValue) => {
-                      if (nextValue === form.getValues('workout_category')) return
-                      form.setValue('workout_category', nextValue as ExerciseFormValues['workout_category'], {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }}
-                  />
-                  {form.formState.errors.workout_category?.message ? (
-                    <span className="text-xs text-destructive">{form.formState.errors.workout_category.message}</span>
-                  ) : null}
-                </div>
-              </div>
+              <EquipmentPicker
+                id="equipment"
+                disabled={formDisabled}
+                value={watchedEquipment}
+                error={form.formState.errors.equipment?.message}
+                onChange={(nextValue) => {
+                  form.setValue('equipment', nextValue, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }}
+              />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-1.5">

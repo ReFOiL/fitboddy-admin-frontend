@@ -19,6 +19,7 @@ import {
   previewSchemeSteps,
 } from '../lib/load-schemes'
 import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
+import { deriveWorkoutCategory, formatWorkoutCategory } from '../lib/muscles'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { DifficultyPicker } from '../components/ui/difficulty-picker'
@@ -41,7 +42,6 @@ const exerciseSchema = z
     is_cardio: z.boolean(),
     is_hold: z.boolean(),
     difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
-    workout_category: z.enum(['upper', 'lower', 'core', 'full_body']),
     default_sets: z.number().int().min(1, 'Минимум 1').max(10, 'Максимум 10'),
     default_reps: z.number().int().min(1, 'Минимум 1').max(100, 'Максимум 100').nullable(),
     default_duration_seconds: z.number().int().min(5, 'Минимум 5 сек').max(3600, 'Максимум 3600 сек').nullable(),
@@ -74,39 +74,8 @@ const exerciseSchema = z
 
 type ExerciseFormValues = z.infer<typeof exerciseSchema>
 
-const CATEGORY_OPTIONS: Array<{ value: ExerciseFormValues['workout_category']; label: string }> = [
-  { value: 'upper', label: 'Верх тела' },
-  { value: 'lower', label: 'Низ тела' },
-  { value: 'core', label: 'Корпус' },
-  { value: 'full_body', label: 'Все тело' },
-]
-
-const LEGACY_CATEGORY_MAP: Record<string, ExerciseFormValues['workout_category']> = {
-  верх: 'upper',
-  верх_тела: 'upper',
-  низ: 'lower',
-  низ_тела: 'lower',
-  корпус: 'core',
-  upper_body: 'upper',
-  lower_body: 'lower',
-  fullbody: 'full_body',
-  все_тело: 'full_body',
-  всё_тело: 'full_body',
-}
-
 function normalizeEquipment(value: unknown): string {
   return normalizeEquipmentValue(value)
-}
-
-function normalizeCategory(value: unknown): ExerciseFormValues['workout_category'] {
-  const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
-  if (!normalized) return 'full_body'
-  const canonical = normalized.replace(/[\s-]+/g, '_')
-
-  if (CATEGORY_OPTIONS.some((option) => option.value === canonical)) {
-    return canonical as ExerciseFormValues['workout_category']
-  }
-  return LEGACY_CATEGORY_MAP[canonical] ?? 'full_body'
 }
 
 function normalizeDifficulty(value: unknown): number {
@@ -135,7 +104,6 @@ function mapExerciseToFormValues(exercise: TrainerExercise): ExerciseFormValues 
     is_cardio: normalizeIsCardio(exercise.is_cardio),
     is_hold: Boolean(exercise.is_hold),
     difficulty: normalizeDifficulty(exercise.difficulty),
-    workout_category: normalizeCategory(exercise.workout_category),
     default_sets: exercise.default_sets ?? 3,
     default_reps: exercise.default_reps ?? 10,
     default_duration_seconds: exercise.default_duration_seconds ?? 35,
@@ -160,7 +128,7 @@ function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequ
     is_cardio: values.is_cardio,
     is_hold: values.is_hold,
     difficulty: values.difficulty,
-    workout_category: values.workout_category.trim().toLowerCase(),
+    workout_category: deriveWorkoutCategory(values.primary_muscles),
     default_sets: values.default_sets,
     default_reps: values.is_hold ? null : values.default_reps,
     default_duration_seconds: values.is_hold ? values.default_duration_seconds : null,
@@ -207,7 +175,6 @@ export function ExerciseDetailsPage() {
       is_cardio: false,
       is_hold: false,
       difficulty: 2,
-      workout_category: 'upper',
       default_sets: 3,
       default_reps: 10,
       default_duration_seconds: 35,
@@ -222,7 +189,6 @@ export function ExerciseDetailsPage() {
 
   useEffect(() => {
     form.register('equipment')
-    form.register('workout_category')
     form.register('is_cardio')
     form.register('is_hold')
     form.register('difficulty')
@@ -238,7 +204,6 @@ export function ExerciseDetailsPage() {
   }, [form])
 
   const watchedEquipment = useWatch({ control: form.control, name: 'equipment' })
-  const watchedWorkoutCategory = useWatch({ control: form.control, name: 'workout_category' })
   const watchedDifficulty = useWatch({ control: form.control, name: 'difficulty' }) ?? 2
   const watchedIsCardio = useWatch({ control: form.control, name: 'is_cardio' })
   const watchedIsHold = useWatch({ control: form.control, name: 'is_hold' })
@@ -270,7 +235,6 @@ export function ExerciseDetailsPage() {
   const formDisabled = updateExerciseMutation.isPending || archiveExerciseMutation.isPending || !form.formState.isDirty
   const isVideoBusy = uploadVideoMutation.isPending || deleteVideoMutation.isPending
   const equipmentDisplayValue = watchedEquipment ?? normalizeEquipment(exercise?.equipment)
-  const categoryDisplayValue = watchedWorkoutCategory ?? normalizeCategory(exercise?.workout_category)
   const stimulusDisplayValue =
     (watchedIsCardio ?? normalizeIsCardio(exercise?.is_cardio)) ? 'cardio' : 'strength'
   const dosageDisplayValue = (watchedIsHold ?? Boolean(exercise?.is_hold)) ? 'duration' : 'reps'
@@ -369,9 +333,15 @@ export function ExerciseDetailsPage() {
               </div>
 
               <div className="grid gap-2 rounded-xl border border-border/70 bg-secondary/15 p-3">
-                <Label>Группы мышц</Label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label>Группы мышц</Label>
+                  <span className="text-xs text-secondary-foreground">
+                    Категория: {formatWorkoutCategory(deriveWorkoutCategory(watchedPrimaryMuscles))}
+                  </span>
+                </div>
                 <p className="text-xs text-secondary-foreground">
-                  Кликни по силуэту или выбери из списка — основные и вспомогательные мышцы.
+                  Кликни по силуэту или выбери из списка — основные и вспомогательные мышцы. Категория
+                  считается автоматически по основным.
                 </p>
                 {musclesQuery.isLoading ? (
                   <Skeleton className="h-48 w-full" />
@@ -389,37 +359,17 @@ export function ExerciseDetailsPage() {
                 )}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <EquipmentPicker
-                  id="equipment"
-                  value={equipmentDisplayValue}
-                  error={form.formState.errors.equipment?.message}
-                  onChange={(nextValue) => {
-                    form.setValue('equipment', nextValue, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }}
-                />
-                <div className="grid gap-1.5">
-                  <Label htmlFor="workout_category">Категория</Label>
-                  <StyledSelect
-                    id="workout_category"
-                    options={CATEGORY_OPTIONS}
-                    value={categoryDisplayValue}
-                    onChange={(nextValue) => {
-                      const normalizedValue = normalizeCategory(nextValue)
-                      form.setValue('workout_category', normalizedValue, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }}
-                  />
-                  {form.formState.errors.workout_category?.message ? (
-                    <span className="text-xs text-destructive">{form.formState.errors.workout_category.message}</span>
-                  ) : null}
-                </div>
-              </div>
+              <EquipmentPicker
+                id="equipment"
+                value={equipmentDisplayValue}
+                error={form.formState.errors.equipment?.message}
+                onChange={(nextValue) => {
+                  form.setValue('equipment', nextValue, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }}
+              />
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-1.5">
