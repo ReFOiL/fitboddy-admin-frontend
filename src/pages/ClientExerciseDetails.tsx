@@ -36,13 +36,15 @@ export function ClientExerciseDetailsPage() {
 
   const exerciseQuery = isPlatform ? platformExerciseQuery : trainerExerciseQuery
 
+  const exercise = exerciseQuery.data
+  const hasMuscleTargets =
+    (exercise?.primary_muscles?.length ?? 0) > 0 || (exercise?.secondary_muscles?.length ?? 0) > 0
+
   const musclesQuery = useQuery({
     queryKey: ['muscles-catalog'],
     queryFn: listMuscles,
-    enabled: Boolean(isClient && exerciseQuery.data),
+    enabled: Boolean(isClient && exerciseQuery.data && hasMuscleTargets),
   })
-
-  const exercise = exerciseQuery.data
 
   if (!isClient) {
     return (
@@ -122,20 +124,22 @@ export function ClientExerciseDetailsPage() {
                 )}
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-secondary/20 p-4">
-                <div className="mb-2 text-sm font-medium">Группы мышц</div>
-                {musclesQuery.isLoading ? (
-                  <Skeleton className="h-48 w-full rounded-xl" />
-                ) : (
-                  <MuscleTargetPicker
-                    muscles={musclesQuery.data ?? []}
-                    primary={exercise.primary_muscles ?? []}
-                    secondary={exercise.secondary_muscles ?? []}
-                    bodyGender={profileQuery.data?.gender}
-                    readOnly
-                  />
-                )}
-              </div>
+              {hasMuscleTargets ? (
+                <div className="rounded-xl border border-border/70 bg-secondary/20 p-4">
+                  <div className="mb-2 text-sm font-medium">Группы мышц</div>
+                  {musclesQuery.isLoading ? (
+                    <Skeleton className="h-48 w-full rounded-xl" />
+                  ) : (
+                    <MuscleTargetPicker
+                      muscles={musclesQuery.data ?? []}
+                      primary={exercise.primary_muscles ?? []}
+                      secondary={exercise.secondary_muscles ?? []}
+                      bodyGender={profileQuery.data?.gender}
+                      readOnly
+                    />
+                  )}
+                </div>
+              ) : null}
 
               <div className="rounded-xl border border-border/70 bg-secondary/20 p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-medium">
