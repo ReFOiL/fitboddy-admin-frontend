@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { MuscleAnatomyMap } from './MuscleAnatomyMap'
+import { MuscleAnatomyMap, toBodyGender } from './MuscleAnatomyMap'
 import {
   REGION_DEFAULT_SLUG,
   regionsForSlugs,
@@ -15,6 +15,8 @@ type MuscleTargetPickerProps = {
   primary: string[]
   secondary: string[]
   readOnly?: boolean
+  /** Profile gender (`male` / `female`) to pick default body silhouette. */
+  bodyGender?: string | null
   onChange?: (next: { primary: string[]; secondary: string[] }) => void
 }
 
@@ -23,6 +25,7 @@ export function MuscleTargetPicker({
   primary,
   secondary,
   readOnly = false,
+  bodyGender,
   onChange,
 }: MuscleTargetPickerProps) {
   const [facing, setFacing] = useState<'front' | 'back'>('front')
@@ -116,6 +119,7 @@ export function MuscleTargetPicker({
           interactive={!readOnly}
           onRegionClick={onRegionClick}
           onFacingChange={setFacing}
+          defaultGender={toBodyGender(bodyGender)}
         />
       </div>
 

@@ -5,12 +5,18 @@ import { regionsToSlugs, slugToRegion } from '../../lib/bodyHighlighterMap'
 
 export type BodyGender = 'male' | 'female'
 
+export function toBodyGender(value: string | null | undefined): BodyGender | undefined {
+  return value === 'male' || value === 'female' ? value : undefined
+}
+
 type MuscleAnatomyMapProps = {
   primaryRegions: Set<string>
   secondaryRegions: Set<string>
   interactive?: boolean
   onRegionClick?: (regionKey: string) => void
   onFacingChange?: (view: 'front' | 'back') => void
+  /** Initial silhouette from profile questionnaire; user can still toggle. */
+  defaultGender?: BodyGender
   bodyColor?: string
   primaryColor?: string
   secondaryColor?: string
@@ -22,16 +28,21 @@ export function MuscleAnatomyMap({
   interactive = false,
   onRegionClick,
   onFacingChange,
+  defaultGender,
   bodyColor = '#3d4a5c',
   primaryColor = '#3b82f6',
   secondaryColor = '#60a5fa',
 }: MuscleAnatomyMapProps) {
   const [facing, setFacing] = useState<'front' | 'back'>('front')
-  const [gender, setGender] = useState<BodyGender>('male')
+  const [gender, setGender] = useState<BodyGender>(defaultGender ?? 'male')
 
   useEffect(() => {
     onFacingChange?.(facing)
   }, [facing, onFacingChange])
+
+  useEffect(() => {
+    if (defaultGender) setGender(defaultGender)
+  }, [defaultGender])
 
   const data = useMemo((): ExtendedBodyPart[] => {
     const secondary = regionsToSlugs(secondaryRegions)

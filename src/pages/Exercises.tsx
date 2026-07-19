@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { listMuscles } from '../api/exercises'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
+import { useProfile } from '../hooks/use-profile'
 import type { LoadScheme, UpsertTrainerExerciseRequest } from '../types/exercise'
 import { formatEquipmentLabel, normalizeEquipmentName } from '../lib/equipment'
 import {
@@ -165,6 +166,7 @@ export function ExercisesPage() {
   const { user } = useAuth()
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
+  const { profileQuery } = useProfile(trainerUserId)
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
   const [filterMode, setFilterMode] = useState<CatalogFilterMode>('active')
   const [searchQuery, setSearchQuery] = useState('')
@@ -301,6 +303,7 @@ export function ExercisesPage() {
                     muscles={musclesQuery.data ?? []}
                     primary={watchedPrimaryMuscles}
                     secondary={watchedSecondaryMuscles}
+                    bodyGender={profileQuery.data?.gender}
                     onChange={({ primary, secondary }) => {
                       form.setValue('primary_muscles', primary, { shouldDirty: true, shouldValidate: true })
                       form.setValue('secondary_muscles', secondary, { shouldDirty: true, shouldValidate: true })

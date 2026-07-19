@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Skeleton } from '../components/ui/skeleton'
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
+import { useProfile } from '../hooks/use-profile'
 
 export function ClientExerciseDetailsPage() {
   const { user } = useAuth()
@@ -17,6 +18,7 @@ export function ClientExerciseDetailsPage() {
   const [searchParams] = useSearchParams()
   const trainerUserId = searchParams.get('trainer') ?? ''
   const isPlatform = !trainerUserId
+  const { profileQuery } = useProfile(isClient && user?.user_id ? user.user_id : '')
 
   const trainerExerciseQuery = useQuery({
     queryKey: queryKeys.exercises.trainerExercise(trainerUserId, rowId ?? ''),
@@ -129,6 +131,7 @@ export function ClientExerciseDetailsPage() {
                     muscles={musclesQuery.data ?? []}
                     primary={exercise.primary_muscles ?? []}
                     secondary={exercise.secondary_muscles ?? []}
+                    bodyGender={profileQuery.data?.gender}
                     readOnly
                   />
                 )}
