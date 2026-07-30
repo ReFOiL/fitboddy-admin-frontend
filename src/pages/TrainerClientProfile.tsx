@@ -29,9 +29,15 @@ function textOrPlaceholder(value: string | null | undefined): string {
 }
 
 function formatDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
+  if (match) {
+    return `${Number(match[3])}.${match[2]}`
+  }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+  const day = date.getDate()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${day}.${month}`
 }
 
 function formatWeekdayShort(dayOfWeek: number): string {

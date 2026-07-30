@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, Dumbbell, Search, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Dumbbell, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
@@ -163,7 +163,13 @@ export function ExercisesPage() {
   const [filterMode, setFilterMode] = useState<CatalogFilterMode>('active')
   const [searchQuery, setSearchQuery] = useState('')
   const includeArchived = filterMode !== 'active'
-  const { trainerCatalogQuery, addExerciseMutation, updateExerciseMutation, archiveExerciseMutation } = useExercises({
+  const {
+    trainerCatalogQuery,
+    addExerciseMutation,
+    updateExerciseMutation,
+    archiveExerciseMutation,
+    restoreExerciseMutation,
+  } = useExercises({
     trainerUserId,
     includeArchived,
   })
@@ -217,7 +223,10 @@ export function ExercisesPage() {
   )
 
   const formDisabled =
-    addExerciseMutation.isPending || updateExerciseMutation.isPending || archiveExerciseMutation.isPending
+    addExerciseMutation.isPending ||
+    updateExerciseMutation.isPending ||
+    archiveExerciseMutation.isPending ||
+    restoreExerciseMutation.isPending
 
   if (!isTrainer) {
     return (
@@ -665,7 +674,19 @@ export function ExercisesPage() {
                           <Trash2 size={14} />
                           В архив
                         </Button>
-                      ) : null}
+                      ) : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="gap-2"
+                          onClick={() => restoreExerciseMutation.mutate(exercise.row_id)}
+                          disabled={formDisabled}
+                        >
+                          <ArchiveRestore size={14} />
+                          Восстановить
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))

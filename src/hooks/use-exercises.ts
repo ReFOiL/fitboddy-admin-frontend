@@ -8,6 +8,7 @@ import {
   deleteTrainerExerciseVideo,
   listTrainerExercises,
   queryKeys,
+  restoreTrainerExercise,
   updateTrainerExercise,
   uploadTrainerExerciseVideo,
 } from '../api'
@@ -106,6 +107,35 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     )
   }
 
+  const markExerciseRestoredInCatalogCache = (rowId: string) => {
+    let restoredExercise: TrainerExercise | null = null
+    queryClient.setQueryData<TrainerExercise[]>(
+      queryKeys.exercises.trainerCatalog(trainerUserId, true),
+      (current) => {
+        if (!Array.isArray(current)) return current
+        return current.map((exercise) => {
+          if (exercise.row_id !== rowId) return exercise
+          restoredExercise = { ...exercise, is_active: true }
+          return restoredExercise
+        })
+      },
+    )
+    if (restoredExercise == null) return
+    const activeExercise = restoredExercise
+    queryClient.setQueryData<TrainerExercise[]>(
+      queryKeys.exercises.trainerCatalog(trainerUserId, false),
+      (current) => {
+        if (!Array.isArray(current)) return [activeExercise]
+        if (current.some((exercise) => exercise.row_id === rowId)) {
+          return current.map((exercise) =>
+            exercise.row_id === rowId ? { ...exercise, is_active: true } : exercise,
+          )
+        }
+        return [...current, activeExercise]
+      },
+    )
+  }
+
   const addExerciseMutation = useMutation({
     mutationFn: async (payload: UpsertTrainerExerciseRequest) => addTrainerExercise(trainerUserId, payload),
     onSuccess: (createdExercise) => {
@@ -137,6 +167,16 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось архивировать упражнение')),
   })
 
+  const restoreExerciseMutation = useMutation({
+    mutationFn: async (rowId: string) => restoreTrainerExercise(trainerUserId, rowId),
+    onSuccess: (_, rowId) => {
+      markExerciseRestoredInCatalogCache(rowId)
+      invalidateCatalog()
+      toast.success('Упражнение восстановлено из архива')
+    },
+    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось восстановить упражнение')),
+  })
+
   const uploadVideoMutation = useMutation({
     mutationFn: async (params: { rowId: string; file: File }) =>
       uploadTrainerExerciseVideo(trainerUserId, params.rowId, params.file),
@@ -163,6 +203,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     addExerciseMutation,
     updateExerciseMutation,
     archiveExerciseMutation,
+    restoreExerciseMutation,
     uploadVideoMutation,
     deleteVideoMutation,
   }

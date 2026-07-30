@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Dumbbell, Loader2, Save, Trash2, Video } from 'lucide-react'
+import { ArchiveRestore, ArrowLeft, Dumbbell, Loader2, Save, Trash2, Video } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
@@ -151,6 +151,7 @@ export function ExerciseDetailsPage() {
     trainerCatalogQuery,
     updateExerciseMutation,
     archiveExerciseMutation,
+    restoreExerciseMutation,
     uploadVideoMutation,
     deleteVideoMutation,
   } = useExercises({
@@ -232,7 +233,11 @@ export function ExerciseDetailsPage() {
     form.reset(nextValues)
   }, [exercise, form])
 
-  const formDisabled = updateExerciseMutation.isPending || archiveExerciseMutation.isPending || !form.formState.isDirty
+  const formDisabled =
+    updateExerciseMutation.isPending ||
+    archiveExerciseMutation.isPending ||
+    restoreExerciseMutation.isPending ||
+    !form.formState.isDirty
   const isVideoBusy = uploadVideoMutation.isPending || deleteVideoMutation.isPending
   const equipmentDisplayValue = watchedEquipment ?? normalizeEquipment(exercise?.equipment)
   const stimulusDisplayValue =
@@ -613,7 +618,18 @@ export function ExerciseDetailsPage() {
                     <Trash2 size={14} />
                     В архив
                   </Button>
-                ) : null}
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="gap-2"
+                    onClick={() => restoreExerciseMutation.mutate(exercise.row_id)}
+                    disabled={restoreExerciseMutation.isPending}
+                  >
+                    <ArchiveRestore size={14} />
+                    Восстановить
+                  </Button>
+                )}
               </div>
             </form>
           ) : null}

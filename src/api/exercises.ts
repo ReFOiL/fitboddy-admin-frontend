@@ -71,6 +71,12 @@ export async function archiveTrainerExercise(trainerUserId: string, rowId: strin
   )
 }
 
+export async function restoreTrainerExercise(trainerUserId: string, rowId: string): Promise<void> {
+  await apiClient.post(
+    `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/exercises/${encodeURIComponent(rowId)}/restore`,
+  )
+}
+
 export async function uploadTrainerExerciseVideo(
   trainerUserId: string,
   rowId: string,

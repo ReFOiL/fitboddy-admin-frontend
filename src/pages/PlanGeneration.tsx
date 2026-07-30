@@ -42,9 +42,15 @@ function textOrFallback(value: string | null | undefined): string {
 }
 
 function formatDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
+  if (match) {
+    return `${Number(match[3])}.${match[2]}`
+  }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+  const day = date.getDate()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${day}.${month}`
 }
 
 function formatWeekdayShort(dayOfWeek: number): string {
@@ -611,7 +617,7 @@ export function PlanGenerationPage() {
                     <span className="text-[11px] font-medium uppercase tracking-wide">
                       {formatWeekdayShort(day.day_of_week)}
                     </span>
-                    <span className="text-sm font-semibold">{formatDate(day.scheduled_for).split(' ')[0]}</span>
+                    <span className="text-sm font-semibold">{formatDate(day.scheduled_for)}</span>
                     {day.is_completed ? <Check size={12} className="mt-0.5 text-primary" /> : null}
                     {isToday && !day.is_completed ? (
                       <span className="mt-0.5 text-[10px] font-semibold text-primary">сегодня</span>
