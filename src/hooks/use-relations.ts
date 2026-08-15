@@ -204,8 +204,7 @@ function useRelationsCore(params: RelationsCoreParams) {
   })
 
   const leaveRelationMutation = useMutation({
-    mutationFn: async (params: { relationId: string; actingUserId: string }) =>
-      leaveRelation(params.relationId, { acting_user_id: params.actingUserId }),
+    mutationFn: async (params: { relationId: string }) => leaveRelation(params.relationId),
     onSuccess: () => {
       invalidateRelationLists({ queryClient, trainerUserId, clientUserId })
       toast.success('Связь завершена')
@@ -214,8 +213,7 @@ function useRelationsCore(params: RelationsCoreParams) {
   })
 
   const acceptRelationMutation = useMutation({
-    mutationFn: async (params: { relationId: string; actingUserId: string }) =>
-      acceptRelation(params.relationId, { acting_user_id: params.actingUserId }),
+    mutationFn: async (params: { relationId: string }) => acceptRelation(params.relationId),
     onSuccess: () => {
       invalidateRelationLists({ queryClient, trainerUserId, clientUserId })
       toast.success('Приглашение принято')

@@ -12,14 +12,9 @@ export const RELATION_STATUS_LABELS: Record<RelationStatus, string> = {
 }
 
 export type CreateRelationRequest = {
-  acting_user_id: string
   trainer_user_id: string
   client_user_id: string
   mode: RelationMode
-}
-
-export type RelationActionRequest = {
-  acting_user_id: string
 }
 
 export type TrainerClientRelation = {

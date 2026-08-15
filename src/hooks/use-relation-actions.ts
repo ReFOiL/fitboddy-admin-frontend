@@ -9,15 +9,15 @@ type MutationLike<TVariables> = UseMutationResult<unknown, unknown, TVariables, 
 
 type UseClientRelationActionsParams = {
   withUserId: WithUserIdHandler
-  acceptRelationMutation: MutationLike<{ relationId: string; actingUserId: string }>
-  leaveRelationMutation: MutationLike<{ relationId: string; actingUserId: string }>
+  acceptRelationMutation: MutationLike<{ relationId: string }>
+  leaveRelationMutation: MutationLike<{ relationId: string }>
   createRelationMutation: MutationLike<CreateRelationRequest>
 }
 
 type UseTrainerRelationActionsParams = {
   withUserId: WithUserIdHandler
   upsertDiscoveryProfileMutation: MutationLike<{ userId: string; payload: UpsertDiscoveryProfileRequest }>
-  leaveRelationMutation: MutationLike<{ relationId: string; actingUserId: string }>
+  leaveRelationMutation: MutationLike<{ relationId: string }>
 }
 
 export function useClientRelationActions(params: UseClientRelationActionsParams) {
@@ -25,35 +25,24 @@ export function useClientRelationActions(params: UseClientRelationActionsParams)
 
   const acceptInvite = useCallback(
     (relationId: string) => {
-      withUserId((actingUserId) => {
-        acceptRelationMutation.mutate({
-          relationId,
-          actingUserId,
-        })
-      })
+      acceptRelationMutation.mutate({ relationId })
     },
-    [acceptRelationMutation, withUserId],
+    [acceptRelationMutation],
   )
 
   const declineInvite = useCallback(
     (relationId: string) => {
-      withUserId((actingUserId) => {
-        leaveRelationMutation.mutate({
-          relationId,
-          actingUserId,
-        })
-      })
+      leaveRelationMutation.mutate({ relationId })
     },
-    [leaveRelationMutation, withUserId],
+    [leaveRelationMutation],
   )
 
   const connectTrainer = useCallback(
     (trainerUserId: string) => {
-      withUserId((actingUserId) => {
+      withUserId((clientUserId) => {
         createRelationMutation.mutate({
-          acting_user_id: actingUserId,
           trainer_user_id: trainerUserId,
-          client_user_id: actingUserId,
+          client_user_id: clientUserId,
           mode: 'direct',
         })
       })
@@ -88,14 +77,9 @@ export function useTrainerRelationActions(params: UseTrainerRelationActionsParam
 
   const leaveClientRelation = useCallback(
     (relationId: string) => {
-      withUserId((actingUserId) => {
-        leaveRelationMutation.mutate({
-          relationId,
-          actingUserId,
-        })
-      })
+      leaveRelationMutation.mutate({ relationId })
     },
-    [leaveRelationMutation, withUserId],
+    [leaveRelationMutation],
   )
 
   return {

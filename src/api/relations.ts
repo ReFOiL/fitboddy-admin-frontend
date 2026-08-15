@@ -4,7 +4,6 @@ import type {
   CreateRelationRequest,
   DiscoveryProfile,
   PaginatedResult,
-  RelationActionRequest,
   TrainerClientRelation,
   TrainerFunnelMetrics,
   TrainerPublicationStatus,
@@ -16,24 +15,16 @@ export async function createRelation(payload: CreateRelationRequest): Promise<Tr
   return data
 }
 
-export async function acceptRelation(
-  relationId: string,
-  payload: RelationActionRequest,
-): Promise<TrainerClientRelation> {
+export async function acceptRelation(relationId: string): Promise<TrainerClientRelation> {
   const { data } = await apiClient.post<TrainerClientRelation>(
     `/api/v1/marketplace/relations/${encodeURIComponent(relationId)}/accept`,
-    payload,
   )
   return data
 }
 
-export async function leaveRelation(
-  relationId: string,
-  payload: RelationActionRequest,
-): Promise<TrainerClientRelation> {
+export async function leaveRelation(relationId: string): Promise<TrainerClientRelation> {
   const { data } = await apiClient.post<TrainerClientRelation>(
     `/api/v1/marketplace/relations/${encodeURIComponent(relationId)}/leave`,
-    payload,
   )
   return data
 }
