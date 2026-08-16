@@ -12,6 +12,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { StyledSelect } from '../components/ui/styled-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { AlertBanner } from '../components/shared'
 
 const loginSchema = z.object({
   email_or_login: z
@@ -42,6 +43,8 @@ const registerSchema = z
 type LoginFormValues = z.infer<typeof loginSchema>
 type RegisterFormValues = z.infer<typeof registerSchema>
 
+export const DEFAULT_REGISTRATION_ROLE: RegisterFormValues['role'] = 'client'
+
 function getPasswordStrengthMeta(password: string): { label: string; colorClass: string; progress: number } {
   if (!password) {
     return { label: 'Не задан', colorClass: 'bg-secondary', progress: 0 }
@@ -55,8 +58,8 @@ function getPasswordStrengthMeta(password: string): { label: string; colorClass:
   if (/[^A-Za-z0-9]/.test(password)) score += 1
 
   if (score <= 2) return { label: 'Слабый', colorClass: 'bg-destructive', progress: 33 }
-  if (score <= 4) return { label: 'Нормальный', colorClass: 'bg-amber-500', progress: 66 }
-  return { label: 'Сильный', colorClass: 'bg-emerald-500', progress: 100 }
+  if (score <= 4) return { label: 'Нормальный', colorClass: 'bg-warning', progress: 66 }
+  return { label: 'Сильный', colorClass: 'bg-success', progress: 100 }
 }
 
 export function LoginPage() {
@@ -77,7 +80,7 @@ export function LoginPage() {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      role: 'trainer',
+      role: DEFAULT_REGISTRATION_ROLE,
       login: '',
       email: '',
       password: '',
@@ -90,24 +93,22 @@ export function LoginPage() {
   const passwordStrength = useMemo(() => getPasswordStrengthMeta(registerPassword), [registerPassword])
 
   return (
-    <div className="min-h-dvh bg-background px-4 py-10 md:py-14">
+    <main className="min-h-dvh bg-background px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:py-14">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card className="border-primary/30">
+        <Card className="order-2 border-primary/30 lg:order-1">
           <CardHeader>
             <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs text-primary">
               <Sparkles size={14} />
-              Fitboddy для тренеров и клиентов
+              Fitboddy для тренировок
             </div>
             <CardTitle className="text-2xl md:text-3xl">Тренируйтесь системно, а не хаотично</CardTitle>
-            <CardDescription className="text-base">
-              Платформа помогает клиенту и тренеру работать как одна команда: цели, профиль, сопровождение и прогресс в одном месте.
-            </CardDescription>
+            <CardDescription className="text-base">План, связь с тренером и прогресс — в одном месте.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm text-secondary-foreground">
             <div className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
               <div className="mb-1 flex items-center gap-2 text-foreground">
                 <Users size={16} className="text-primary" />
-                Клиент и тренер в едином контуре
+                Клиент и тренер на связи
               </div>
               Меньше ручной рутины, больше фокуса на результате.
             </div>
@@ -121,7 +122,7 @@ export function LoginPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-primary/20">
+        <Card className="order-1 border-primary/20 lg:order-2">
           <CardHeader>
             <CardTitle>Вход в аккаунт</CardTitle>
             <CardDescription>Войди в существующий аккаунт или создай новый за минуту.</CardDescription>
@@ -134,6 +135,11 @@ export function LoginPage() {
               </TabsList>
 
               <TabsContent value="login">
+                {loginMutation.isError ? (
+                  <AlertBanner className="mb-4" tone="destructive" title="Не удалось войти" role="alert">
+                    Проверьте логин, пароль и соединение.
+                  </AlertBanner>
+                ) : null}
                 <form
                   className="grid gap-4"
                   onSubmit={loginForm.handleSubmit((values) => {
@@ -150,9 +156,19 @@ export function LoginPage() {
                 >
                   <div className="grid gap-1.5">
                     <Label htmlFor="login_email_or_login">Email или логин</Label>
-                    <Input id="login_email_or_login" type="text" placeholder="ivan@example.com или trainer_ivan" {...loginForm.register('email_or_login')} />
+                    <Input
+                      id="login_email_or_login"
+                      type="text"
+                      autoComplete="username"
+                      aria-invalid={Boolean(loginForm.formState.errors.email_or_login)}
+                      aria-describedby={loginForm.formState.errors.email_or_login ? 'login_email_or_login-error' : undefined}
+                      placeholder="ivan@example.com или ivan"
+                      {...loginForm.register('email_or_login')}
+                    />
                     {loginForm.formState.errors.email_or_login?.message ? (
-                      <span className="text-xs text-destructive">{loginForm.formState.errors.email_or_login.message}</span>
+                      <span id="login_email_or_login-error" className="text-xs text-destructive">
+                        {loginForm.formState.errors.email_or_login.message}
+                      </span>
                     ) : null}
                   </div>
 
@@ -162,12 +178,15 @@ export function LoginPage() {
                       <Input
                         id="login_password"
                         type={showLoginPassword ? 'text' : 'password'}
-                        className="pr-10"
+                        autoComplete="current-password"
+                        aria-invalid={Boolean(loginForm.formState.errors.password)}
+                        aria-describedby={loginForm.formState.errors.password ? 'login_password-error' : undefined}
+                        className="pr-12"
                         {...loginForm.register('password')}
                       />
                       <button
                         type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary-foreground transition hover:text-foreground"
+                        className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-secondary-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         onClick={() => setShowLoginPassword((value) => !value)}
                         aria-label={showLoginPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       >
@@ -175,17 +194,22 @@ export function LoginPage() {
                       </button>
                     </div>
                     {loginForm.formState.errors.password?.message ? (
-                      <span className="text-xs text-destructive">{loginForm.formState.errors.password.message}</span>
+                      <span id="login_password-error" className="text-xs text-destructive">{loginForm.formState.errors.password.message}</span>
                     ) : null}
                   </div>
 
                   <Button type="submit" size="lg" disabled={loginMutation.isPending}>
-                    Войти
+                    {loginMutation.isPending ? 'Входим…' : 'Войти'}
                   </Button>
                 </form>
               </TabsContent>
 
               <TabsContent value="register">
+                {registerMutation.isError ? (
+                  <AlertBanner className="mb-4" tone="destructive" title="Не удалось зарегистрироваться" role="alert">
+                    Проверьте данные и попробуйте ещё раз.
+                  </AlertBanner>
+                ) : null}
                 <form
                   className="grid gap-4"
                   onSubmit={registerForm.handleSubmit((values) => {
@@ -214,25 +238,39 @@ export function LoginPage() {
                         })
                       }
                       options={[
-                        { value: 'trainer', label: 'Тренер' },
                         { value: 'client', label: 'Клиент' },
+                        { value: 'trainer', label: 'Тренер' },
                       ]}
                     />
                   </div>
 
                   <div className="grid gap-1.5">
                     <Label htmlFor="register_login">Логин</Label>
-                    <Input id="register_login" placeholder="trainer_ivan" {...registerForm.register('login')} />
+                    <Input
+                      id="register_login"
+                      autoComplete="username"
+                      aria-invalid={Boolean(registerForm.formState.errors.login)}
+                      aria-describedby={registerForm.formState.errors.login ? 'register_login-error' : undefined}
+                      placeholder="ivan"
+                      {...registerForm.register('login')}
+                    />
                     {registerForm.formState.errors.login?.message ? (
-                      <span className="text-xs text-destructive">{registerForm.formState.errors.login.message}</span>
+                      <span id="register_login-error" className="text-xs text-destructive">{registerForm.formState.errors.login.message}</span>
                     ) : null}
                   </div>
 
                   <div className="grid gap-1.5">
                     <Label htmlFor="register_email">Email</Label>
-                    <Input id="register_email" type="email" {...registerForm.register('email')} />
+                    <Input
+                      id="register_email"
+                      type="email"
+                      autoComplete="email"
+                      aria-invalid={Boolean(registerForm.formState.errors.email)}
+                      aria-describedby={registerForm.formState.errors.email ? 'register_email-error' : undefined}
+                      {...registerForm.register('email')}
+                    />
                     {registerForm.formState.errors.email?.message ? (
-                      <span className="text-xs text-destructive">{registerForm.formState.errors.email.message}</span>
+                      <span id="register_email-error" className="text-xs text-destructive">{registerForm.formState.errors.email.message}</span>
                     ) : null}
                   </div>
 
@@ -242,12 +280,15 @@ export function LoginPage() {
                       <Input
                         id="register_password"
                         type={showRegisterPassword ? 'text' : 'password'}
-                        className="pr-10"
+                        autoComplete="new-password"
+                        aria-invalid={Boolean(registerForm.formState.errors.password)}
+                        aria-describedby={registerForm.formState.errors.password ? 'register_password-error' : 'register_password-strength'}
+                        className="pr-12"
                         {...registerForm.register('password')}
                       />
                       <button
                         type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary-foreground transition hover:text-foreground"
+                        className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-secondary-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         onClick={() => setShowRegisterPassword((value) => !value)}
                         aria-label={showRegisterPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       >
@@ -261,10 +302,12 @@ export function LoginPage() {
                           style={{ width: `${passwordStrength.progress}%` }}
                         />
                       </div>
-                      <span className="text-xs text-secondary-foreground">Надежность: {passwordStrength.label}</span>
+                      <span id="register_password-strength" className="text-xs text-secondary-foreground" aria-live="polite">
+                        Надёжность: {passwordStrength.label}
+                      </span>
                     </div>
                     {registerForm.formState.errors.password?.message ? (
-                      <span className="text-xs text-destructive">{registerForm.formState.errors.password.message}</span>
+                      <span id="register_password-error" className="text-xs text-destructive">{registerForm.formState.errors.password.message}</span>
                     ) : null}
                   </div>
 
@@ -274,12 +317,15 @@ export function LoginPage() {
                       <Input
                         id="register_confirm_password"
                         type={showRegisterConfirmPassword ? 'text' : 'password'}
-                        className="pr-10"
+                        autoComplete="new-password"
+                        aria-invalid={Boolean(registerForm.formState.errors.confirmPassword)}
+                        aria-describedby={registerForm.formState.errors.confirmPassword ? 'register_confirm_password-error' : undefined}
+                        className="pr-12"
                         {...registerForm.register('confirmPassword')}
                       />
                       <button
                         type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-secondary-foreground transition hover:text-foreground"
+                        className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-secondary-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         onClick={() => setShowRegisterConfirmPassword((value) => !value)}
                         aria-label={showRegisterConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
                       >
@@ -287,12 +333,12 @@ export function LoginPage() {
                       </button>
                     </div>
                     {registerForm.formState.errors.confirmPassword?.message ? (
-                      <span className="text-xs text-destructive">{registerForm.formState.errors.confirmPassword.message}</span>
+                      <span id="register_confirm_password-error" className="text-xs text-destructive">{registerForm.formState.errors.confirmPassword.message}</span>
                     ) : null}
                   </div>
 
                   <Button type="submit" size="lg" disabled={registerMutation.isPending}>
-                    Зарегистрироваться
+                    {registerMutation.isPending ? 'Создаём аккаунт…' : 'Зарегистрироваться'}
                   </Button>
                 </form>
               </TabsContent>
@@ -300,6 +346,6 @@ export function LoginPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </main>
   )
 }

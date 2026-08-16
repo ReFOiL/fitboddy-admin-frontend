@@ -1,13 +1,35 @@
 import { apiClient } from './client'
-import type { AvatarUploadResponse, ProfileMetaResponse, ProfileResponse, UpsertProfileRequest } from '../types/profile'
+import type {
+  AvatarUploadResponse,
+  ProfileDraftRequest,
+  ProfileMetaResponse,
+  ProfileResponse,
+  TrainerProfilePreview,
+  UpsertProfileRequest,
+} from '../types/profile'
 
 export async function getProfile(userId: string): Promise<ProfileResponse> {
   const { data } = await apiClient.get<ProfileResponse>(`/api/v1/profiles/${encodeURIComponent(userId)}`)
   return data
 }
 
+export async function getTrainerProfilePreview(userId: string): Promise<TrainerProfilePreview> {
+  const { data } = await apiClient.get<TrainerProfilePreview>(
+    `/api/v1/profiles/trainers/${encodeURIComponent(userId)}/preview`,
+  )
+  return data
+}
+
 export async function upsertProfile(userId: string, payload: UpsertProfileRequest): Promise<ProfileResponse> {
   const { data } = await apiClient.put<ProfileResponse>(`/api/v1/profiles/${encodeURIComponent(userId)}`, payload)
+  return data
+}
+
+export async function saveProfileDraft(userId: string, payload: ProfileDraftRequest): Promise<ProfileResponse> {
+  const { data } = await apiClient.patch<ProfileResponse>(
+    `/api/v1/profiles/${encodeURIComponent(userId)}/draft`,
+    payload,
+  )
   return data
 }
 

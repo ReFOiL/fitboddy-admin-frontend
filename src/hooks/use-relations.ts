@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -16,12 +15,8 @@ import {
   queryKeys,
   upsertDiscoveryProfile,
 } from '../api'
+import { getUserErrorMessage } from '../lib/user-error-message'
 import type { CreateRelationRequest, UpsertDiscoveryProfileRequest } from '../types/relation'
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (!axios.isAxiosError(error)) return fallback
-  return (error.response?.data as { detail?: string } | undefined)?.detail ?? fallback
-}
 
 type UseRelationsParams = {
   trainerUserId: string
@@ -184,7 +179,7 @@ function useRelationsCore(params: RelationsCoreParams) {
       invalidateRelationLists({ queryClient, trainerUserId, clientUserId })
       toast.success('Связь создана')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось создать связь')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось создать связь.')),
   })
 
   const upsertDiscoveryProfileMutation = useMutation({
@@ -200,7 +195,7 @@ function useRelationsCore(params: RelationsCoreParams) {
       invalidateDiscoveryVisibility(params)
       toast.success('Профиль для поиска обновлен')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось обновить видимость профиля')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось обновить видимость профиля.')),
   })
 
   const leaveRelationMutation = useMutation({
@@ -209,7 +204,7 @@ function useRelationsCore(params: RelationsCoreParams) {
       invalidateRelationLists({ queryClient, trainerUserId, clientUserId })
       toast.success('Связь завершена')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось завершить связь')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось завершить связь.')),
   })
 
   const acceptRelationMutation = useMutation({
@@ -218,7 +213,7 @@ function useRelationsCore(params: RelationsCoreParams) {
       invalidateRelationLists({ queryClient, trainerUserId, clientUserId })
       toast.success('Приглашение принято')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось принять приглашение')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось принять приглашение.')),
   })
 
   return {

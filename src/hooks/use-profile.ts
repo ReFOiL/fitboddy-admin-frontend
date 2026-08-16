@@ -1,17 +1,36 @@
-import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
-import { getProfile, getProfileMeta, queryKeys, upsertProfile, uploadProfileAvatar } from '../api'
-import type { UpsertProfileRequest } from '../types/profile'
+import {
+  getProfile,
+  getProfileMeta,
+  getTrainerProfilePreview,
+  queryKeys,
+  saveProfileDraft,
+  upsertProfile,
+  uploadProfileAvatar,
+} from '../api'
+import { getUserErrorMessage } from '../lib/user-error-message'
+import type { ProfileDraftRequest, ProfileResponse, UpsertProfileRequest } from '../types/profile'
 
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (!axios.isAxiosError(error)) return fallback
-  return (error.response?.data as { detail?: string } | undefined)?.detail ?? fallback
+export function useTrainerProfilePreview(trainerUserId: string) {
+  return useQuery({
+    queryKey: ['profiles', 'trainer-preview', trainerUserId],
+    queryFn: async () => getTrainerProfilePreview(trainerUserId),
+    enabled: Boolean(trainerUserId),
+    retry: false,
+  })
 }
 
 export function useProfile(targetUserId: string) {
   const queryClient = useQueryClient()
+  const cacheProfile = (profile: ProfileResponse) => {
+    const resolvedUserId = profile.user_id || targetUserId
+    queryClient.setQueryData(queryKeys.profiles.detail(resolvedUserId), profile)
+    if (resolvedUserId !== targetUserId) {
+      queryClient.setQueryData(queryKeys.profiles.detail(targetUserId), profile)
+    }
+  }
 
   const profileQuery = useQuery({
     queryKey: queryKeys.profiles.detail(targetUserId),
@@ -31,10 +50,7 @@ export function useProfile(targetUserId: string) {
     mutationFn: async (payload: UpsertProfileRequest) => upsertProfile(targetUserId, payload),
     onSuccess: (profile) => {
       const resolvedUserId = profile.user_id || targetUserId
-      queryClient.setQueryData(queryKeys.profiles.detail(resolvedUserId), profile)
-      if (resolvedUserId !== targetUserId) {
-        queryClient.setQueryData(queryKeys.profiles.detail(targetUserId), profile)
-      }
+      cacheProfile(profile)
       void queryClient.invalidateQueries({
         queryKey: queryKeys.profiles.detail(resolvedUserId),
         exact: true,
@@ -42,7 +58,15 @@ export function useProfile(targetUserId: string) {
       toast.success('Профиль сохранен')
     },
     onError: (error) => {
-      toast.error(extractErrorMessage(error, 'Не удалось сохранить профиль'))
+      toast.error(getUserErrorMessage(error, 'Не удалось сохранить профиль.'))
+    },
+  })
+
+  const draftMutation = useMutation({
+    mutationFn: async (payload: ProfileDraftRequest) => saveProfileDraft(targetUserId, payload),
+    onSuccess: cacheProfile,
+    onError: (error) => {
+      toast.error(getUserErrorMessage(error, 'Не удалось сохранить ответы.'))
     },
   })
 
@@ -52,13 +76,14 @@ export function useProfile(targetUserId: string) {
       toast.success('Аватар загружен')
     },
     onError: (error) => {
-      toast.error(extractErrorMessage(error, 'Не удалось загрузить аватар'))
+      toast.error(getUserErrorMessage(error, 'Не удалось загрузить аватар.'))
     },
   })
 
   return {
     profileQuery,
     metaQuery,
+    draftMutation,
     upsertMutation,
     uploadAvatarMutation,
   }

@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -14,13 +13,9 @@ import {
   upsertClientLoad,
   upsertClientPlatformLoad,
 } from '../api'
+import { getUserErrorMessage } from '../lib/user-error-message'
 import type { UpsertClientLoadRequest } from '../types/exercise'
 import type { GeneratePlanRequest } from '../types/plan'
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (!axios.isAxiosError(error)) return fallback
-  return (error.response?.data as { detail?: string } | undefined)?.detail ?? fallback
-}
 
 export function usePlans(userId: string) {
   const queryClient = useQueryClient()
@@ -33,7 +28,7 @@ export function usePlans(userId: string) {
   })
 
   const todayWorkoutQuery = useQuery({
-    queryKey: queryKeys.plans.today,
+    queryKey: queryKeys.plans.today(userId),
     queryFn: async () => getTodayWorkout(),
     enabled: Boolean(userId),
     retry: false,
@@ -45,35 +40,35 @@ export function usePlans(userId: string) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.activeByUser(userId),
       })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today(userId) })
       toast.success('План сгенерирован')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось сгенерировать план')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось сгенерировать план.')),
   })
 
   const completeDayMutation = useMutation({
     mutationFn: async (dayIndex: number) => completePlanDay(dayIndex),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today(userId) })
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.activeByUser(userId),
       })
       toast.success('Тренировка отмечена выполненной')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось отметить тренировку')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось отметить тренировку.')),
   })
 
   const replaceExerciseMutation = useMutation({
     mutationFn: async (input: { dayIndex: number; lineId: string }) =>
       replacePlanExercise(input.dayIndex, input.lineId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today(userId) })
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.activeByUser(userId),
       })
       toast.success('Упражнение заменено')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось заменить упражнение')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось заменить упражнение.')),
   })
 
   return {
@@ -105,10 +100,10 @@ export function useClientLoads(clientUserId: string, trainerUserId: string) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.activeByUser(clientUserId),
       })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today(clientUserId) })
       toast.success('Рабочий вес сохранён')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось сохранить вес')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось сохранить вес.')),
   })
 
   return {
@@ -137,10 +132,10 @@ export function useClientPlatformLoads(clientUserId: string) {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.activeByUser(clientUserId),
       })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today(clientUserId) })
       toast.success('Рабочий вес сохранён')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось сохранить вес')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось сохранить вес.')),
   })
 
   return {

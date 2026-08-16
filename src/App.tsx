@@ -17,12 +17,19 @@ const LoginPage = lazy(async () => ({ default: (await import('./pages/Login')).L
 const PlanGenerationPage = lazy(async () => ({ default: (await import('./pages/PlanGeneration')).PlanGenerationPage }))
 const PlanRulesPage = lazy(async () => ({ default: (await import('./pages/PlanRules')).PlanRulesPage }))
 const ProfilePage = lazy(async () => ({ default: (await import('./pages/Profile')).ProfilePage }))
+const ProfileOnboardingPage = lazy(async () => ({
+  default: (await import('./pages/ProfileOnboarding')).ProfileOnboardingPage,
+}))
 const ClientRelationsPage = lazy(async () => ({ default: (await import('./pages/ClientRelations')).ClientRelationsPage }))
+const TrainerProfilePreviewPage = lazy(async () => ({
+  default: (await import('./pages/TrainerProfilePreview')).TrainerProfilePreviewPage,
+}))
 const TrainerRelationsPage = lazy(async () => ({ default: (await import('./pages/TrainerRelations')).TrainerRelationsPage }))
 const TrainerClientProfilePage = lazy(async () => ({
   default: (await import('./pages/TrainerClientProfile')).TrainerClientProfilePage,
 }))
 const MessagesPage = lazy(async () => ({ default: (await import('./pages/Messages')).MessagesPage }))
+const MorePage = lazy(async () => ({ default: (await import('./pages/More')).MorePage }))
 
 function App() {
   const { user } = useAuth()
@@ -75,6 +82,14 @@ function App() {
               }
             />
             <Route
+              path={APP_PATHS.trainerProfile.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={APP_PATHS.home}>
+                  <TrainerProfilePreviewPage />
+                </RoleRoute>
+              }
+            />
+            <Route
               path={APP_PATHS.planGeneration.slice(1)}
               element={
                 <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
@@ -123,8 +138,24 @@ function App() {
               }
             />
             <Route path={APP_PATHS.profile.slice(1)} element={<ProfilePage />} />
+            <Route
+              path={APP_PATHS.profileOnboarding.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
+                  <ProfileOnboardingPage />
+                </RoleRoute>
+              }
+            />
             <Route path={APP_PATHS.messages.slice(1)} element={<MessagesPage />} />
             <Route path={APP_PATHS.messageThread.slice(1)} element={<MessagesPage />} />
+            <Route
+              path={APP_PATHS.more.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
+                  <MorePage />
+                </RoleRoute>
+              }
+            />
 
             <Route path={APP_PATHS.dashboardAlias.slice(1)} element={<Navigate to={APP_PATHS.home} replace />} />
             <Route path={APP_PATHS.relationsAlias.slice(1)} element={<Navigate to={resolveRelationsPath(role)} replace />} />

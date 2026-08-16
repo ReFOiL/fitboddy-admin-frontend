@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
@@ -12,12 +11,8 @@ import {
   updateTrainerExercise,
   uploadTrainerExerciseVideo,
 } from '../api'
+import { getUserErrorMessage } from '../lib/user-error-message'
 import type { TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (!axios.isAxiosError(error)) return fallback
-  return (error.response?.data as { detail?: string } | undefined)?.detail ?? fallback
-}
 
 export function useExercises(params: { trainerUserId: string; includeArchived: boolean }) {
   const { trainerUserId, includeArchived } = params
@@ -143,7 +138,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
       invalidateCatalog()
       toast.success('Упражнение добавлено')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось добавить упражнение')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось добавить упражнение.')),
   })
 
   const updateExerciseMutation = useMutation({
@@ -154,7 +149,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
       invalidateCatalog()
       toast.success('Упражнение обновлено')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось обновить упражнение')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось обновить упражнение.')),
   })
 
   const archiveExerciseMutation = useMutation({
@@ -164,7 +159,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
       invalidateCatalog()
       toast.success('Упражнение архивировано')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось архивировать упражнение')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось архивировать упражнение.')),
   })
 
   const restoreExerciseMutation = useMutation({
@@ -174,7 +169,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
       invalidateCatalog()
       toast.success('Упражнение восстановлено из архива')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось восстановить упражнение')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось восстановить упражнение.')),
   })
 
   const uploadVideoMutation = useMutation({
@@ -185,7 +180,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
       invalidateCatalog()
       toast.success('Видео загружено')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось загрузить видео')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось загрузить видео.')),
   })
 
   const deleteVideoMutation = useMutation({
@@ -195,7 +190,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
       invalidateCatalog()
       toast.success('Видео удалено')
     },
-    onError: (error) => toast.error(extractErrorMessage(error, 'Не удалось удалить видео')),
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось удалить видео.')),
   })
 
   return {

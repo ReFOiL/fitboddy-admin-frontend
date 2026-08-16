@@ -5,8 +5,14 @@ import { getTrainerGenerationPolicy, upsertTrainerGenerationPolicy } from '../ap
 import { listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
 import { useAuth } from '../hooks/use-auth'
+import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
+import {
+  DEFAULT_SESSION_BOUNDS,
+  isGenerationPolicyDirty,
+  normalizeGenerationPolicy,
+} from '../lib/generation-policy'
 import type { TrainerExercise } from '../types/exercise'
-import type { GenerationPolicy, SessionSizeBounds } from '../types/generation-policy'
+import type { GenerationPolicy } from '../types/generation-policy'
 
 const CATEGORIES = [
   { value: 'full_body', label: 'Всё тело' },
@@ -39,14 +45,6 @@ function categoryLabel(value: string): string {
   return CATEGORIES.find((item) => item.value === value)?.label ?? value
 }
 
-const DEFAULT_SESSION_BOUNDS: Record<string, SessionSizeBounds> = {
-  default: { min: 4, max: 7 },
-  beginner: { min: 3, max: 5 },
-  intermediate: { min: 4, max: 6 },
-  advanced: { min: 4, max: 7 },
-  rehabilitation: { min: 3, max: 4 },
-}
-
 const SESSION_SLOTS = [
   { value: 'default', label: 'Обычный цикл (не первый план)' },
   { value: 'beginner', label: 'Первый план · новичок' },
@@ -54,49 +52,6 @@ const SESSION_SLOTS = [
   { value: 'advanced', label: 'Первый план · продвинутый' },
   { value: 'rehabilitation', label: 'Первый план · восстановление' },
 ] as const
-
-function normalizeSessionBounds(raw: unknown, fallback: SessionSizeBounds): SessionSizeBounds {
-  if (!raw || typeof raw !== 'object') return fallback
-  const min = Number((raw as SessionSizeBounds).min)
-  const max = Number((raw as SessionSizeBounds).max)
-  const safeMin = Number.isFinite(min) ? Math.min(12, Math.max(1, min)) : fallback.min
-  const safeMax = Number.isFinite(max) ? Math.min(12, Math.max(1, max)) : fallback.max
-  return safeMin <= safeMax ? { min: safeMin, max: safeMax } : { min: safeMax, max: safeMin }
-}
-
-function normalizePolicy(input: Partial<GenerationPolicy> | null | undefined): GenerationPolicy {
-  const pairs = Array.isArray(input?.excluded_pairs) ? input.excluded_pairs : []
-  const splits =
-    input?.default_splits && typeof input.default_splits === 'object' ? input.default_splits : {}
-  const workouts =
-    input?.default_workouts_per_week && typeof input.default_workouts_per_week === 'object'
-      ? input.default_workouts_per_week
-      : {}
-  const sessions =
-    input?.exercises_per_session && typeof input.exercises_per_session === 'object'
-      ? input.exercises_per_session
-      : {}
-  return {
-    excluded_pairs: pairs
-      .filter((pair): pair is string[] => Array.isArray(pair) && pair.length >= 2)
-      .map((pair) => [String(pair[0]), String(pair[1])]),
-    default_splits: Object.fromEntries(
-      Object.entries(splits).map(([key, value]) => [
-        key,
-        Array.isArray(value) ? value.map(String) : [],
-      ]),
-    ),
-    default_workouts_per_week: Object.fromEntries(
-      Object.entries(workouts).map(([key, value]) => [key, Number(value) || 3]),
-    ),
-    exercises_per_session: Object.fromEntries(
-      Object.entries(DEFAULT_SESSION_BOUNDS).map(([key, fallback]) => [
-        key,
-        normalizeSessionBounds(sessions[key], fallback),
-      ]),
-    ),
-  }
-}
 
 function SplitEditor({
   categories,
@@ -211,7 +166,7 @@ export function PlanRulesPage() {
   return (
     <PlanRulesEditor
       trainerUserId={trainerUserId}
-      initialPolicy={normalizePolicy(policyQuery.data)}
+      initialPolicy={normalizeGenerationPolicy(policyQuery.data)}
       exercises={exercises}
     />
   )
@@ -228,22 +183,28 @@ function PlanRulesEditor({
 }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState(initialPolicy)
+  const [savedPolicy, setSavedPolicy] = useState(initialPolicy)
   const [pairLeft, setPairLeft] = useState('')
   const [pairRight, setPairRight] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [selectedGoal, setSelectedGoal] = useState<(typeof GOALS)[number]['value']>('maintenance')
+  const isDirty = isGenerationPolicyDirty(savedPolicy, draft)
 
   const saveMutation = useMutation({
     mutationFn: async (payload: GenerationPolicy) => upsertTrainerGenerationPolicy(trainerUserId, payload),
     onSuccess: (saved) => {
+      const normalized = normalizeGenerationPolicy(saved)
       void queryClient.invalidateQueries({
         queryKey: queryKeys.plans.trainerGenerationPolicy(trainerUserId),
       })
-      setDraft(normalizePolicy(saved))
+      setSavedPolicy(normalized)
+      setDraft(normalized)
       setMessage('Сохранено. Новые планы для клиентов уже учитывают эти правила.')
     },
     onError: () => setMessage('Не удалось сохранить. Попробуй ещё раз.'),
   })
+
+  useUnsavedChangesGuard(isDirty && !saveMutation.isPending)
 
   const exerciseName = new Map(exercises.map((item) => [item.row_id, item.exercise_name]))
 
@@ -275,8 +236,9 @@ function PlanRulesEditor({
         </p>
       </header>
 
-      {message ? (
+      {message && (!isDirty || message.startsWith('Не удалось')) ? (
         <p
+          role={message.startsWith('Не удалось') ? 'alert' : 'status'}
           className={`text-sm ${message.startsWith('Не удалось') ? 'text-destructive' : 'text-secondary-foreground'}`}
         >
           {message}
@@ -540,17 +502,22 @@ function PlanRulesEditor({
       </article>
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:z-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-        <button
-          type="button"
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:w-auto pb-[env(safe-area-inset-bottom)] md:pb-2.5"
-          disabled={saveMutation.isPending}
-          onClick={() => {
-            setMessage(null)
-            saveMutation.mutate(draft)
-          }}
-        >
-          {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить правила'}
-        </button>
+        <div className="flex items-center gap-3">
+          <span className={isDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
+            {isDirty ? 'Есть изменения' : 'Сохранено'}
+          </span>
+          <button
+            type="button"
+            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:flex-none pb-[env(safe-area-inset-bottom)] md:pb-2.5"
+            disabled={saveMutation.isPending || !isDirty}
+            onClick={() => {
+              setMessage(null)
+              saveMutation.mutate(draft)
+            }}
+          >
+            {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить правила'}
+          </button>
+        </div>
       </div>
     </section>
   )

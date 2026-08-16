@@ -12,6 +12,8 @@ export type UpsertProfileRequest = {
   medical_notes: string | null
 }
 
+export type ProfileDraftRequest = Partial<UpsertProfileRequest>
+
 export type ProfileResponse = {
   profile_id: string
   tenant_id: string
@@ -30,6 +32,14 @@ export type ProfileResponse = {
   medical_notes: string | null
   created_at: string
   updated_at: string
+}
+
+export type TrainerProfilePreview = {
+  user_id: string
+  full_name: string | null
+  avatar_url: string | null
+  city: string | null
+  bio: string | null
 }
 
 export type AvatarUploadResponse = {

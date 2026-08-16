@@ -1,8 +1,8 @@
-import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import { login, logout, me, queryKeys, refresh, register } from '../api'
+import { getUserErrorMessage } from '../lib/user-error-message'
 import { useAuthStore } from '../stores/auth.store'
 import type { LoginRequest, RegisterRequest } from '../types/auth'
 
@@ -37,12 +37,7 @@ export function useAuth() {
       queryClient.setQueryData(queryKeys.auth.me, payload.user)
       toast.success('Вход выполнен')
     },
-    onError: (error) => {
-      const detail = axios.isAxiosError(error)
-        ? (error.response?.data as { detail?: string } | undefined)?.detail
-        : undefined
-      toast.error(detail ?? 'Не удалось войти')
-    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось войти.')),
   })
 
   const registerMutation = useMutation({
@@ -56,12 +51,7 @@ export function useAuth() {
       queryClient.setQueryData(queryKeys.auth.me, payload.user)
       toast.success('Регистрация выполнена')
     },
-    onError: (error) => {
-      const detail = axios.isAxiosError(error)
-        ? (error.response?.data as { detail?: string } | undefined)?.detail
-        : undefined
-      toast.error(detail ?? 'Не удалось зарегистрироваться')
-    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось зарегистрироваться.')),
   })
 
   const refreshMutation = useMutation({

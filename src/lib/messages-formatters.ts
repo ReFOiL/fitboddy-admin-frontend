@@ -50,6 +50,31 @@ export function formatChatMessageTime(value: string): string {
   return `${new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(date)}, ${clock}`
 }
 
+export function formatChatDateLabel(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const dayDiff = Math.round((startOfToday.getTime() - startOfDate.getTime()) / 86_400_000)
+
+  if (dayDiff === 0) return 'Сегодня'
+  if (dayDiff === 1) return 'Вчера'
+  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(date)
+}
+
+export function isSameChatDate(left: string, right: string): boolean {
+  const leftDate = new Date(left)
+  const rightDate = new Date(right)
+  if (Number.isNaN(leftDate.getTime()) || Number.isNaN(rightDate.getTime())) return false
+  return (
+    leftDate.getFullYear() === rightDate.getFullYear() &&
+    leftDate.getMonth() === rightDate.getMonth() &&
+    leftDate.getDate() === rightDate.getDate()
+  )
+}
+
 export function formatLastMessagePreview(message: ChatMessage | null, currentUserId: string | undefined): string {
   if (!message?.body.trim()) return 'Нет сообщений'
   const prefix = message.sender_user_id === currentUserId ? 'Вы: ' : ''

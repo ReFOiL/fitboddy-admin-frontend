@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { MessageSquare } from 'lucide-react'
+import { Eye, MessageSquare, UserCheck, UserMinus } from 'lucide-react'
 
 import { useProfile } from '../hooks/use-profile'
 import { useClientRelationActions, useClientRelations, useConversations, useUnreadCount, useUserIdGuard } from '../hooks'
@@ -48,8 +48,8 @@ export function ClientRelationsPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
-                <MessageSquare size={18} className="shrink-0 text-primary" />
-                <span className="truncate">{activeRelation.trainer_login?.trim() || 'Ваш тренер'}</span>
+                <UserCheck size={18} className="shrink-0 text-primary" />
+                <span>У вас уже есть активный тренер</span>
               </span>
               {unreadCount > 0 ? (
                 <span className="inline-flex min-w-5 shrink-0 justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
@@ -58,6 +58,8 @@ export function ClientRelationsPage() {
               ) : null}
             </CardTitle>
             <CardDescription>
+              {activeRelation.trainer_login?.trim() || 'Ваш тренер'}
+              {' · '}
               {unreadCount > 0
                 ? lastPreview && lastPreview !== 'Нет сообщений'
                   ? lastPreview
@@ -65,41 +67,78 @@ export function ClientRelationsPage() {
                 : 'Напишите тренеру — переписка откроется сразу.'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="grid grid-cols-2 gap-2 sm:flex">
+            <Button asChild variant="secondary" className="h-12 w-full gap-2 sm:h-10 sm:w-auto">
+              <Link
+                to={APP_PATHS.trainerProfile.replace(
+                  ':trainerUserId',
+                  encodeURIComponent(activeRelation.trainer_user_id),
+                )}
+              >
+                <Eye size={16} />
+                Профиль
+              </Link>
+            </Button>
             <Button asChild className="h-12 w-full gap-2 sm:h-10 sm:w-auto">
               <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(activeRelation.trainer_user_id)}`}>
                 <MessageSquare size={16} />
                 {unreadCount > 0 ? 'Открыть сообщения' : 'Написать тренеру'}
               </Link>
             </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="col-span-2 h-12 w-full gap-2 sm:col-span-1 sm:h-10 sm:w-auto"
+              disabled={leaveRelationMutation.isPending}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    'Отписаться от тренера? Активное сопровождение будет завершено, после чего можно будет выбрать другого тренера.',
+                  )
+                ) {
+                  return
+                }
+                leaveRelationMutation.mutate({ relationId: activeRelation.relation_id })
+              }}
+            >
+              <UserMinus size={16} />
+              {leaveRelationMutation.isPending ? 'Отписываем…' : 'Отписаться'}
+            </Button>
           </CardContent>
         </Card>
       ) : null}
 
-      <IncomingInvitesCard
-        invites={incomingInvites}
-        isLoading={incomingInvitesQuery.isLoading}
-        isError={incomingInvitesQuery.isError}
-        acceptPending={acceptRelationMutation.isPending}
-        declinePending={leaveRelationMutation.isPending}
-        onAccept={acceptInvite}
-        onDecline={declineInvite}
-      />
+      {!hasActiveTrainer ? (
+        <>
+          <IncomingInvitesCard
+            invites={incomingInvites}
+            isLoading={incomingInvitesQuery.isLoading}
+            isError={incomingInvitesQuery.isError}
+            acceptPending={acceptRelationMutation.isPending}
+            declinePending={leaveRelationMutation.isPending}
+            onRetry={() => void incomingInvitesQuery.refetch()}
+            onAccept={acceptInvite}
+            onDecline={declineInvite}
+          />
 
-      <TrainerSelectionCard
-        trainers={trainers}
-        isLoading={trainersQuery.isLoading}
-        isError={trainersQuery.isError}
-        hasActiveTrainer={hasActiveTrainer}
-        isActiveRelationLoading={clientActiveRelationQuery.isLoading}
-        isActiveRelationError={clientActiveRelationQuery.isError}
-        mustCompleteQuestionnaire={mustCompleteQuestionnaire}
-        createPending={createRelationMutation.isPending}
-        onConnect={(trainerUserId) => {
-          if (hasActiveTrainer || createRelationMutation.isPending) return
-          connectTrainer(trainerUserId)
-        }}
-      />
+          <TrainerSelectionCard
+            trainers={trainers}
+            isLoading={trainersQuery.isLoading}
+            isError={trainersQuery.isError}
+            hasActiveTrainer={hasActiveTrainer}
+            isActiveRelationLoading={clientActiveRelationQuery.isLoading}
+            isActiveRelationError={clientActiveRelationQuery.isError}
+            mustCompleteQuestionnaire={mustCompleteQuestionnaire}
+            createPending={createRelationMutation.isPending}
+            onRetry={() => void trainersQuery.refetch()}
+            onRetryActiveRelation={() => void clientActiveRelationQuery.refetch()}
+            onConnect={(trainerUserId) => {
+              if (hasActiveTrainer || createRelationMutation.isPending) return
+              connectTrainer(trainerUserId)
+            }}
+          />
+        </>
+      ) : null}
     </div>
   )
 }

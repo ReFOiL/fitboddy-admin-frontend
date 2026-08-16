@@ -11,6 +11,7 @@ import { useClientLoads, usePlans } from '../hooks/use-plans'
 import { listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
 import { APP_PATHS } from '../config'
+import { AlertBanner } from '../components/shared'
 import { PlanCollapsible } from '../components/plan/PlanCollapsible'
 import { formatEquipmentLabel } from '../lib/equipment'
 import { isProfileCompleted } from '../lib/profile-completion'
@@ -98,6 +99,11 @@ export function TrainerClientProfilePage() {
   const hasNoActivePlan = activePlanErrorStatus === 404
   const activePlan = activePlanQuery.data
   const hasActivePlan = Boolean(!activePlanQuery.isLoading && !hasNoActivePlan && activePlan)
+  const isPreviousTrainerPlan = Boolean(
+    activePlan?.source === 'trainer' &&
+      activePlan.trainer_user_id &&
+      activePlan.trainer_user_id !== trainerUserId,
+  )
 
   const { loadsQuery, upsertLoadMutation } = useClientLoads(profileTargetUserId, trainerUserId)
   const catalogQuery = useQuery({
@@ -186,6 +192,14 @@ export function TrainerClientProfilePage() {
 
   const runGenerate = () => {
     if (!profile || !profileTargetUserId || !trainerUserId) return
+    if (
+      isPreviousTrainerPlan &&
+      !window.confirm(
+        'Заменить план предыдущего тренера? Текущий план будет архивирован, а клиент получит новый план из вашего каталога.',
+      )
+    ) {
+      return
+    }
     generatePlanMutation.mutate({
       source: 'trainer',
       trainer_user_id: trainerUserId,
@@ -366,10 +380,12 @@ export function TrainerClientProfilePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Rocket size={18} className="text-primary" />
-                План тренера
+                {isPreviousTrainerPlan ? 'План предыдущего тренера' : 'План тренера'}
               </CardTitle>
               <CardDescription>
-                Генерация и просмотр активного плана клиента из вашего каталога.
+                {isPreviousTrainerPlan
+                  ? 'План доступен только для просмотра. Чтобы изменить его, создайте новый план.'
+                  : 'Генерация и просмотр активного плана клиента из вашего каталога.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -380,6 +396,12 @@ export function TrainerClientProfilePage() {
               ) : null}
 
               {activePlanQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
+
+              {isPreviousTrainerPlan ? (
+                <AlertBanner title="Клиент продолжает заниматься по прежнему плану">
+                  Вы можете изучить расписание, но изменения из вашего каталога к нему не применяются.
+                </AlertBanner>
+              ) : null}
 
               {!activePlanQuery.isLoading && hasNoActivePlan ? (
                 <div className="space-y-3 rounded-xl border border-border/70 bg-secondary/15 p-4">
@@ -410,7 +432,11 @@ export function TrainerClientProfilePage() {
                     disabled={!canGenerate}
                     onClick={runGenerate}
                   >
-                    {generatePlanMutation.isPending ? 'Генерируем…' : 'Пересобрать план'}
+                    {generatePlanMutation.isPending
+                      ? 'Генерируем…'
+                      : isPreviousTrainerPlan
+                        ? 'Заменить своим планом'
+                        : 'Пересобрать план'}
                   </Button>
 
                   <PlanCollapsible
@@ -488,6 +514,11 @@ export function TrainerClientProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
+              {isPreviousTrainerPlan ? (
+                <p className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
+                  Эти веса сохранятся для вашего каталога и будут применены после создания нового плана.
+                </p>
+              ) : null}
               {loadsQuery.isError ? (
                 <p className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2 text-sm text-secondary-foreground">
                   Не удалось загрузить рабочие веса клиента.

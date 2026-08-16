@@ -4,6 +4,8 @@ describe('app-routes', () => {
   it('resolves document title by route and role', () => {
     expect(resolveDocumentTitle(APP_PATHS.clients, 'trainer')).toBe('Fitboddy — Клиенты')
     expect(resolveDocumentTitle(APP_PATHS.trainers, 'client')).toBe('Fitboddy — Тренеры')
+    expect(resolveDocumentTitle(APP_PATHS.more, 'client')).toBe('Fitboddy — Ещё')
+    expect(resolveDocumentTitle(APP_PATHS.profileOnboarding, 'client')).toBe('Fitboddy — Настройка профиля')
     expect(resolveDocumentTitle('/unknown', null)).toBe('Fitboddy')
   })
 

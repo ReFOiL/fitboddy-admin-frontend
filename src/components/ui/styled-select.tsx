@@ -12,6 +12,8 @@ const PLACEHOLDER_VALUE = '__placeholder__'
 
 type StyledSelectProps = {
   id?: string
+  'aria-describedby'?: string
+  'aria-invalid'?: boolean
   value?: string
   onChange: (value: string) => void
   disabled?: boolean
@@ -23,6 +25,8 @@ type StyledSelectProps = {
 
 export function StyledSelect({
   id,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
   value,
   onChange,
   disabled,
@@ -51,9 +55,10 @@ export function StyledSelect({
       <Select.Root value={resolvedValue} onValueChange={handleValueChange} disabled={disabled}>
         <Select.Trigger
           id={id}
-          aria-label={placeholder}
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
           className={cn(
-            'h-10 w-full rounded-xl border border-border bg-background px-3 pr-10 text-left text-sm text-foreground outline-none transition',
+            'h-11 w-full rounded-xl border border-border bg-background px-3 pr-10 text-left text-base text-foreground outline-none transition sm:h-10 sm:text-sm',
             'hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-60',
             className,
           )}
@@ -86,7 +91,7 @@ export function StyledSelect({
                   key={option.value}
                   value={option.value}
                   className={cn(
-                    'relative flex cursor-default select-none items-center rounded-lg py-2 pl-3 pr-8 text-sm outline-none transition',
+                    'relative flex min-h-11 cursor-default select-none items-center rounded-lg py-2 pl-3 pr-8 text-base outline-none transition sm:text-sm',
                     'text-secondary-foreground hover:bg-secondary focus:bg-secondary focus:text-foreground',
                     'data-[state=checked]:bg-primary/20 data-[state=checked]:text-foreground',
                   )}

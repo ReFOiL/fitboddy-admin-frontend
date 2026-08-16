@@ -9,6 +9,7 @@ export const APP_PATHS = {
   home: '/home',
   clients: '/clients',
   trainers: '/trainers',
+  trainerProfile: '/trainers/:trainerUserId',
   clientProfile: '/clients/profile',
   planGeneration: '/plan-generation',
   analytics: '/analytics',
@@ -18,7 +19,9 @@ export const APP_PATHS = {
   planRules: '/plan-rules',
   messages: '/messages',
   messageThread: '/messages/:conversationId',
+  more: '/more',
   profile: '/profile',
+  profileOnboarding: '/profile/onboarding',
   dashboardAlias: '/dashboard',
   relationsAlias: '/relations',
   catalogAlias: '/catalog',
@@ -48,8 +51,20 @@ const TITLE_RULES: TitleRule[] = [
     matches: (pathname, role) => pathname === APP_PATHS.trainers || (pathname === APP_PATHS.relationsAlias && role !== 'trainer'),
   },
   {
+    title: 'Профиль тренера',
+    matches: (pathname) => Boolean(matchPath(APP_PATHS.trainerProfile, pathname)),
+  },
+  {
     title: 'Сообщения',
     matches: (pathname) => Boolean(matchPath(APP_PATHS.messageThread, pathname) || pathname === APP_PATHS.messages),
+  },
+  {
+    title: 'Ещё',
+    matches: (pathname) => pathname === APP_PATHS.more,
+  },
+  {
+    title: 'Настройка профиля',
+    matches: (pathname) => pathname === APP_PATHS.profileOnboarding,
   },
   {
     title: 'Профиль',
