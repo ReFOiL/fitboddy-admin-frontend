@@ -1,6 +1,7 @@
 export * from './auth'
 export * from './client'
 export * from './exercises'
+export * from './messages'
 export * from './plans'
 export * from './profile'
 export * from './relations'

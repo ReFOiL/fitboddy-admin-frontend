@@ -1,4 +1,5 @@
 export { useAuth } from './use-auth'
+export { useConversationMessages, useConversations, useMessageActions, useMessagingSocket, useUnreadCount } from './use-messages'
 export { useClientRelationActions, useTrainerRelationActions } from './use-relation-actions'
 export { useClientRelations, useRelations, useTrainerRelations } from './use-relations'
 export { useUserIdGuard } from './use-user-id-guard'

@@ -30,6 +30,11 @@ export const queryKeys = {
     platformExercise: (rowId: string) => ['exercises', 'platform-exercise', rowId] as const,
     platformCatalog: ['exercises', 'platform-catalog'] as const,
   },
+  messages: {
+    conversations: ['messages', 'conversations'] as const,
+    conversationMessages: (conversationId: string) => ['messages', 'thread', conversationId] as const,
+    unreadCount: ['messages', 'unread-count'] as const,
+  },
   plans: {
     activeByUser: (userId: string) => ['plans', 'active-by-user', userId] as const,
     today: ['plans', 'today'] as const,

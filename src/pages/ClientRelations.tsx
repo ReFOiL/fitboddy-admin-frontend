@@ -1,6 +1,12 @@
+import { Link } from 'react-router-dom'
+import { MessageSquare } from 'lucide-react'
+
 import { useProfile } from '../hooks/use-profile'
 import { useClientRelationActions, useClientRelations, useUserIdGuard } from '../hooks'
 import { ClientProfileRequiredCard, IncomingInvitesCard, TrainerSelectionCard } from '../components/client-relations'
+import { Button } from '../components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { APP_PATHS } from '../config'
 import { isProfileCompleted } from '../lib/profile-completion'
 
 export function ClientRelationsPage() {
@@ -26,6 +32,25 @@ export function ClientRelationsPage() {
   return (
     <div className="space-y-6">
       {mustCompleteQuestionnaire ? <ClientProfileRequiredCard /> : null}
+
+      {activeRelation?.trainer_user_id ? (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare size={18} className="text-primary" />
+              Чат с тренером
+            </CardTitle>
+            <CardDescription>Напишите тренеру по активной связи.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(activeRelation.trainer_user_id)}`}>
+                Написать
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <IncomingInvitesCard
         invites={incomingInvites}

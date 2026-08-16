@@ -1,12 +1,15 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BarChart3, ClipboardList, Dumbbell, Home, ListChecks, Rocket, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Dumbbell, Home, ListChecks, MessageSquare, Rocket, Users } from 'lucide-react'
 
 import { APP_BRAND_NAME, APP_PATHS } from '../../config'
 import { useAuth } from '../../hooks/use-auth'
+import { useUnreadCount } from '../../hooks/use-messages'
 import { Button } from '../ui/button'
 
 export function MainLayout() {
   const { user, logoutMutation } = useAuth()
+  const unreadQuery = useUnreadCount(Boolean(user))
+  const unreadCount = unreadQuery.data?.unread_count ?? 0
   const isTrainer = user?.role === 'trainer'
   const isClient = user?.role === 'client'
   const relationsTabLabel = isTrainer ? 'Клиенты' : 'Тренеры'
@@ -52,11 +55,27 @@ export function MainLayout() {
                 План
               </NavLink>
             ) : null}
+            <NavLink className={navItemClass} to={APP_PATHS.messages}>
+              Сообщения
+              {unreadCount > 0 ? (
+                <span className="ml-2 inline-flex min-w-5 justify-center rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">
+                  {unreadCount}
+                </span>
+              ) : null}
+            </NavLink>
             <NavLink className={navItemClass} to="/profile">
               Профиль
             </NavLink>
           </nav>
           <div className="flex items-center gap-2 md:gap-3">
+            <NavLink to={APP_PATHS.messages} className="relative rounded-lg p-2 text-secondary-foreground hover:bg-secondary/70 md:hidden">
+              <MessageSquare size={18} />
+              {unreadCount > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
+                  {unreadCount}
+                </span>
+              ) : null}
+            </NavLink>
             <span className="hidden text-xs text-secondary-foreground sm:inline">{user?.email ?? 'пользователь'}</span>
             <Button
               type="button"

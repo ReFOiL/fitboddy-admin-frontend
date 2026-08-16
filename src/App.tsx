@@ -22,6 +22,7 @@ const TrainerRelationsPage = lazy(async () => ({ default: (await import('./pages
 const TrainerClientProfilePage = lazy(async () => ({
   default: (await import('./pages/TrainerClientProfile')).TrainerClientProfilePage,
 }))
+const MessagesPage = lazy(async () => ({ default: (await import('./pages/Messages')).MessagesPage }))
 
 function App() {
   const { user } = useAuth()
@@ -122,6 +123,8 @@ function App() {
               }
             />
             <Route path={APP_PATHS.profile.slice(1)} element={<ProfilePage />} />
+            <Route path={APP_PATHS.messages.slice(1)} element={<MessagesPage />} />
+            <Route path={APP_PATHS.messageThread.slice(1)} element={<MessagesPage />} />
 
             <Route path={APP_PATHS.dashboardAlias.slice(1)} element={<Navigate to={APP_PATHS.home} replace />} />
             <Route path={APP_PATHS.relationsAlias.slice(1)} element={<Navigate to={resolveRelationsPath(role)} replace />} />

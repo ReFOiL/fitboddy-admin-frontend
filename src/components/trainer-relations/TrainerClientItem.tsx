@@ -36,6 +36,9 @@ export function TrainerClientItem({ relation, leaveDisabled, onLeave }: TrainerC
             Открыть профиль
           </Link>
         </Button>
+        <Button asChild size="sm" variant="secondary" className="w-full sm:w-auto">
+          <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(relation.client_user_id)}`}>Написать</Link>
+        </Button>
         <Button
           size="sm"
           variant="secondary"

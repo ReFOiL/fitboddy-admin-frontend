@@ -16,6 +16,8 @@ export const APP_PATHS = {
   exerciseDetails: '/exercises/:rowId',
   clientExerciseDetails: '/plan/exercises/:rowId',
   planRules: '/plan-rules',
+  messages: '/messages',
+  messageThread: '/messages/:conversationId',
   profile: '/profile',
   dashboardAlias: '/dashboard',
   relationsAlias: '/relations',
@@ -44,6 +46,10 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Тренеры',
     matches: (pathname, role) => pathname === APP_PATHS.trainers || (pathname === APP_PATHS.relationsAlias && role !== 'trainer'),
+  },
+  {
+    title: 'Сообщения',
+    matches: (pathname) => Boolean(matchPath(APP_PATHS.messageThread, pathname) || pathname === APP_PATHS.messages),
   },
   {
     title: 'Профиль',
