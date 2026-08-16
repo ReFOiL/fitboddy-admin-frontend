@@ -64,6 +64,7 @@ export function TrainerSelectionCard({
                   </div>
                   <Button
                     size="sm"
+                    className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto"
                     onClick={() => onConnect(trainer.user_id)}
                     disabled={createPending || mustCompleteQuestionnaire || isActiveRelationLoading || isActiveRelationError || hasActiveTrainer}
                   >

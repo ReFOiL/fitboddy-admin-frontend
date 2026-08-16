@@ -13,7 +13,7 @@ import {
   sendMessage,
 } from '../api'
 import { getStoredAccessToken } from '../stores/auth.store'
-import type { ChatMessage } from '../types/message'
+import type { ChatConversation, ChatMessage } from '../types/message'
 
 export function useUnreadCount(enabled: boolean) {
   return useQuery({
@@ -51,7 +51,14 @@ export function useMessageActions() {
 
   const getOrCreateMutation = useMutation({
     mutationFn: (peerUserId: string) => getOrCreateConversation({ peer_user_id: peerUserId }),
-    onSuccess: async () => {
+    onSuccess: async (conversation) => {
+      queryClient.setQueryData(queryKeys.messages.conversations, (current: ChatConversation[] | undefined) => {
+        const list = current ?? []
+        if (list.some((item) => item.conversation_id === conversation.conversation_id)) {
+          return list.map((item) => (item.conversation_id === conversation.conversation_id ? conversation : item))
+        }
+        return [conversation, ...list]
+      })
       await invalidateMessaging()
     },
     onError: () => {

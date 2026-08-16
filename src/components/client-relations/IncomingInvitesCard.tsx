@@ -57,12 +57,23 @@ export function IncomingInvitesCard({
                   <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
                     Статус: приглашение
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => onAccept(invite.relation_id)} disabled={acceptPending}>
+                  <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <Button
+                      size="sm"
+                      className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto"
+                      onClick={() => onAccept(invite.relation_id)}
+                      disabled={acceptPending}
+                    >
                       <Check size={14} />
                       Принять
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => onDecline(invite.relation_id)} disabled={declinePending}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto"
+                      onClick={() => onDecline(invite.relation_id)}
+                      disabled={declinePending}
+                    >
                       <X size={14} />
                       Отклонить
                     </Button>

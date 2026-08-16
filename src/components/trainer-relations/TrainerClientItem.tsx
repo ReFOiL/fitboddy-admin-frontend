@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Link2Off, UserCheck } from 'lucide-react'
+import { Link2Off, MessageSquare, UserCheck } from 'lucide-react'
 
 import { Button } from '../ui/button'
 import { APP_PATHS } from '../../config'
@@ -31,18 +31,21 @@ export function TrainerClientItem({ relation, leaveDisabled, onLeave }: TrainerC
       </div>
       <div className="mt-3 text-xs text-secondary-foreground">С нами с {formatRussianDate(relation.created_at)}</div>
       <div className="mt-4 grid gap-2 sm:flex sm:gap-2">
-        <Button asChild size="sm" className="w-full sm:w-auto">
+        <Button asChild size="sm" className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto">
+          <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(relation.client_user_id)}`}>
+            <MessageSquare size={14} className="shrink-0" />
+            Написать
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary" className="h-11 w-full sm:h-8 sm:w-auto">
           <Link to={`${APP_PATHS.clientProfile}?clientUserId=${encodeURIComponent(relation.client_user_id)}`}>
             Открыть профиль
           </Link>
         </Button>
-        <Button asChild size="sm" variant="secondary" className="w-full sm:w-auto">
-          <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(relation.client_user_id)}`}>Написать</Link>
-        </Button>
         <Button
           size="sm"
           variant="secondary"
-          className="w-full border border-destructive/40 text-destructive hover:bg-destructive/10 sm:w-auto"
+          className="h-11 w-full border border-destructive/40 text-destructive hover:bg-destructive/10 sm:h-8 sm:w-auto"
           onClick={() => onLeave(relation.relation_id)}
           disabled={leaveDisabled}
         >

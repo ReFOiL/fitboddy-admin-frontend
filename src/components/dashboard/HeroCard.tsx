@@ -19,8 +19,8 @@ export function HeroCard({ login, email, roleLabel }: HeroCardProps) {
               <Sparkles size={14} />
               Персональная фитнес-платформа
             </div>
-            <CardTitle className="text-2xl md:text-3xl">Добро пожаловать в Fitboddy</CardTitle>
-            <CardDescription className="max-w-2xl text-base">
+            <CardTitle className="text-xl sm:text-2xl md:text-3xl">Добро пожаловать в Fitboddy</CardTitle>
+            <CardDescription className="max-w-2xl text-sm sm:text-base">
               Все под рукой: клиенты, профили и персональные рекомендации. Фокус только на том, что важно для прогресса.
             </CardDescription>
           </div>

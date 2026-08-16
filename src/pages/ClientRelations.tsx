@@ -2,11 +2,12 @@ import { Link } from 'react-router-dom'
 import { MessageSquare } from 'lucide-react'
 
 import { useProfile } from '../hooks/use-profile'
-import { useClientRelationActions, useClientRelations, useUserIdGuard } from '../hooks'
+import { useClientRelationActions, useClientRelations, useConversations, useUnreadCount, useUserIdGuard } from '../hooks'
 import { ClientProfileRequiredCard, IncomingInvitesCard, TrainerSelectionCard } from '../components/client-relations'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { APP_PATHS } from '../config'
+import { formatLastMessagePreview } from '../lib/messages-formatters'
 import { isProfileCompleted } from '../lib/profile-completion'
 
 export function ClientRelationsPage() {
@@ -22,6 +23,15 @@ export function ClientRelationsPage() {
   const mustCompleteQuestionnaire = !questionnaireReady
   const activeRelation = clientActiveRelationQuery.data
   const hasActiveTrainer = Boolean(activeRelation?.trainer_user_id)
+  const unreadQuery = useUnreadCount(hasActiveTrainer)
+  const conversationsQuery = useConversations(hasActiveTrainer, 15_000)
+  const trainerConversation = (conversationsQuery.data ?? []).find(
+    (item) => item.trainer_user_id === activeRelation?.trainer_user_id,
+  )
+  const unreadCount = trainerConversation?.unread_count ?? unreadQuery.data?.unread_count ?? 0
+  const lastPreview = trainerConversation
+    ? formatLastMessagePreview(trainerConversation.last_message, user?.user_id)
+    : null
   const { acceptInvite, declineInvite, connectTrainer } = useClientRelationActions({
     withUserId,
     acceptRelationMutation,
@@ -34,18 +44,32 @@ export function ClientRelationsPage() {
       {mustCompleteQuestionnaire ? <ClientProfileRequiredCard /> : null}
 
       {activeRelation?.trainer_user_id ? (
-        <Card className="border-primary/20">
+        <Card className={unreadCount > 0 ? 'border-primary/50 bg-primary/5' : 'border-primary/20'}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare size={18} className="text-primary" />
-              Чат с тренером
+            <CardTitle className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2">
+                <MessageSquare size={18} className="shrink-0 text-primary" />
+                <span className="truncate">{activeRelation.trainer_login?.trim() || 'Ваш тренер'}</span>
+              </span>
+              {unreadCount > 0 ? (
+                <span className="inline-flex min-w-5 shrink-0 justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                  {unreadCount}
+                </span>
+              ) : null}
             </CardTitle>
-            <CardDescription>Напишите тренеру по активной связи.</CardDescription>
+            <CardDescription>
+              {unreadCount > 0
+                ? lastPreview && lastPreview !== 'Нет сообщений'
+                  ? lastPreview
+                  : `Новых сообщений: ${unreadCount}`
+                : 'Напишите тренеру — переписка откроется сразу.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild>
+            <Button asChild className="h-12 w-full gap-2 sm:h-10 sm:w-auto">
               <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(activeRelation.trainer_user_id)}`}>
-                Написать
+                <MessageSquare size={16} />
+                {unreadCount > 0 ? 'Открыть сообщения' : 'Написать тренеру'}
               </Link>
             </Button>
           </CardContent>
