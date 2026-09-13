@@ -21,6 +21,8 @@ const DETAIL_TRANSLATIONS: Record<string, string> = {
   'no exercises matched profile constraints': 'Не удалось подобрать упражнения под указанные условия.',
   'failed to build workout schedule': 'Не удалось составить расписание тренировок.',
   'working_weight_kg must be > 0': 'Рабочий вес должен быть больше нуля.',
+  'photo is too large (max 15MB)': 'Фото слишком большое. Максимум 15 МБ.',
+  'invalid photo format (allowed: .jpg, .jpeg, .png, .webp)': 'Можно загрузить JPG, PNG или WEBP.',
 }
 
 function normalizeDetail(detail: string): string {

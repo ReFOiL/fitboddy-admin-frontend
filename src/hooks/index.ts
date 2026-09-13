@@ -1,3 +1,4 @@
+export { useExercises, usePlatformExercisePhotos } from './use-exercises'
 export { useAuth } from './use-auth'
 export { useConversationMessages, useConversations, useMessageActions, useMessagingSocket, useUnreadCount } from './use-messages'
 export { useClientRelationActions, useTrainerRelationActions } from './use-relation-actions'
