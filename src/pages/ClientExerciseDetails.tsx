@@ -3,6 +3,7 @@ import { ArrowLeft, Dumbbell, Video } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import { getPlatformExercise, getTrainerExercise, listMuscles, queryKeys } from '../api'
+import { ExercisePhotoSlots } from '../components/exercises/ExercisePhotoSlots'
 import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -157,6 +158,8 @@ export function ClientExerciseDetailsPage() {
                   <span className="text-sm text-secondary-foreground">Видео пока не загружено.</span>
                 )}
               </div>
+
+              <ExercisePhotoSlots exercise={exercise} />
             </>
           ) : null}
         </CardContent>

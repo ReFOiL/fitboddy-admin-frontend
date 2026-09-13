@@ -27,6 +27,8 @@ export type TrainerExercise = {
   scheme_steps: number[]
   is_active: boolean
   video_url: string | null
+  start_image_url: string | null
+  end_image_url: string | null
   created_at: string
   updated_at: string
   primary_muscles: string[]
@@ -56,6 +58,21 @@ export type ExerciseVideoUploadResponse = {
   trainer_user_id: string
   row_id: string
   video_url: string
+}
+
+export type ExercisePhotoPosition = 'start' | 'end'
+
+export type ExercisePhotoUploadResponse = {
+  trainer_user_id: string
+  row_id: string
+  position: ExercisePhotoPosition
+  image_url: string
+}
+
+export type PlatformExercisePhotoUploadResponse = {
+  row_id: string
+  position: ExercisePhotoPosition
+  image_url: string
 }
 
 export type ExerciseLoadScope = 'trainer' | 'platform'
@@ -89,6 +106,8 @@ export type PlatformExercise = {
   scheme_steps: number[]
   is_active: boolean
   video_url: string | null
+  start_image_url: string | null
+  end_image_url: string | null
   created_at: string
   updated_at: string
   primary_muscles: string[]

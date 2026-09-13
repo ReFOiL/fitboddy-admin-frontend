@@ -4,15 +4,20 @@ import { toast } from 'sonner'
 import {
   addTrainerExercise,
   archiveTrainerExercise,
+  deleteAdminPlatformExercisePhoto,
+  deleteTrainerExercisePhoto,
   deleteTrainerExerciseVideo,
   listTrainerExercises,
   queryKeys,
   restoreTrainerExercise,
   updateTrainerExercise,
+  uploadAdminPlatformExercisePhoto,
+  uploadTrainerExercisePhoto,
   uploadTrainerExerciseVideo,
 } from '../api'
+import { photoUrlField } from '../lib/exercise-photos'
 import { getUserErrorMessage } from '../lib/user-error-message'
-import type { TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
+import type { ExercisePhotoPosition, PlatformExercise, TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
 
 export function useExercises(params: { trainerUserId: string; includeArchived: boolean }) {
   const { trainerUserId, includeArchived } = params
@@ -67,20 +72,36 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     writeCatalog(true)
   }
 
-  const patchExerciseVideoInCatalogCache = (rowId: string, videoUrl: string | null) => {
+  const patchExerciseInCatalogCache = (rowId: string, patch: Partial<TrainerExercise>) => {
     const writeCatalog = (showArchived: boolean) => {
       queryClient.setQueryData<TrainerExercise[]>(
         queryKeys.exercises.trainerCatalog(trainerUserId, showArchived),
         (current) => {
           if (!Array.isArray(current)) return current
           return current.map((exercise) =>
-            exercise.row_id === rowId ? { ...exercise, video_url: videoUrl } : exercise,
+            exercise.row_id === rowId ? { ...exercise, ...patch } : exercise,
           )
         },
       )
     }
     writeCatalog(false)
     writeCatalog(true)
+    queryClient.setQueryData<TrainerExercise>(
+      queryKeys.exercises.trainerExercise(trainerUserId, rowId),
+      (current) => (current ? { ...current, ...patch } : current),
+    )
+  }
+
+  const patchExerciseVideoInCatalogCache = (rowId: string, videoUrl: string | null) => {
+    patchExerciseInCatalogCache(rowId, { video_url: videoUrl })
+  }
+
+  const patchExercisePhotoInCatalogCache = (
+    rowId: string,
+    position: ExercisePhotoPosition,
+    imageUrl: string | null,
+  ) => {
+    patchExerciseInCatalogCache(rowId, { [photoUrlField(position)]: imageUrl })
   }
 
   const markExerciseArchivedInCatalogCache = (rowId: string) => {
@@ -193,6 +214,28 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось удалить видео.')),
   })
 
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition; file: File }) =>
+      uploadTrainerExercisePhoto(trainerUserId, params.rowId, params.position, params.file),
+    onSuccess: (payload) => {
+      patchExercisePhotoInCatalogCache(payload.row_id, payload.position, payload.image_url)
+      invalidateCatalog()
+      toast.success('Фото загружено')
+    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось загрузить фото.')),
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition }) =>
+      deleteTrainerExercisePhoto(trainerUserId, params.rowId, params.position),
+    onSuccess: (_, params) => {
+      patchExercisePhotoInCatalogCache(params.rowId, params.position, null)
+      invalidateCatalog()
+      toast.success('Фото удалено')
+    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось удалить фото.')),
+  })
+
   return {
     trainerCatalogQuery,
     addExerciseMutation,
@@ -201,5 +244,61 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     restoreExerciseMutation,
     uploadVideoMutation,
     deleteVideoMutation,
+    uploadPhotoMutation,
+    deletePhotoMutation,
+  }
+}
+
+export function usePlatformExercisePhotos() {
+  const queryClient = useQueryClient()
+
+  const invalidatePlatformExercises = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.platformCatalog })
+    void queryClient.invalidateQueries({ queryKey: ['exercises', 'platform-exercise'] })
+  }
+
+  const patchPlatformExercisePhoto = (
+    rowId: string,
+    position: ExercisePhotoPosition,
+    imageUrl: string | null,
+  ) => {
+    const field = photoUrlField(position)
+    queryClient.setQueryData<PlatformExercise>(
+      queryKeys.exercises.platformExercise(rowId),
+      (current) => (current ? { ...current, [field]: imageUrl } : current),
+    )
+    queryClient.setQueryData<PlatformExercise[]>(queryKeys.exercises.platformCatalog, (current) => {
+      if (!Array.isArray(current)) return current
+      return current.map((exercise) =>
+        exercise.row_id === rowId ? { ...exercise, [field]: imageUrl } : exercise,
+      )
+    })
+  }
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition; file: File }) =>
+      uploadAdminPlatformExercisePhoto(params.rowId, params.position, params.file),
+    onSuccess: (payload) => {
+      patchPlatformExercisePhoto(payload.row_id, payload.position, payload.image_url)
+      invalidatePlatformExercises()
+      toast.success('Фото загружено')
+    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось загрузить фото.')),
+  })
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition }) =>
+      deleteAdminPlatformExercisePhoto(params.rowId, params.position),
+    onSuccess: (_, params) => {
+      patchPlatformExercisePhoto(params.rowId, params.position, null)
+      invalidatePlatformExercises()
+      toast.success('Фото удалено')
+    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось удалить фото.')),
+  })
+
+  return {
+    uploadPhotoMutation,
+    deletePhotoMutation,
   }
 }

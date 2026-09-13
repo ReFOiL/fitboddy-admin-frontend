@@ -1,11 +1,15 @@
-import { apiClient } from './client'
+import { adminPlatformExercisePhotoPath, trainerExercisePhotoPath } from '../lib/exercise-photos'
 import type {
+  ExercisePhotoPosition,
+  ExercisePhotoUploadResponse,
   ExerciseVideoUploadResponse,
   Muscle,
   PlatformExercise,
+  PlatformExercisePhotoUploadResponse,
   TrainerExercise,
   UpsertTrainerExerciseRequest,
 } from '../types/exercise'
+import { apiClient } from './client'
 
 export async function listMuscles(): Promise<Muscle[]> {
   const { data } = await apiClient.get<Muscle[]>('/api/v1/muscles')
@@ -96,4 +100,51 @@ export async function deleteTrainerExerciseVideo(trainerUserId: string, rowId: s
   await apiClient.delete(
     `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/exercises/${encodeURIComponent(rowId)}/video`,
   )
+}
+
+async function uploadExercisePhoto<T>(url: string, file: File): Promise<T> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await apiClient.post<T>(url, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function uploadTrainerExercisePhoto(
+  trainerUserId: string,
+  rowId: string,
+  position: ExercisePhotoPosition,
+  file: File,
+): Promise<ExercisePhotoUploadResponse> {
+  return uploadExercisePhoto<ExercisePhotoUploadResponse>(
+    trainerExercisePhotoPath(trainerUserId, rowId, position),
+    file,
+  )
+}
+
+export async function deleteTrainerExercisePhoto(
+  trainerUserId: string,
+  rowId: string,
+  position: ExercisePhotoPosition,
+): Promise<void> {
+  await apiClient.delete(trainerExercisePhotoPath(trainerUserId, rowId, position))
+}
+
+export async function uploadAdminPlatformExercisePhoto(
+  rowId: string,
+  position: ExercisePhotoPosition,
+  file: File,
+): Promise<PlatformExercisePhotoUploadResponse> {
+  return uploadExercisePhoto<PlatformExercisePhotoUploadResponse>(
+    adminPlatformExercisePhotoPath(rowId, position),
+    file,
+  )
+}
+
+export async function deleteAdminPlatformExercisePhoto(
+  rowId: string,
+  position: ExercisePhotoPosition,
+): Promise<void> {
+  await apiClient.delete(adminPlatformExercisePhotoPath(rowId, position))
 }

@@ -7,6 +7,7 @@ import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { listMuscles } from '../api/exercises'
+import { ExercisePhotoSlots } from '../components/exercises/ExercisePhotoSlots'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
@@ -154,6 +155,8 @@ export function ExerciseDetailsPage() {
     restoreExerciseMutation,
     uploadVideoMutation,
     deleteVideoMutation,
+    uploadPhotoMutation,
+    deletePhotoMutation,
   } = useExercises({
     trainerUserId,
     includeArchived: true,
@@ -239,6 +242,16 @@ export function ExerciseDetailsPage() {
     restoreExerciseMutation.isPending ||
     !form.formState.isDirty
   const isVideoBusy = uploadVideoMutation.isPending || deleteVideoMutation.isPending
+  const photoBusyPosition = uploadPhotoMutation.isPending
+    ? uploadPhotoMutation.variables?.position ?? null
+    : deletePhotoMutation.isPending
+      ? deletePhotoMutation.variables?.position ?? null
+      : null
+  const photoBusyAction = uploadPhotoMutation.isPending
+    ? 'upload'
+    : deletePhotoMutation.isPending
+      ? 'delete'
+      : null
   const equipmentDisplayValue = watchedEquipment ?? normalizeEquipment(exercise?.equipment)
   const stimulusDisplayValue =
     (watchedIsCardio ?? normalizeIsCardio(exercise?.is_cardio)) ? 'cardio' : 'strength'
@@ -694,6 +707,21 @@ export function ExerciseDetailsPage() {
                 <span className="text-sm text-secondary-foreground">Видео ещё не загружено.</span>
               ) : null}
             </div>
+          ) : null}
+
+          {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError && exercise ? (
+            <ExercisePhotoSlots
+              exercise={exercise}
+              editable
+              busyPosition={photoBusyPosition}
+              busyAction={photoBusyAction}
+              onUpload={(position, file) => {
+                uploadPhotoMutation.mutate({ rowId: exercise.row_id, position, file })
+              }}
+              onDelete={(position) => {
+                deletePhotoMutation.mutate({ rowId: exercise.row_id, position })
+              }}
+            />
           ) : null}
         </CardContent>
       </Card>
