@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { AxiosError } from 'axios'
 import { MemoryRouter } from 'react-router-dom'
 
 import {
@@ -8,7 +9,13 @@ import {
 
 const mocks = vi.hoisted(() => ({
   mutate: vi.fn(),
-  saveDraft: vi.fn(),
+  profileQuery: {
+    data: undefined as Record<string, unknown> | undefined,
+    error: undefined as unknown,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  },
 }))
 
 vi.mock('../src/hooks/use-auth', () => ({
@@ -17,23 +24,7 @@ vi.mock('../src/hooks/use-auth', () => ({
 
 vi.mock('../src/hooks/use-profile', () => ({
   useProfile: () => ({
-    profileQuery: {
-      data: {
-        user_id: 'client-1',
-        full_name: '',
-        city: null,
-        bio: null,
-        age: null,
-        gender: null,
-        goal: null,
-        experience_level: null,
-        workout_location: null,
-        unavailable_equipment: ['barbell'],
-        limitations: null,
-        medical_notes: null,
-      },
-      isLoading: false,
-    },
+    profileQuery: mocks.profileQuery,
     metaQuery: {
       data: {
         goals: [{ value: 'weight_loss', label: 'Снижение веса' }],
@@ -45,15 +36,30 @@ vi.mock('../src/hooks/use-profile', () => ({
       isLoading: false,
     },
     draftMutation: {
-      mutateAsync: mocks.saveDraft,
+      mutateAsync: vi.fn(),
       isPending: false,
       isError: false,
     },
-    upsertMutation: { mutate: mocks.mutate, isPending: false },
+    upsertMutation: { mutate: mocks.mutate, isPending: false, isError: false },
   }),
 }))
 
 const storageKey = `${PROFILE_ONBOARDING_STORAGE_PREFIX}client-1`
+
+const existingProfile = {
+  user_id: 'client-1',
+  full_name: '',
+  city: null,
+  bio: null,
+  age: null,
+  gender: null,
+  goal: null,
+  experience_level: null,
+  workout_location: null,
+  unavailable_equipment: ['barbell'],
+  limitations: null,
+  medical_notes: null,
+}
 
 function renderPage() {
   return render(
@@ -67,8 +73,10 @@ describe('ProfileOnboardingPage', () => {
   beforeEach(() => {
     sessionStorage.clear()
     mocks.mutate.mockReset()
-    mocks.saveDraft.mockReset()
-    mocks.saveDraft.mockResolvedValue({})
+    mocks.profileQuery.data = existingProfile
+    mocks.profileQuery.error = undefined
+    mocks.profileQuery.isLoading = false
+    mocks.profileQuery.isError = false
     vi.stubGlobal('scrollTo', vi.fn())
   })
 
@@ -81,6 +89,19 @@ describe('ProfileOnboardingPage', () => {
     renderPage()
     expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
     expect(screen.getByText(`Шаг ${step} из 3`)).toBeInTheDocument()
+  })
+
+  it('не показывает ошибку загрузки, если профиля ещё нет (404)', () => {
+    const notFound = new AxiosError('Not Found')
+    notFound.response = { status: 404, data: {}, statusText: 'Not Found', headers: {}, config: {} as never }
+    mocks.profileQuery.data = undefined
+    mocks.profileQuery.isError = true
+    mocks.profileQuery.error = notFound
+
+    renderPage()
+
+    expect(screen.queryByText('Не удалось загрузить профиль')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Как тебя зовут?' })).toBeInTheDocument()
   })
 
   it('восстанавливает текущий шаг и draft после refresh', async () => {
@@ -108,7 +129,7 @@ describe('ProfileOnboardingPage', () => {
     expect(screen.getByLabelText('Возраст')).toHaveValue(27)
   })
 
-  it('сохраняет первый шаг как draft без финального PUT', async () => {
+  it('сохраняет первый шаг локально без финального PUT', async () => {
     mocks.mutate.mockImplementation((_payload, options) => options?.onSuccess?.())
     renderPage()
 
@@ -116,8 +137,11 @@ describe('ProfileOnboardingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Продолжить/ }))
 
     await waitFor(() => expect(screen.getByText('Шаг 2 из 3')).toBeInTheDocument())
-    expect(mocks.saveDraft).toHaveBeenCalledWith({ full_name: 'Анна' })
     expect(mocks.mutate).not.toHaveBeenCalled()
+    expect(JSON.parse(sessionStorage.getItem(storageKey) ?? '{}')).toMatchObject({
+      step: 2,
+      draft: { full_name: 'Анна' },
+    })
   })
 
   it('отправляет полную анкету только на последнем шаге', async () => {

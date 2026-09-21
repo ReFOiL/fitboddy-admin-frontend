@@ -13,6 +13,7 @@ import { Label } from '../components/ui/label'
 import { StyledSelect } from '../components/ui/styled-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { AlertBanner } from '../components/shared'
+import { APP_PATHS } from '../config'
 
 const loginSchema = z.object({
   email_or_login: z
@@ -221,7 +222,11 @@ export function LoginPage() {
                         password: values.password,
                       },
                       {
-                        onSuccess: () => navigate('/home', { replace: true }),
+                        onSuccess: () =>
+                          navigate(
+                            values.role === 'client' ? APP_PATHS.profileOnboarding : APP_PATHS.home,
+                            { replace: true },
+                          ),
                       },
                     )
                   })}

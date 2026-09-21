@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import axios from 'axios'
 import { ArrowLeft, Check, Dumbbell, UserRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
@@ -59,7 +60,7 @@ export function ProfileOnboardingPage() {
   const [step, setStep] = useState<WizardStep>(initialState.step)
   const [completed, setCompleted] = useState(initialState.completed === true)
   const profileHydrated = useRef(false)
-  const { profileQuery, metaQuery, draftMutation, upsertMutation } = useProfile(userId)
+  const { profileQuery, metaQuery, upsertMutation } = useProfile(userId)
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -148,19 +149,6 @@ export function ProfileOnboardingPage() {
     const draft = form.getValues()
 
     if (step < 3) {
-      const payload =
-        step === 1
-          ? { full_name: (draft.full_name ?? '').trim() || null }
-          : {
-              goal: draft.goal,
-              experience_level: draft.experience_level,
-              workout_location: draft.workout_location,
-            }
-      try {
-        await draftMutation.mutateAsync(payload)
-      } catch {
-        return
-      }
       const nextStep = (step + 1) as WizardStep
       setStep(nextStep)
       saveStoredState(storageKey, { step: nextStep, draft })
@@ -179,6 +167,9 @@ export function ProfileOnboardingPage() {
       },
     })
   }
+
+  const loadErrorStatus = axios.isAxiosError(profileQuery.error) ? profileQuery.error.response?.status : undefined
+  const isNotFound = loadErrorStatus === 404
 
   if (profileQuery.isLoading && !profileQuery.data) {
     return <Skeleton className="mx-auto h-80 w-full max-w-lg rounded-2xl" />
@@ -208,7 +199,7 @@ export function ProfileOnboardingPage() {
 
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
-      {profileQuery.isError ? (
+      {profileQuery.isError && !isNotFound ? (
         <QueryState
           isError
           errorTitle="Не удалось загрузить профиль"
@@ -217,7 +208,7 @@ export function ProfileOnboardingPage() {
           {null}
         </QueryState>
       ) : null}
-      {draftMutation.isError || upsertMutation.isError ? (
+      {upsertMutation.isError ? (
         <AlertBanner tone="destructive" title="Не удалось сохранить ответы" role="alert">
           Проверьте соединение и попробуйте ещё раз.
         </AlertBanner>
@@ -379,9 +370,9 @@ export function ProfileOnboardingPage() {
                 type="submit"
                 size="lg"
                 className="h-12 flex-1"
-                disabled={draftMutation.isPending || upsertMutation.isPending || !userId}
+                disabled={upsertMutation.isPending || !userId}
               >
-                {draftMutation.isPending || upsertMutation.isPending
+                {upsertMutation.isPending
                   ? 'Сохраняем…'
                   : step === 3
                     ? 'Завершить'
