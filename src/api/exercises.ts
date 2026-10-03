@@ -1,4 +1,8 @@
-import { adminPlatformExercisePhotoPath, trainerExercisePhotoPath } from '../lib/exercise-photos'
+import {
+  adminPlatformExercisePhotoPath,
+  EXERCISE_PHOTO_UPLOAD_TIMEOUT_MS,
+  trainerExercisePhotoPath,
+} from '../lib/exercise-photos'
 import type {
   ExercisePhotoPosition,
   ExercisePhotoUploadResponse,
@@ -102,11 +106,24 @@ export async function deleteTrainerExerciseVideo(trainerUserId: string, rowId: s
   )
 }
 
-async function uploadExercisePhoto<T>(url: string, file: File): Promise<T> {
+async function uploadExercisePhoto<T>(
+  url: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<T> {
   const formData = new FormData()
   formData.append('file', file)
+  let lastPercent = -1
   const { data } = await apiClient.post<T>(url, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: EXERCISE_PHOTO_UPLOAD_TIMEOUT_MS,
+    onUploadProgress: (event) => {
+      if (!onProgress || !event.total) return
+      const percent = Math.min(100, Math.round((event.loaded / event.total) * 100))
+      if (percent === lastPercent) return
+      lastPercent = percent
+      onProgress(percent)
+    },
   })
   return data
 }
@@ -116,10 +133,12 @@ export async function uploadTrainerExercisePhoto(
   rowId: string,
   position: ExercisePhotoPosition,
   file: File,
+  onProgress?: (percent: number) => void,
 ): Promise<ExercisePhotoUploadResponse> {
   return uploadExercisePhoto<ExercisePhotoUploadResponse>(
     trainerExercisePhotoPath(trainerUserId, rowId, position),
     file,
+    onProgress,
   )
 }
 

@@ -1,27 +1,27 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 
 import {
   addTrainerExercise,
   archiveTrainerExercise,
-  deleteAdminPlatformExercisePhoto,
   deleteTrainerExercisePhoto,
   deleteTrainerExerciseVideo,
   listTrainerExercises,
   queryKeys,
   restoreTrainerExercise,
   updateTrainerExercise,
-  uploadAdminPlatformExercisePhoto,
   uploadTrainerExercisePhoto,
   uploadTrainerExerciseVideo,
 } from '../api'
 import { photoUrlField } from '../lib/exercise-photos'
 import { getUserErrorMessage } from '../lib/user-error-message'
-import type { ExercisePhotoPosition, PlatformExercise, TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
+import type { ExercisePhotoPosition, TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
 
 export function useExercises(params: { trainerUserId: string; includeArchived: boolean }) {
   const { trainerUserId, includeArchived } = params
   const queryClient = useQueryClient()
+  const [photoUploadProgress, setPhotoUploadProgress] = useState<number | null>(null)
 
   const trainerCatalogQuery = useQuery({
     queryKey: queryKeys.exercises.trainerCatalog(trainerUserId, includeArchived),
@@ -215,14 +215,23 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   })
 
   const uploadPhotoMutation = useMutation({
-    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition; file: File }) =>
-      uploadTrainerExercisePhoto(trainerUserId, params.rowId, params.position, params.file),
+    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition; file: File }) => {
+      setPhotoUploadProgress(0)
+      return uploadTrainerExercisePhoto(
+        trainerUserId,
+        params.rowId,
+        params.position,
+        params.file,
+        setPhotoUploadProgress,
+      )
+    },
     onSuccess: (payload) => {
       patchExercisePhotoInCatalogCache(payload.row_id, payload.position, payload.image_url)
       invalidateCatalog()
       toast.success('Фото загружено')
     },
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось загрузить фото.')),
+    onSettled: () => setPhotoUploadProgress(null),
   })
 
   const deletePhotoMutation = useMutation({
@@ -246,59 +255,6 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     deleteVideoMutation,
     uploadPhotoMutation,
     deletePhotoMutation,
-  }
-}
-
-export function usePlatformExercisePhotos() {
-  const queryClient = useQueryClient()
-
-  const invalidatePlatformExercises = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.exercises.platformCatalog })
-    void queryClient.invalidateQueries({ queryKey: ['exercises', 'platform-exercise'] })
-  }
-
-  const patchPlatformExercisePhoto = (
-    rowId: string,
-    position: ExercisePhotoPosition,
-    imageUrl: string | null,
-  ) => {
-    const field = photoUrlField(position)
-    queryClient.setQueryData<PlatformExercise>(
-      queryKeys.exercises.platformExercise(rowId),
-      (current) => (current ? { ...current, [field]: imageUrl } : current),
-    )
-    queryClient.setQueryData<PlatformExercise[]>(queryKeys.exercises.platformCatalog, (current) => {
-      if (!Array.isArray(current)) return current
-      return current.map((exercise) =>
-        exercise.row_id === rowId ? { ...exercise, [field]: imageUrl } : exercise,
-      )
-    })
-  }
-
-  const uploadPhotoMutation = useMutation({
-    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition; file: File }) =>
-      uploadAdminPlatformExercisePhoto(params.rowId, params.position, params.file),
-    onSuccess: (payload) => {
-      patchPlatformExercisePhoto(payload.row_id, payload.position, payload.image_url)
-      invalidatePlatformExercises()
-      toast.success('Фото загружено')
-    },
-    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось загрузить фото.')),
-  })
-
-  const deletePhotoMutation = useMutation({
-    mutationFn: async (params: { rowId: string; position: ExercisePhotoPosition }) =>
-      deleteAdminPlatformExercisePhoto(params.rowId, params.position),
-    onSuccess: (_, params) => {
-      patchPlatformExercisePhoto(params.rowId, params.position, null)
-      invalidatePlatformExercises()
-      toast.success('Фото удалено')
-    },
-    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось удалить фото.')),
-  })
-
-  return {
-    uploadPhotoMutation,
-    deletePhotoMutation,
+    photoUploadProgress,
   }
 }
