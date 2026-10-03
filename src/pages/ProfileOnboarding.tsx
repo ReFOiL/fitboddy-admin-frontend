@@ -286,7 +286,7 @@ export function ProfileOnboardingPage() {
                 />
                 <ProfileSelectField
                   id="onboarding_level"
-                  label="Уровень"
+                  label="Уровень вашей подготовки"
                   value={level}
                   options={metaQuery.data?.levels ?? []}
                   placeholder="Выбери уровень..."
