@@ -2,9 +2,16 @@ import { describe, expect, it } from 'vitest'
 
 import {
   adminPlatformExercisePhotoPath,
+  EXERCISE_PHOTO_ACCEPT,
+  EXERCISE_PHOTO_EXTENSIONS,
+  EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
   EXERCISE_PHOTO_MAX_BYTES,
+  EXERCISE_PHOTO_MIME_TYPES,
+  EXERCISE_PHOTO_QUERY_OPTIONS,
+  EXERCISE_PHOTO_TOO_LARGE_MESSAGE,
   getExercisePhotoUrl,
   photoUrlField,
+  resolveExerciseMediaUrl,
   trainerExercisePhotoPath,
   validateExercisePhotoFile,
 } from '../src/lib/exercise-photos'
@@ -36,31 +43,82 @@ describe('exercise photo helpers', () => {
     expect(photoUrlField('end')).toBe('end_image_url')
   })
 
-  it('reads start and end urls from exercise payloads', () => {
-    expect(
-      getExercisePhotoUrl({ start_image_url: '/media/start.jpg', end_image_url: '/media/end.png' }, 'start'),
-    ).toBe('/media/start.jpg')
+  it('reads stored urls without rewriting the signature', () => {
+    const signed = '/api/v1/trainers/media/start?exp=1710000000&sig=ab+cd%2Fef'
+    expect(getExercisePhotoUrl({ start_image_url: signed, end_image_url: '/media/end.png' }, 'start')).toBe(signed)
     expect(getExercisePhotoUrl({ start_image_url: null, end_image_url: '  ' }, 'end')).toBeNull()
     expect(getExercisePhotoUrl(undefined, 'start')).toBeNull()
   })
 
-  it('accepts jpg/jpeg/png/webp up to 15MB', () => {
+  it('resolves relative media urls against the API base and leaves absolute urls untouched', () => {
+    const signed = '/api/v1/trainers/media/start?exp=1710000000&sig=ab+cd%2Fef%3D'
+    expect(resolveExerciseMediaUrl(signed, 'https://api.example.test')).toBe(
+      `https://api.example.test${signed}`,
+    )
+    expect(resolveExerciseMediaUrl(signed, 'https://api.example.test/')).toBe(
+      `https://api.example.test${signed}`,
+    )
+    expect(resolveExerciseMediaUrl(signed, 'https://api.example.test/gateway')).toBe(
+      `https://api.example.test/gateway${signed}`,
+    )
+    expect(resolveExerciseMediaUrl(`  ${signed}  `, 'https://api.example.test')).toBe(
+      `https://api.example.test${signed}`,
+    )
+    expect(resolveExerciseMediaUrl('media/start.jpg?sig=1', 'https://api.example.test')).toBe(
+      'https://api.example.test/media/start.jpg?sig=1',
+    )
+    expect(resolveExerciseMediaUrl(signed, '')).toBe(signed)
+    expect(resolveExerciseMediaUrl(signed, '   ')).toBe(signed)
+    expect(resolveExerciseMediaUrl('https://cdn.example.test/a.jpg?sig=ab+cd', 'https://api.example.test')).toBe(
+      'https://cdn.example.test/a.jpg?sig=ab+cd',
+    )
+    expect(resolveExerciseMediaUrl('//cdn.example.test/a.jpg?sig=1', 'https://api.example.test')).toBe(
+      '//cdn.example.test/a.jpg?sig=1',
+    )
+    expect(resolveExerciseMediaUrl('data:image/png;base64,aaaa', 'https://api.example.test')).toBe(
+      'data:image/png;base64,aaaa',
+    )
+    expect(resolveExerciseMediaUrl(null, 'https://api.example.test')).toBeNull()
+    expect(resolveExerciseMediaUrl('   ', 'https://api.example.test')).toBeNull()
+  })
+
+  it('shares one photo contract for extensions, mime types and size', () => {
+    expect(EXERCISE_PHOTO_EXTENSIONS).toEqual(['.jpg', '.jpeg', '.png', '.webp'])
+    expect(EXERCISE_PHOTO_MIME_TYPES).toEqual(['image/jpeg', 'image/png', 'image/webp'])
+    expect(EXERCISE_PHOTO_MAX_BYTES).toBe(15 * 1024 * 1024)
+    expect(EXERCISE_PHOTO_ACCEPT).toBe('.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp')
+    expect(EXERCISE_PHOTO_QUERY_OPTIONS).toEqual({
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+    })
+  })
+
+  it('accepts jpg/jpeg/png/webp up to 15MB when extension and mime are both allowed', () => {
     expect(validateExercisePhotoFile(photoFile('start.jpg'))).toBeNull()
     expect(validateExercisePhotoFile(photoFile('start.JPEG', { type: 'image/jpeg' }))).toBeNull()
     expect(validateExercisePhotoFile(photoFile('end.png', { type: 'image/png' }))).toBeNull()
     expect(validateExercisePhotoFile(photoFile('end.webp', { type: 'image/webp' }))).toBeNull()
     expect(validateExercisePhotoFile(photoFile('legacy.jpg', { type: '' }))).toBeNull()
+    expect(validateExercisePhotoFile(photoFile('start.jpg', { size: EXERCISE_PHOTO_MAX_BYTES }))).toBeNull()
+    expect(validateExercisePhotoFile(photoFile('start.jpg', { type: 'image/png' }))).toBeNull()
   })
 
   it('rejects oversized or unsupported files with a friendly message', () => {
     expect(validateExercisePhotoFile(photoFile('start.jpg', { size: EXERCISE_PHOTO_MAX_BYTES + 1 }))).toBe(
-      'Фото слишком большое. Максимум 15 МБ.',
+      EXERCISE_PHOTO_TOO_LARGE_MESSAGE,
     )
     expect(validateExercisePhotoFile(photoFile('clip.mp4', { type: 'video/mp4' }))).toBe(
-      'Можно загрузить JPG, PNG или WEBP.',
+      EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
     )
     expect(validateExercisePhotoFile(photoFile('notes.gif', { type: 'image/gif' }))).toBe(
-      'Можно загрузить JPG, PNG или WEBP.',
+      EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
+    )
+    expect(validateExercisePhotoFile(photoFile('start.jpg', { type: 'image/gif' }))).toBe(
+      EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
+    )
+    expect(validateExercisePhotoFile(photoFile('start.gif', { type: 'image/jpeg' }))).toBe(
+      EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
     )
   })
 
@@ -74,11 +132,9 @@ describe('exercise photo helpers', () => {
       response: { status: 422, data: { detail: 'invalid photo format (allowed: .jpg, .jpeg, .png, .webp)' } },
     }
 
-    expect(getUserErrorMessage(tooLarge, 'Не удалось загрузить фото.')).toBe(
-      'Фото слишком большое. Максимум 15 МБ.',
-    )
+    expect(getUserErrorMessage(tooLarge, 'Не удалось загрузить фото.')).toBe(EXERCISE_PHOTO_TOO_LARGE_MESSAGE)
     expect(getUserErrorMessage(badFormat, 'Не удалось загрузить фото.')).toBe(
-      'Можно загрузить JPG, PNG или WEBP.',
+      EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
     )
   })
 })

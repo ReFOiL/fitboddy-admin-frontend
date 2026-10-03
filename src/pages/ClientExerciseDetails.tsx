@@ -11,6 +11,7 @@ import { Skeleton } from '../components/ui/skeleton'
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
+import { EXERCISE_PHOTO_QUERY_OPTIONS } from '../lib/exercise-photos'
 
 export function ClientExerciseDetailsPage() {
   const { user } = useAuth()
@@ -26,6 +27,7 @@ export function ClientExerciseDetailsPage() {
     queryFn: async () => getTrainerExercise(trainerUserId, rowId ?? ''),
     enabled: Boolean(isClient && trainerUserId && rowId),
     retry: false,
+    ...EXERCISE_PHOTO_QUERY_OPTIONS,
   })
 
   const platformExerciseQuery = useQuery({
@@ -33,6 +35,7 @@ export function ClientExerciseDetailsPage() {
     queryFn: async () => getPlatformExercise(rowId ?? ''),
     enabled: Boolean(isClient && isPlatform && rowId),
     retry: false,
+    ...EXERCISE_PHOTO_QUERY_OPTIONS,
   })
 
   const exerciseQuery = isPlatform ? platformExerciseQuery : trainerExerciseQuery
@@ -159,7 +162,12 @@ export function ClientExerciseDetailsPage() {
                 )}
               </div>
 
-              <ExercisePhotoSlots exercise={exercise} />
+              <ExercisePhotoSlots
+                exercise={exercise}
+                onImageError={() => {
+                  void exerciseQuery.refetch()
+                }}
+              />
             </>
           ) : null}
         </CardContent>

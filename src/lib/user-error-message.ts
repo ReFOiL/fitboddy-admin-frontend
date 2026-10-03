@@ -1,5 +1,10 @@
 import axios from 'axios'
 
+import {
+  EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
+  EXERCISE_PHOTO_TOO_LARGE_MESSAGE,
+} from './exercise-photos'
+
 const DETAIL_TRANSLATIONS: Record<string, string> = {
   'invalid credentials': 'Неверный логин, email или пароль.',
   'user is inactive': 'Учётная запись отключена. Обратитесь в поддержку.',
@@ -21,12 +26,18 @@ const DETAIL_TRANSLATIONS: Record<string, string> = {
   'no exercises matched profile constraints': 'Не удалось подобрать упражнения под указанные условия.',
   'failed to build workout schedule': 'Не удалось составить расписание тренировок.',
   'working_weight_kg must be > 0': 'Рабочий вес должен быть больше нуля.',
-  'photo is too large (max 15mb)': 'Фото слишком большое. Максимум 15 МБ.',
-  'invalid photo format (allowed: .jpg, .jpeg, .png, .webp)': 'Можно загрузить JPG, PNG или WEBP.',
+  'photo is too large (max 15mb)': EXERCISE_PHOTO_TOO_LARGE_MESSAGE,
+  'invalid photo format (allowed: .jpg, .jpeg, .png, .webp)': EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE,
 }
 
 function normalizeDetail(detail: string): string {
   return detail.trim().replace(/[.!]+$/, '').toLowerCase()
+}
+
+// 413 и 415 у загрузки фото — лимит 15 МБ и jpeg/png/webp. Остальные запросы оставляем на fallback.
+function isExercisePhotoUpload(error: { config?: { url?: string } }): boolean {
+  const url = error.config?.url
+  return typeof url === 'string' && url.includes('/photos/')
 }
 
 function translateDetail(detail: unknown): string | null {
@@ -57,6 +68,10 @@ export function getUserErrorMessage(error: unknown, fallback: string): string {
       return 'Запрошенные данные не найдены.'
     case 409:
       return 'Данные уже существуют или были изменены. Обновите страницу и попробуйте снова.'
+    case 413:
+      return isExercisePhotoUpload(error) ? EXERCISE_PHOTO_TOO_LARGE_MESSAGE : fallback
+    case 415:
+      return isExercisePhotoUpload(error) ? EXERCISE_PHOTO_INVALID_FORMAT_MESSAGE : fallback
     case 422:
       return 'Проверьте заполненные поля.'
     case 429:

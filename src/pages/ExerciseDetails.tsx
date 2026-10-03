@@ -6,13 +6,15 @@ import { useForm, useWatch } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
 
-import { listMuscles } from '../api/exercises'
+import { getTrainerExercise, listMuscles } from '../api/exercises'
+import { queryKeys } from '../api/queryKeys'
 import { ExercisePhotoSlots } from '../components/exercises/ExercisePhotoSlots'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
 import type { LoadScheme, TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
 import { normalizeEquipmentName, normalizeEquipmentValue } from '../lib/equipment'
+import { EXERCISE_PHOTO_QUERY_OPTIONS } from '../lib/exercise-photos'
 import {
   getLoadSchemeOptions,
   formatSchemeStepsInput,
@@ -157,9 +159,17 @@ export function ExerciseDetailsPage() {
     deleteVideoMutation,
     uploadPhotoMutation,
     deletePhotoMutation,
+    photoUploadProgress,
   } = useExercises({
     trainerUserId,
     includeArchived: true,
+  })
+  const exercisePhotoQuery = useQuery({
+    queryKey: queryKeys.exercises.trainerExercise(trainerUserId, rowId ?? ''),
+    queryFn: () => getTrainerExercise(trainerUserId, rowId ?? ''),
+    enabled: Boolean(trainerUserId && rowId),
+    retry: false,
+    ...EXERCISE_PHOTO_QUERY_OPTIONS,
   })
   const catalog = useMemo(
     () => (Array.isArray(trainerCatalogQuery.data) ? trainerCatalogQuery.data : []),
@@ -711,15 +721,19 @@ export function ExerciseDetailsPage() {
 
           {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError && exercise ? (
             <ExercisePhotoSlots
-              exercise={exercise}
+              exercise={exercisePhotoQuery.data ?? exercise}
               editable
               busyPosition={photoBusyPosition}
               busyAction={photoBusyAction}
+              uploadProgress={photoUploadProgress}
               onUpload={(position, file) => {
                 uploadPhotoMutation.mutate({ rowId: exercise.row_id, position, file })
               }}
               onDelete={(position) => {
                 deletePhotoMutation.mutate({ rowId: exercise.row_id, position })
+              }}
+              onImageError={() => {
+                void exercisePhotoQuery.refetch()
               }}
             />
           ) : null}
