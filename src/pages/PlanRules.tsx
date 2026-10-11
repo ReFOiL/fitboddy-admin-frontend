@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { getTrainerGenerationPolicy, upsertTrainerGenerationPolicy } from '../api/plans'
 import { listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
+import { StickySaveBar } from '../components/plan/StickySaveBar'
 import { useAuth } from '../hooks/use-auth'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
 import {
@@ -501,14 +502,14 @@ function PlanRulesEditor({
         </ul>
       </article>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:z-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      <StickySaveBar>
         <div className="flex items-center gap-3">
           <span className={isDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
             {isDirty ? 'Есть изменения' : 'Сохранено'}
           </span>
           <button
             type="button"
-            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:flex-none pb-[env(safe-area-inset-bottom)] md:pb-2.5"
+            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:flex-none"
             disabled={saveMutation.isPending || !isDirty}
             onClick={() => {
               setMessage(null)
@@ -518,7 +519,7 @@ function PlanRulesEditor({
             {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить правила'}
           </button>
         </div>
-      </div>
+      </StickySaveBar>
     </section>
   )
 }

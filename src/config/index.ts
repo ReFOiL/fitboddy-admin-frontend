@@ -1,6 +1,8 @@
 export { APP_BRAND_NAME, formatPageTitle } from './brand'
 export {
   APP_PATHS,
+  clientPlanPath,
+  clientProfilePath,
   resolveCatalogPath,
   resolveDocumentTitle,
   resolveRelationsPath,
