@@ -7,10 +7,12 @@ import { queryKeys } from '../api/queryKeys'
 import { useAuth } from '../hooks/use-auth'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
 import {
+  clampBoundedInt,
   DEFAULT_SESSION_BOUNDS,
   isGenerationPolicyDirty,
   normalizeGenerationPolicy,
 } from '../lib/generation-policy'
+import { getUserErrorMessage } from '../lib/user-error-message'
 import type { TrainerExercise } from '../types/exercise'
 import type { GenerationPolicy } from '../types/generation-policy'
 
@@ -168,25 +170,38 @@ export function PlanRulesPage() {
       trainerUserId={trainerUserId}
       initialPolicy={normalizeGenerationPolicy(policyQuery.data)}
       exercises={exercises}
+      catalogError={catalogQuery.isError ? catalogQuery.error : null}
+      catalogLoading={catalogQuery.isLoading}
+      onRetryCatalog={() => {
+        void catalogQuery.refetch()
+      }}
     />
   )
 }
+
+type SaveNotice = { kind: 'success' | 'error'; text: string }
 
 function PlanRulesEditor({
   trainerUserId,
   initialPolicy,
   exercises,
+  catalogError,
+  catalogLoading,
+  onRetryCatalog,
 }: {
   trainerUserId: string
   initialPolicy: GenerationPolicy
   exercises: TrainerExercise[]
+  catalogError: unknown
+  catalogLoading: boolean
+  onRetryCatalog: () => void
 }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState(initialPolicy)
   const [savedPolicy, setSavedPolicy] = useState(initialPolicy)
   const [pairLeft, setPairLeft] = useState('')
   const [pairRight, setPairRight] = useState('')
-  const [message, setMessage] = useState<string | null>(null)
+  const [notice, setNotice] = useState<SaveNotice | null>(null)
   const [selectedGoal, setSelectedGoal] = useState<(typeof GOALS)[number]['value']>('maintenance')
   const isDirty = isGenerationPolicyDirty(savedPolicy, draft)
 
@@ -199,9 +214,17 @@ function PlanRulesEditor({
       })
       setSavedPolicy(normalized)
       setDraft(normalized)
-      setMessage('Сохранено. Новые планы для клиентов уже учитывают эти правила.')
+      setNotice({
+        kind: 'success',
+        text: 'Сохранено. Новые планы для клиентов уже учитывают эти правила.',
+      })
     },
-    onError: () => setMessage('Не удалось сохранить. Попробуй ещё раз.'),
+    onError: (error) => {
+      setNotice({
+        kind: 'error',
+        text: getUserErrorMessage(error, 'Не удалось сохранить правила. Попробуй ещё раз.'),
+      })
+    },
   })
 
   useUnsavedChangesGuard(isDirty && !saveMutation.isPending)
@@ -227,7 +250,7 @@ function PlanRulesEditor({
   const selectedGoalLabel = GOALS.find((item) => item.value === selectedGoal)?.label ?? selectedGoal
 
   return (
-    <section className="space-y-5 pb-24 md:pb-0">
+    <section className="space-y-5 pb-40 md:pb-0">
       <header>
         <h1 className="text-2xl font-semibold sm:text-3xl">Правила планов</h1>
         <p className="mt-1 max-w-3xl text-sm text-secondary-foreground sm:text-base">
@@ -236,12 +259,13 @@ function PlanRulesEditor({
         </p>
       </header>
 
-      {message && (!isDirty || message.startsWith('Не удалось')) ? (
-        <p
-          role={message.startsWith('Не удалось') ? 'alert' : 'status'}
-          className={`text-sm ${message.startsWith('Не удалось') ? 'text-destructive' : 'text-secondary-foreground'}`}
-        >
-          {message}
+      {notice?.kind === 'error' ? (
+        <p role="alert" className="text-sm text-destructive">
+          {notice.text}
+        </p>
+      ) : notice?.kind === 'success' && !isDirty ? (
+        <p role="status" className="text-sm text-secondary-foreground">
+          {notice.text}
         </p>
       ) : null}
 
@@ -264,12 +288,17 @@ function PlanRulesEditor({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2"
                 value={draft.default_workouts_per_week[level.value] ?? 3}
                 onChange={(event) => {
-                  const next = Number(event.target.value)
+                  const raw = event.target.value
                   setDraft((current) => ({
                     ...current,
                     default_workouts_per_week: {
                       ...current.default_workouts_per_week,
-                      [level.value]: Number.isFinite(next) ? next : 3,
+                      [level.value]: clampBoundedInt(
+                        raw,
+                        1,
+                        7,
+                        current.default_workouts_per_week[level.value] ?? 3,
+                      ),
                     },
                   }))
                 }}
@@ -304,11 +333,11 @@ function PlanRulesEditor({
                       className="w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
                       value={bounds.min}
                       onChange={(event) => {
-                        const next = Number(event.target.value)
+                        const raw = event.target.value
                         setDraft((current) => {
                           const currentBounds =
                             current.exercises_per_session[slot.value] ?? DEFAULT_SESSION_BOUNDS[slot.value]
-                          const min = Number.isFinite(next) ? next : currentBounds.min
+                          const min = clampBoundedInt(raw, 1, 12, currentBounds.min)
                           return {
                             ...current,
                             exercises_per_session: {
@@ -332,11 +361,11 @@ function PlanRulesEditor({
                       className="w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
                       value={bounds.max}
                       onChange={(event) => {
-                        const next = Number(event.target.value)
+                        const raw = event.target.value
                         setDraft((current) => {
                           const currentBounds =
                             current.exercises_per_session[slot.value] ?? DEFAULT_SESSION_BOUNDS[slot.value]
-                          const max = Number.isFinite(next) ? next : currentBounds.max
+                          const max = clampBoundedInt(raw, 1, 12, currentBounds.max)
                           return {
                             ...current,
                             exercises_per_session: {
@@ -418,55 +447,70 @@ function PlanRulesEditor({
             тренировке.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <select
-            className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
-            value={pairLeft}
-            onChange={(event) => setPairLeft(event.target.value)}
-          >
-            <option value="">Первое упражнение</option>
-            {exercises.map((item) => (
-              <option key={item.row_id} value={item.row_id}>
-                {item.exercise_name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
-            value={pairRight}
-            onChange={(event) => setPairRight(event.target.value)}
-          >
-            <option value="">Второе упражнение</option>
-            {exercises.map((item) => (
-              <option key={item.row_id} value={item.row_id}>
-                {item.exercise_name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 py-2"
-            onClick={() => {
-              if (!pairLeft || !pairRight || pairLeft === pairRight) return
-              setDraft((current) => {
-                const exists = current.excluded_pairs.some(
-                  ([left, right]) =>
-                    (left === pairLeft && right === pairRight) ||
-                    (left === pairRight && right === pairLeft),
-                )
-                if (exists) return current
-                return {
-                  ...current,
-                  excluded_pairs: [...current.excluded_pairs, [pairLeft, pairRight]],
-                }
-              })
-              setPairLeft('')
-              setPairRight('')
-            }}
-          >
-            Добавить запрет
-          </button>
-        </div>
+        {catalogError ? (
+          <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p>{getUserErrorMessage(catalogError, 'Не удалось загрузить каталог упражнений.')}</p>
+            <button type="button" className="mt-2 underline" onClick={onRetryCatalog}>
+              Повторить
+            </button>
+          </div>
+        ) : catalogLoading ? (
+          <p className="text-sm text-secondary-foreground">Загрузка каталога упражнений…</p>
+        ) : exercises.length === 0 ? (
+          <p className="text-sm text-secondary-foreground">
+            В каталоге нет активных упражнений — добавить запрет пока нельзя.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <select
+              className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
+              value={pairLeft}
+              onChange={(event) => setPairLeft(event.target.value)}
+            >
+              <option value="">Первое упражнение</option>
+              {exercises.map((item) => (
+                <option key={item.row_id} value={item.row_id}>
+                  {item.exercise_name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
+              value={pairRight}
+              onChange={(event) => setPairRight(event.target.value)}
+            >
+              <option value="">Второе упражнение</option>
+              {exercises.map((item) => (
+                <option key={item.row_id} value={item.row_id}>
+                  {item.exercise_name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 py-2"
+              onClick={() => {
+                if (!pairLeft || !pairRight || pairLeft === pairRight) return
+                setDraft((current) => {
+                  const exists = current.excluded_pairs.some(
+                    ([left, right]) =>
+                      (left === pairLeft && right === pairRight) ||
+                      (left === pairRight && right === pairLeft),
+                  )
+                  if (exists) return current
+                  return {
+                    ...current,
+                    excluded_pairs: [...current.excluded_pairs, [pairLeft, pairRight]],
+                  }
+                })
+                setPairLeft('')
+                setPairRight('')
+              }}
+            >
+              Добавить запрет
+            </button>
+          </div>
+        )}
         <ul className="space-y-2 text-sm">
           {draft.excluded_pairs.length === 0 ? (
             <li className="text-secondary-foreground">
@@ -501,18 +545,26 @@ function PlanRulesEditor({
         </ul>
       </article>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:z-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      <div
+        role="region"
+        aria-label="Сохранение правил"
+        className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
+      >
         <div className="flex items-center gap-3">
           <span className={isDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
-            {isDirty ? 'Есть изменения' : 'Сохранено'}
+            {saveMutation.isPending
+              ? 'Сохраняем правила…'
+              : isDirty
+                ? 'Есть несохранённые изменения'
+                : 'Правила сохранены'}
           </span>
           <button
             type="button"
-            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:flex-none pb-[env(safe-area-inset-bottom)] md:pb-2.5"
+            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:flex-none"
             disabled={saveMutation.isPending || !isDirty}
             onClick={() => {
-              setMessage(null)
-              saveMutation.mutate(draft)
+              setNotice(null)
+              saveMutation.mutate(normalizeGenerationPolicy(draft))
             }}
           >
             {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить правила'}

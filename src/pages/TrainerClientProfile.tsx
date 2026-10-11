@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { ArrowLeft, CalendarDays, CheckCircle2, Rocket, Scale, Target, UserCheck } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { useAuth } from '../hooks/use-auth'
@@ -15,6 +15,7 @@ import { AlertBanner } from '../components/shared'
 import { PlanCollapsible } from '../components/plan/PlanCollapsible'
 import { formatEquipmentLabel } from '../lib/equipment'
 import { isProfileCompleted } from '../lib/profile-completion'
+import { getTrainerPlanComposeBlockReason } from '../lib/trainer-plan-compose'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -52,6 +53,7 @@ export function TrainerClientProfilePage() {
   const { user } = useAuth()
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedClientUserId = (searchParams.get('clientUserId') ?? '').trim()
 
@@ -184,6 +186,22 @@ export function TrainerClientProfilePage() {
       profile &&
       !generatePlanMutation.isPending,
   )
+  const planComposeBlockReason = getTrainerPlanComposeBlockReason({
+    isProfileLoading: profileQuery.isLoading || (profileQuery.isFetching && !profile),
+    isNotFound,
+    isForbidden,
+    hasProfileLoadError,
+    hasProfile: Boolean(profile),
+    questionnaireReady,
+  })
+
+  useEffect(() => {
+    if (location.hash !== '#plan' || !profileTargetUserId) return
+    const planSection = document.getElementById('plan')
+    if (planSection && typeof planSection.scrollIntoView === 'function') {
+      planSection.scrollIntoView({ block: 'start' })
+    }
+  }, [location.hash, profileTargetUserId])
 
   const selectClient = (clientUserId: string) => {
     setDraftWeights({})
@@ -376,7 +394,7 @@ export function TrainerClientProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-primary/20">
+          <Card id="plan" className="scroll-mt-24 overflow-hidden border-primary/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Rocket size={18} className="text-primary" />
@@ -384,14 +402,14 @@ export function TrainerClientProfilePage() {
               </CardTitle>
               <CardDescription>
                 {isPreviousTrainerPlan
-                  ? 'План доступен только для просмотра. Чтобы изменить его, создайте новый план.'
-                  : 'Генерация и просмотр активного плана клиента из вашего каталога.'}
+                  ? 'План предыдущего тренера можно только посмотреть. Свой план собирается из вашего каталога и правил — после изменений в каталоге его нужно составить заново.'
+                  : 'План собирается из вашего каталога и правил планов. После изменений в каталоге или правилах его нужно пересобрать.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!questionnaireReady && profile ? (
+              {planComposeBlockReason ? (
                 <p className="rounded-xl border border-border/70 bg-secondary/20 px-3 py-2 text-sm text-secondary-foreground">
-                  Анкета клиента неполная — генерация недоступна, пока клиент не заполнит цель, уровень, место и возраст.
+                  {planComposeBlockReason}
                 </p>
               ) : null}
 
@@ -405,9 +423,11 @@ export function TrainerClientProfilePage() {
 
               {!activePlanQuery.isLoading && hasNoActivePlan ? (
                 <div className="space-y-3 rounded-xl border border-border/70 bg-secondary/15 p-4">
-                  <p className="text-sm text-secondary-foreground">Активного плана пока нет.</p>
+                  <p className="text-sm text-secondary-foreground">
+                    Активного плана пока нет. Он соберётся из вашего каталога и правил планов.
+                  </p>
                   <Button type="button" className="w-full sm:w-auto" disabled={!canGenerate} onClick={runGenerate}>
-                    {generatePlanMutation.isPending ? 'Генерируем…' : 'Сгенерировать план'}
+                    {generatePlanMutation.isPending ? 'Составляем план…' : 'Составить план'}
                   </Button>
                 </div>
               ) : null}
@@ -433,7 +453,7 @@ export function TrainerClientProfilePage() {
                     onClick={runGenerate}
                   >
                     {generatePlanMutation.isPending
-                      ? 'Генерируем…'
+                      ? 'Составляем план…'
                       : isPreviousTrainerPlan
                         ? 'Заменить своим планом'
                         : 'Пересобрать план'}
