@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { ArchiveRestore, ArrowLeft, Dumbbell, Loader2, Save, Trash2, Video } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useParams } from 'react-router-dom'
 import { z } from 'zod'
@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { getTrainerExercise, listMuscles } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
 import { ExercisePhotoSlots } from '../components/exercises/ExercisePhotoSlots'
+import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
@@ -164,6 +165,7 @@ export function ExerciseDetailsPage() {
     trainerUserId,
     includeArchived: true,
   })
+  const [showPlanHint, setShowPlanHint] = useState(false)
   const exercisePhotoQuery = useQuery({
     queryKey: queryKeys.exercises.trainerExercise(trainerUserId, rowId ?? ''),
     queryFn: () => getTrainerExercise(trainerUserId, rowId ?? ''),
@@ -335,6 +337,7 @@ export function ExerciseDetailsPage() {
                   onSuccess: (updatedExercise) => {
                     const nextValues = mapExerciseToFormValues(updatedExercise)
                     form.reset(nextValues)
+                    setShowPlanHint(true)
                   },
                 })
               })}
@@ -624,6 +627,8 @@ export function ExerciseDetailsPage() {
                     : ''}
                 </div>
               </div>
+
+              {showPlanHint ? <ExercisePlanHint /> : null}
 
               <div className="flex flex-wrap gap-2">
                 <Button type="submit" disabled={formDisabled}>

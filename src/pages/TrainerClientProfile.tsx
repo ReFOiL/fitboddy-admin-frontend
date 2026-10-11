@@ -10,10 +10,12 @@ import { useTrainerRelations } from '../hooks'
 import { useClientLoads, usePlans } from '../hooks/use-plans'
 import { listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
-import { APP_PATHS } from '../config'
+import { APP_PATHS, clientPlanPath } from '../config'
 import { AlertBanner } from '../components/shared'
+import { GenerateBlockNote } from '../components/plan/GenerateBlockNote'
 import { PlanCollapsible } from '../components/plan/PlanCollapsible'
 import { formatEquipmentLabel } from '../lib/equipment'
+import { trainerCatalogGenerateBlockReason } from '../lib/plan-generate-reason'
 import { isProfileCompleted } from '../lib/profile-completion'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui/button'
@@ -92,7 +94,7 @@ export function TrainerClientProfilePage() {
   const profile = profileQuery.data
   const questionnaireReady = isProfileCompleted(profile)
 
-  const { activePlanQuery, generatePlanMutation } = usePlans(profileTargetUserId)
+  const { activePlanQuery } = usePlans(profileTargetUserId)
   const activePlanErrorStatus = axios.isAxiosError(activePlanQuery.error)
     ? activePlanQuery.error.response?.status
     : undefined
@@ -177,38 +179,17 @@ export function TrainerClientProfilePage() {
     ? profile.unavailable_equipment.map((value) => formatEquipmentLabel(value, metaQuery.data?.equipment))
     : []
 
-  const canGenerate = Boolean(
-    profileTargetUserId &&
-      trainerUserId &&
-      questionnaireReady &&
-      profile &&
-      !generatePlanMutation.isPending,
-  )
+  const catalogGenerateReason = trainerCatalogGenerateBlockReason({
+    isPending: false,
+    profile,
+    profileLoading: profileQuery.isLoading,
+    profileMissing: isNotFound,
+  })
+  const planEditorPath = profileTargetUserId ? clientPlanPath(profileTargetUserId) : APP_PATHS.clients
 
   const selectClient = (clientUserId: string) => {
     setDraftWeights({})
     setSearchParams({ clientUserId }, { replace: true })
-  }
-
-  const runGenerate = () => {
-    if (!profile || !profileTargetUserId || !trainerUserId) return
-    if (
-      isPreviousTrainerPlan &&
-      !window.confirm(
-        'Заменить план предыдущего тренера? Текущий план будет архивирован, а клиент получит новый план из вашего каталога.',
-      )
-    ) {
-      return
-    }
-    generatePlanMutation.mutate({
-      source: 'trainer',
-      trainer_user_id: trainerUserId,
-      user_id: profileTargetUserId,
-      goal: profile.goal ?? 'maintenance',
-      level: profile.experience_level ?? 'intermediate',
-      workout_location: profile.workout_location ?? 'both',
-      unavailable_equipment: profile.unavailable_equipment ?? [],
-    })
   }
 
   if (!isTrainer) {
@@ -384,16 +365,14 @@ export function TrainerClientProfilePage() {
               </CardTitle>
               <CardDescription>
                 {isPreviousTrainerPlan
-                  ? 'План доступен только для просмотра. Чтобы изменить его, создайте новый план.'
-                  : 'Генерация и просмотр активного плана клиента из вашего каталога.'}
+                  ? 'План другого источника можно посмотреть здесь. Свой план собирается в редакторе.'
+                  : 'Просмотр плана. Состав дней меняется в редакторе.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!questionnaireReady && profile ? (
-                <p className="rounded-xl border border-border/70 bg-secondary/20 px-3 py-2 text-sm text-secondary-foreground">
-                  Анкета клиента неполная — генерация недоступна, пока клиент не заполнит цель, уровень, место и возраст.
-                </p>
-              ) : null}
+              <GenerateBlockNote
+                reason={!profileQuery.isLoading && !questionnaireReady ? catalogGenerateReason : null}
+              />
 
               {activePlanQuery.isLoading ? <Skeleton className="h-24 w-full rounded-xl" /> : null}
 
@@ -406,8 +385,8 @@ export function TrainerClientProfilePage() {
               {!activePlanQuery.isLoading && hasNoActivePlan ? (
                 <div className="space-y-3 rounded-xl border border-border/70 bg-secondary/15 p-4">
                   <p className="text-sm text-secondary-foreground">Активного плана пока нет.</p>
-                  <Button type="button" className="w-full sm:w-auto" disabled={!canGenerate} onClick={runGenerate}>
-                    {generatePlanMutation.isPending ? 'Генерируем…' : 'Сгенерировать план'}
+                  <Button asChild type="button" className="w-full sm:w-auto">
+                    <Link to={planEditorPath}>Составить план</Link>
                   </Button>
                 </div>
               ) : null}
@@ -425,18 +404,8 @@ export function TrainerClientProfilePage() {
                         : null}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full sm:w-auto"
-                    disabled={!canGenerate}
-                    onClick={runGenerate}
-                  >
-                    {generatePlanMutation.isPending
-                      ? 'Генерируем…'
-                      : isPreviousTrainerPlan
-                        ? 'Заменить своим планом'
-                        : 'Пересобрать план'}
+                  <Button asChild type="button" className="w-full sm:w-auto">
+                    <Link to={planEditorPath}>Редактировать план</Link>
                   </Button>
 
                   <PlanCollapsible
