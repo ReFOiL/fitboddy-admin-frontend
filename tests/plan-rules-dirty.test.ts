@@ -1,4 +1,5 @@
 import {
+  clampBoundedInt,
   isGenerationPolicyDirty,
   normalizeGenerationPolicy,
 } from '../src/lib/generation-policy'
@@ -45,5 +46,24 @@ describe('PlanRules dirty state', () => {
     }
 
     expect(isGenerationPolicyDirty(saved, changed)).toBe(true)
+  })
+
+  it('ограничивает дни 1–7 и размер сессии 1–12, пустое значение не становится нулём', () => {
+    expect(clampBoundedInt('', 1, 7, 3)).toBe(3)
+    expect(clampBoundedInt('0', 1, 7, 3)).toBe(1)
+    expect(clampBoundedInt('9', 1, 7, 3)).toBe(7)
+    expect(clampBoundedInt('20', 1, 12, 4)).toBe(12)
+
+    const normalized = normalizeGenerationPolicy({
+      default_workouts_per_week: { beginner: 0, intermediate: 9, advanced: 3.8 },
+      exercises_per_session: { default: { min: 0, max: 20 } },
+    })
+
+    expect(normalized.default_workouts_per_week).toEqual({
+      beginner: 1,
+      intermediate: 7,
+      advanced: 3,
+    })
+    expect(normalized.exercises_per_session.default).toEqual({ min: 1, max: 12 })
   })
 })

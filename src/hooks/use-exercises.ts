@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import {
@@ -14,6 +15,7 @@ import {
   uploadTrainerExercisePhoto,
   uploadTrainerExerciseVideo,
 } from '../api'
+import { notifyExerciseCatalogSaved } from '../lib/exercise-saved-notice'
 import { photoUrlField } from '../lib/exercise-photos'
 import { getUserErrorMessage } from '../lib/user-error-message'
 import type { ExercisePhotoPosition, TrainerExercise, UpsertTrainerExerciseRequest } from '../types/exercise'
@@ -21,6 +23,7 @@ import type { ExercisePhotoPosition, TrainerExercise, UpsertTrainerExerciseReque
 export function useExercises(params: { trainerUserId: string; includeArchived: boolean }) {
   const { trainerUserId, includeArchived } = params
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [photoUploadProgress, setPhotoUploadProgress] = useState<number | null>(null)
 
   const trainerCatalogQuery = useQuery({
@@ -157,7 +160,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     onSuccess: (createdExercise) => {
       upsertExerciseInCatalogCache(createdExercise)
       invalidateCatalog()
-      toast.success('Упражнение добавлено')
+      notifyExerciseCatalogSaved('created', navigate)
     },
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось добавить упражнение.')),
   })
@@ -168,7 +171,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     onSuccess: (updatedExercise) => {
       upsertExerciseInCatalogCache(updatedExercise)
       invalidateCatalog()
-      toast.success('Упражнение обновлено')
+      notifyExerciseCatalogSaved('updated', navigate)
     },
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось обновить упражнение.')),
   })
