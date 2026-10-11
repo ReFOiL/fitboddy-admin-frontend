@@ -64,16 +64,24 @@ describe('plan editor draft', () => {
   it('treats duration without reps as a hold and writes duration only', () => {
     expect(inferSlotHold(exercise)).toBe(true)
     const hold = slotFromPlanExercise(exercise)
-    expect(toPlanSlotWrite(hold, 1)).toEqual({
-      line_id: 'line-1',
+    expect(toPlanSlotWrite(hold)).toEqual({
       exercise_id: 'row-1',
       sets: 3,
-      reps: null,
       duration_seconds: 30,
       rest_seconds: 45,
       weight_kg: null,
-      sort_order: 1,
     })
+    expect(toPlanSlotWrite(hold)).not.toHaveProperty('reps')
+    expect(toPlanSlotWrite(hold)).not.toHaveProperty('line_id')
+    const repsSlot = slot({ key: 'row-2', exerciseName: 'Жим', lineId: 'line-2' })
+    expect(toPlanSlotWrite(repsSlot)).toEqual({
+      exercise_id: 'row-2',
+      sets: 3,
+      reps: 10,
+      rest_seconds: 60,
+      weight_kg: null,
+    })
+    expect(toPlanSlotWrite(repsSlot)).not.toHaveProperty('duration_seconds')
   })
 
   it('moves a slot up and down without dropping exercises', () => {
@@ -92,14 +100,15 @@ describe('plan editor draft', () => {
     ]
     expect(editorDaysEqual(baseline, draft)).toBe(false)
     expect(dirtyDayIndexes(baseline, draft)).toEqual([1, 2])
-    expect(daySlotsPayload(draft[0])[0]?.sort_order).toBe(1)
     expect(daySlotsPayload(draft[0])[0]?.sets).toBe(4)
+    expect(daySlotsPayload(draft[0])[0]).not.toHaveProperty('sort_order')
   })
 
-  it('builds an empty cycle of 1 to 7 days', () => {
+  it('builds an empty cycle of 1 to 28 days', () => {
     expect(createEmptyCycle(3)).toHaveLength(3)
     expect(createEmptyCycle(0)).toHaveLength(1)
-    expect(createEmptyCycle(9)).toHaveLength(7)
+    expect(createEmptyCycle(9)).toHaveLength(9)
+    expect(createEmptyCycle(40)).toHaveLength(28)
     expect(createEmptyCycle(2)[1]?.scheduledFor).toBe('')
   })
 
@@ -158,23 +167,23 @@ describe('plan editor draft', () => {
 
 describe('plan editor paths', () => {
   it('keeps trainer manual routes in one place', () => {
-    expect(planEditorPaths.replaceDaySlots('client', 'trainer', 2)).toBe(
-      '/api/v1/plans/clients/client/trainers/trainer/days/2/slots',
+    expect(planEditorPaths.active('client', 'trainer')).toBe(
+      '/api/v1/plans/clients/client/trainers/trainer/active',
     )
-    expect(planEditorPaths.addSlot('client', 'trainer', 2)).toBe(
-      '/api/v1/plans/clients/client/trainers/trainer/days/2/slots',
+    expect(planEditorPaths.replaceDay('client', 'trainer', 2)).toBe(
+      '/api/v1/plans/clients/client/trainers/trainer/days/2',
     )
-    expect(planEditorPaths.updateSlot('client', 'trainer', 2, 'line/1')).toBe(
-      '/api/v1/plans/clients/client/trainers/trainer/days/2/slots/line%2F1',
+    expect(planEditorPaths.addExercise('client', 'trainer', 2)).toBe(
+      '/api/v1/plans/clients/client/trainers/trainer/days/2/exercises',
     )
-    expect(planEditorPaths.deleteSlot('client', 'trainer', 2, 'line-1')).toBe(
-      '/api/v1/plans/clients/client/trainers/trainer/days/2/slots/line-1',
+    expect(planEditorPaths.updateExercise('client', 'trainer', 2, 'line/1')).toBe(
+      '/api/v1/plans/clients/client/trainers/trainer/days/2/exercises/line%2F1',
     )
-    expect(planEditorPaths.reorderSlots('client', 'trainer', 2)).toBe(
-      '/api/v1/plans/clients/client/trainers/trainer/days/2/slots/order',
+    expect(planEditorPaths.deleteExercise('client', 'trainer', 2, 'line-1')).toBe(
+      '/api/v1/plans/clients/client/trainers/trainer/days/2/exercises/line-1',
     )
-    expect(planEditorPaths.createManualPlan('client', 'trainer')).toBe(
-      '/api/v1/plans/clients/client/trainers/trainer/manual',
+    expect(planEditorPaths.reorderExercises('client', 'trainer', 2)).toBe(
+      '/api/v1/plans/clients/client/trainers/trainer/days/2/exercises/order',
     )
   })
 })

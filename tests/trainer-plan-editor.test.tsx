@@ -51,6 +51,7 @@ function Harness({ initialDays }: { initialDays: EditorDay[] | null }) {
       generatePending={false}
       generateDisabledReason="Собрать из каталога нельзя: в анкете не указан пол."
       foreignPlanNotice={null}
+      canStartEmpty
       onChangeDays={setDays}
       onSave={() => undefined}
       onGenerate={() => undefined}
@@ -75,6 +76,38 @@ describe('TrainerPlanEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Начать с пустого' }))
     expect(screen.getByRole('tab', { name: 'День 1' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'День 3' })).toBeInTheDocument()
+  })
+
+  it('hides the empty start when another plan already occupies the client', () => {
+    render(
+      <MemoryRouter>
+        <TrainerPlanEditor
+          clientName="Анна"
+          levelLabel="Новичок"
+          trainerUserId="trainer-1"
+          backTo="/clients/client-1"
+          days={null}
+          catalog={[]}
+          catalogLoading={false}
+          isDirty={false}
+          dosageError={null}
+          savePending={false}
+          saveDisabled
+          generatePending={false}
+          generateDisabledReason={null}
+          foreignPlanNotice="У клиента уже есть план другого источника. Собрать из каталога заменит его вашим планом."
+          canStartEmpty={false}
+          onChangeDays={() => undefined}
+          onSave={() => undefined}
+          onGenerate={() => undefined}
+          onStartEmpty={() => undefined}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(/план другого источника/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Начать с пустого' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Собрать из каталога' }).length).toBeGreaterThan(0)
   })
 
   it('adds, reorders, and deletes a slot from the trainer catalog', () => {

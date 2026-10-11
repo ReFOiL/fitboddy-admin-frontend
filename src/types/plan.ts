@@ -79,39 +79,45 @@ export type TrainingPlan = {
 }
 
 /**
- * Write shape for one ordered slot.
- * `exercise_id` is the catalog row id (same field as PlanExercise.exercise_id).
- * Hold exercises use `duration_seconds` and leave `reps` empty — plan rows have no is_hold flag.
- * `set_prescriptions` stay server-owned: the API rebuilds them from this dosage.
+ * Dosage for a new or replaced slot.
+ * `exercise_id` is trainer_exercises.row_id.
+ * Omitted dosage fields copy the trainer exercise defaults.
+ * Hold slots send `duration_seconds` and omit `reps`. Rep slots do the reverse.
+ * Name, category, and hold mode are snapshotted by the server. Do not send line_id or sort_order.
  */
 export type PlanSlotWrite = {
-  line_id?: string
   exercise_id: string
-  sets: number | null
-  reps: number | null
-  duration_seconds: number | null
-  rest_seconds: number | null
-  weight_kg: number | null
-  sort_order: number
+  sets?: number | null
+  reps?: number | null
+  duration_seconds?: number | null
+  rest_seconds?: number | null
+  weight_kg?: number | null
 }
 
 export type ReplaceDaySlotsRequest = {
   slots: PlanSlotWrite[]
 }
 
-export type AddPlanSlotRequest = Omit<PlanSlotWrite, 'line_id'>
+export type AddPlanSlotRequest = PlanSlotWrite
 
-export type UpdatePlanSlotRequest = Omit<PlanSlotWrite, 'line_id' | 'sort_order'>
+/** Partial dosage. Omitted fields stay. Explicit `weight_kg: null` clears weight. */
+export type UpdatePlanSlotRequest = {
+  sets?: number | null
+  reps?: number | null
+  duration_seconds?: number | null
+  rest_seconds?: number | null
+  weight_kg?: number | null
+}
 
 export type ReorderPlanSlotsRequest = {
   line_ids: string[]
 }
 
-export type ManualPlanDayWrite = {
-  day_index: number
-  slots: PlanSlotWrite[]
-}
-
-export type CreateManualPlanRequest = GeneratePlanRequest & {
-  days: ManualPlanDayWrite[]
+/** Creates an empty trainer plan. 409 when the client already has an active plan. */
+export type CreateEmptyPlanRequest = {
+  goal: string
+  level: string
+  workouts_per_week: number
+  day_count: number
+  start_date?: string | null
 }

@@ -5,7 +5,7 @@ import { Navigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { listTrainerExercises } from '../api/exercises'
-import { createManualPlan, replaceDaySlots } from '../api/plan-editor'
+import { createEmptyPlan, getTrainerClientPlan, replaceDaySlots } from '../api/plan-editor'
 import { generatePlan, getActivePlan, queryKeys } from '../api'
 import { TrainerPlanEditor } from '../components/plan-editor/TrainerPlanEditor'
 import { clientProfilePath } from '../config'
@@ -24,7 +24,6 @@ import {
   editorDaysEqual,
   editorDaysFromPlan,
   firstDosageError,
-  FOREIGN_PLAN_SAVE_CONFIRM,
   type EditorDay,
 } from '../lib/plan-editor-draft'
 import { formatTrainerClientCardTitle } from '../lib/relations-formatters'
@@ -35,6 +34,18 @@ import type { TrainingPlan } from '../types/plan'
 function textOrPlaceholder(value: string | null | undefined): string {
   const normalized = value?.trim()
   return normalized ? normalized : 'Не указано'
+}
+
+function planLabel(value: string | null | undefined, fallback: string): string {
+  const normalized = value?.trim() ?? ''
+  if (normalized.length < 2 || normalized.length > 32) return fallback
+  return normalized
+}
+
+function isActivePlanConflict(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false
+  const detail = (error.response?.data as { detail?: unknown } | undefined)?.detail
+  return typeof detail === 'string' && detail.toLowerCase().includes('already has an active plan')
 }
 
 export function TrainerClientPlanPage() {
@@ -62,15 +73,26 @@ export function TrainerClientPlanPage() {
     metaQuery.data?.levels.find((item) => item.value === profile?.experience_level)?.label ??
     textOrPlaceholder(profile?.experience_level)
 
-  const activePlanQuery = useQuery({
+  const trainerPlanQuery = useQuery({
+    queryKey: queryKeys.plans.trainerClient(clientUserId, trainerUserId),
+    queryFn: async () => getTrainerClientPlan(clientUserId, trainerUserId),
+    enabled: Boolean(clientUserId && trainerUserId && clientKnown),
+    retry: false,
+  })
+  const trainerPlanStatus = axios.isAxiosError(trainerPlanQuery.error) ? trainerPlanQuery.error.response?.status : undefined
+  const hasNoTrainerPlan = trainerPlanStatus === 404
+  const ownedPlan = hasNoTrainerPlan ? undefined : trainerPlanQuery.data
+
+  const anyActiveQuery = useQuery({
     queryKey: queryKeys.plans.activeByUser(clientUserId),
     queryFn: async () => getActivePlan(clientUserId),
     enabled: Boolean(clientUserId && clientKnown),
     retry: false,
   })
-  const planErrorStatus = axios.isAxiosError(activePlanQuery.error) ? activePlanQuery.error.response?.status : undefined
-  const hasNoActivePlan = planErrorStatus === 404
-  const activePlan = hasNoActivePlan ? undefined : activePlanQuery.data
+  const anyActiveStatus = axios.isAxiosError(anyActiveQuery.error) ? anyActiveQuery.error.response?.status : undefined
+  const hasNoActivePlan = anyActiveStatus === 404
+  const anyActivePlan = hasNoActivePlan ? undefined : anyActiveQuery.data
+  const foreignPlan = Boolean(anyActivePlan && !ownedPlan)
 
   const catalogQuery = useQuery({
     queryKey: queryKeys.exercises.trainerCatalog(trainerUserId, false),
@@ -92,20 +114,17 @@ export function TrainerClientPlanPage() {
     setBaselineDays(null)
   }
 
-  if (activePlan && activePlan.user_id === clientUserId && scopeClientId === clientUserId && draftDays == null) {
-    const next = editorDaysFromPlan(activePlan)
+  if (ownedPlan && ownedPlan.user_id === clientUserId && scopeClientId === clientUserId && draftDays == null) {
+    const next = editorDaysFromPlan(ownedPlan)
     setDraftDays(next)
     setBaselineDays(cloneEditorDays(next))
   }
 
-  const isBlankDraft = !activePlan && draftDays != null
+  const isBlankDraft = !ownedPlan && draftDays != null
   const isDirty = draftDays != null && (isBlankDraft || !editorDaysEqual(baselineDays, draftDays))
   const dosageError = draftDays ? firstDosageError(draftDays) : null
-  const planOwnedByTrainer = Boolean(
-    activePlan && activePlan.source === 'trainer' && activePlan.trainer_user_id === trainerUserId,
-  )
-  const foreignPlanNotice = activePlan && !planOwnedByTrainer
-    ? 'Это план другого источника. Сохранение или сборка из каталога заменит его вашим планом.'
+  const foreignPlanNotice = foreignPlan
+    ? 'У клиента уже есть план другого источника. Собрать из каталога заменит его вашим планом.'
     : null
 
   const generateReason = trainerCatalogGenerateBlockReason({
@@ -118,6 +137,7 @@ export function TrainerClientPlanPage() {
   useUnsavedChangesGuard(isDirty)
 
   const applySavedPlan = (plan: TrainingPlan) => {
+    queryClient.setQueryData(queryKeys.plans.trainerClient(clientUserId, trainerUserId), plan)
     queryClient.setQueryData(queryKeys.plans.activeByUser(clientUserId), plan)
     const next = editorDaysFromPlan(plan)
     setDraftDays(next)
@@ -125,6 +145,7 @@ export function TrainerClientPlanPage() {
   }
 
   const invalidatePlanQueries = async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.plans.trainerClient(clientUserId, trainerUserId) })
     await queryClient.invalidateQueries({ queryKey: queryKeys.plans.activeByUser(clientUserId) })
     await queryClient.invalidateQueries({ queryKey: queryKeys.plans.today(clientUserId) })
   }
@@ -132,39 +153,41 @@ export function TrainerClientPlanPage() {
   const saveMutation = useMutation({
     mutationFn: async (days: EditorDay[]) => {
       if (!trainerUserId || !clientUserId) throw new Error('missing user')
-      if (!activePlan || !planOwnedByTrainer) {
-        return createManualPlan(clientUserId, trainerUserId, {
-          source: 'trainer',
-          trainer_user_id: trainerUserId,
-          user_id: clientUserId,
-          goal: profile?.goal ?? 'maintenance',
-          level: profile?.experience_level ?? 'intermediate',
-          workout_location: profile?.workout_location ?? 'both',
-          workouts_per_week: Math.min(7, Math.max(1, days.length || activePlan?.workouts_per_week || 3)),
-          unavailable_equipment: profile?.unavailable_equipment ?? [],
-          days: days.map((day) => ({
-            day_index: day.dayIndex,
-            slots: daySlotsPayload(day),
-          })),
+      if (foreignPlan) throw new Error('client already has an active plan')
+      const creating = !ownedPlan
+      if (creating) {
+        await createEmptyPlan(clientUserId, trainerUserId, {
+          goal: planLabel(profile?.goal, 'maintenance'),
+          level: planLabel(profile?.experience_level, 'intermediate'),
+          workouts_per_week: Math.min(7, Math.max(1, days.length || 3)),
+          day_count: Math.min(28, Math.max(0, days.length)),
         })
       }
-      let latest = activePlan
-      const changed = dirtyDayIndexes(baselineDays, days)
+      const changed = creating
+        ? days.filter((day) => day.slots.length > 0).map((day) => day.dayIndex)
+        : dirtyDayIndexes(baselineDays, days)
       for (const dayIndex of changed) {
         const day = days.find((item) => item.dayIndex === dayIndex)
         if (!day) continue
-        latest = await replaceDaySlots(clientUserId, trainerUserId, day.dayIndex, {
+        await replaceDaySlots(clientUserId, trainerUserId, day.dayIndex, {
           slots: daySlotsPayload(day),
         })
       }
-      return latest
+      return getTrainerClientPlan(clientUserId, trainerUserId)
     },
     onSuccess: (plan) => {
       applySavedPlan(plan)
       void invalidatePlanQueries()
       toast.success('План сохранён')
     },
-    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось сохранить план.')),
+    onError: (error) => {
+      void invalidatePlanQueries()
+      toast.error(
+        isActivePlanConflict(error)
+          ? 'У клиента уже есть активный план. Замените его сборкой из каталога.'
+          : getUserErrorMessage(error, 'Не удалось сохранить план.'),
+      )
+    },
   })
 
   const generateMutation = useMutation({
@@ -189,7 +212,7 @@ export function TrainerClientPlanPage() {
   })
 
   const confirmReplace = () => {
-    if (!activePlan && !isDirty) return true
+    if (!anyActivePlan && !ownedPlan && !isDirty) return true
     return window.confirm(CATALOG_DRAFT_CONFIRM)
   }
 
@@ -200,8 +223,7 @@ export function TrainerClientPlanPage() {
   }
 
   const runSave = () => {
-    if (!draftDays || dosageError || saveMutation.isPending) return
-    if (activePlan && !planOwnedByTrainer && !window.confirm(FOREIGN_PLAN_SAVE_CONFIRM)) return
+    if (!draftDays || dosageError || saveMutation.isPending || foreignPlan) return
     saveMutation.mutate(draftDays)
   }
 
@@ -209,11 +231,11 @@ export function TrainerClientPlanPage() {
 
   if (!clientUserId) return <Navigate to="/clients" replace />
 
-  if (
-    trainerClientsQuery.isLoading ||
-    (clientKnown && activePlanQuery.isLoading && draftDays == null) ||
-    (activePlan && activePlan.user_id === clientUserId && draftDays == null)
-  ) {
+  const planQueriesLoading =
+    clientKnown && draftDays == null && (trainerPlanQuery.isLoading || anyActiveQuery.isLoading)
+  const ownedPlanPending = Boolean(ownedPlan && ownedPlan.user_id === clientUserId && draftDays == null)
+
+  if (trainerClientsQuery.isLoading || planQueriesLoading || ownedPlanPending) {
     return (
       <div className="space-y-3">
         <Skeleton className="h-10 w-48" />
@@ -230,24 +252,33 @@ export function TrainerClientPlanPage() {
     )
   }
 
-  if (activePlanQuery.isError && !hasNoActivePlan) {
+  const trainerPlanFailed = trainerPlanQuery.isError && !hasNoTrainerPlan
+  const blockingPlanUnknown = !ownedPlan && anyActiveQuery.isError && !hasNoActivePlan
+  if (trainerPlanFailed || blockingPlanUnknown) {
     return (
       <div className="space-y-3">
         <p className="text-sm text-destructive">Не удалось загрузить план клиента.</p>
-        <button type="button" className="rounded-lg border border-border px-4 py-2" onClick={() => void activePlanQuery.refetch()}>
+        <button
+          type="button"
+          className="rounded-lg border border-border px-4 py-2"
+          onClick={() => {
+            void trainerPlanQuery.refetch()
+            void anyActiveQuery.refetch()
+          }}
+        >
           Повторить
         </button>
       </div>
     )
   }
 
-  const showEmpty = hasNoActivePlan && draftDays == null
-  const saveDisabled = saveMutation.isPending || !isDirty || Boolean(dosageError) || draftDays == null
+  const showEmpty = !ownedPlan && draftDays == null
+  const saveDisabled = saveMutation.isPending || !isDirty || Boolean(dosageError) || draftDays == null || foreignPlan
 
   return (
     <TrainerPlanEditor
       clientName={clientName}
-      levelLabel={levelLabel || textOrFallback(activePlan?.level)}
+      levelLabel={levelLabel || textOrFallback(ownedPlan?.level ?? anyActivePlan?.level)}
       trainerUserId={trainerUserId}
       backTo={clientProfilePath(clientUserId)}
       days={showEmpty ? null : draftDays}
@@ -260,6 +291,7 @@ export function TrainerClientPlanPage() {
       generatePending={generateMutation.isPending}
       generateDisabledReason={generateMutation.isPending ? null : generateReason}
       foreignPlanNotice={foreignPlanNotice}
+      canStartEmpty={!foreignPlan}
       onChangeDays={setDraftDays}
       onSave={runSave}
       onGenerate={runGenerate}

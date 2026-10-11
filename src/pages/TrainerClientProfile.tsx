@@ -365,7 +365,7 @@ export function TrainerClientProfilePage() {
               </CardTitle>
               <CardDescription>
                 {isPreviousTrainerPlan
-                  ? 'План другого источника можно посмотреть здесь. Свой план собирается в редакторе.'
+                  ? 'План другого источника можно посмотреть здесь. Заменить его можно сборкой из каталога в редакторе.'
                   : 'Просмотр плана. Состав дней меняется в редакторе.'}
               </CardDescription>
             </CardHeader>

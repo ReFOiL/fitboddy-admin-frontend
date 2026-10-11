@@ -103,8 +103,9 @@ export function editorDaysFromPlan(plan: TrainingPlan): EditorDay[] {
   return [...plan.days].sort((left, right) => left.day_index - right.day_index).map(editorDayFromPlanDay)
 }
 
+/** The API accepts 0–28 days. The editor starts at 1 because later days cannot be added. */
 export function createEmptyCycle(dayCount: number): EditorDay[] {
-  const count = Math.min(7, Math.max(1, Math.trunc(dayCount)))
+  const count = Math.min(28, Math.max(1, Math.trunc(dayCount)))
   return Array.from({ length: count }, (_, index) => ({
     dayId: `new-day-${index + 1}`,
     dayIndex: index + 1,
@@ -128,35 +129,35 @@ export function editorDayLabel(day: EditorDay): string {
   return `${formatWeekdayShort(day.dayOfWeek)} · ${formatPlanDate(day.scheduledFor)}`
 }
 
-export function toPlanSlotWrite(slot: EditorSlot, sortOrder: number): PlanSlotWrite {
+export function toPlanSlotWrite(slot: EditorSlot): PlanSlotWrite {
   const write: PlanSlotWrite = {
     exercise_id: slot.exerciseId,
-    sets: slot.sets,
-    reps: slot.isHold ? null : slot.reps,
-    duration_seconds: slot.isHold ? slot.durationSeconds : null,
-    rest_seconds: slot.restSeconds,
     weight_kg: slot.weightKg,
-    sort_order: sortOrder,
   }
-  if (slot.lineId) write.line_id = slot.lineId
+  if (slot.sets != null) write.sets = slot.sets
+  if (slot.restSeconds != null) write.rest_seconds = slot.restSeconds
+  if (slot.isHold) {
+    if (slot.durationSeconds != null) write.duration_seconds = slot.durationSeconds
+  } else if (slot.reps != null) {
+    write.reps = slot.reps
+  }
   return write
 }
 
 export function daySlotsPayload(day: EditorDay): PlanSlotWrite[] {
-  return day.slots.map((slot, index) => toPlanSlotWrite(slot, index + 1))
+  return day.slots.map((slot) => toPlanSlotWrite(slot))
 }
 
 function slotSignature(slot: EditorSlot, sortOrder: number): string {
-  const write = toPlanSlotWrite(slot, sortOrder)
   return [
-    write.line_id ?? '',
-    write.exercise_id,
-    write.sets ?? '',
-    write.reps ?? '',
-    write.duration_seconds ?? '',
-    write.rest_seconds ?? '',
-    write.weight_kg ?? '',
-    write.sort_order,
+    slot.lineId ?? '',
+    slot.exerciseId,
+    slot.sets ?? '',
+    slot.isHold ? '' : (slot.reps ?? ''),
+    slot.isHold ? (slot.durationSeconds ?? '') : '',
+    slot.restSeconds ?? '',
+    slot.weightKg ?? '',
+    sortOrder,
   ].join('|')
 }
 
@@ -247,7 +248,4 @@ export function dirtyDayIndexes(baseline: EditorDay[] | null, draft: EditorDay[]
 }
 
 export const CATALOG_DRAFT_CONFIRM =
-  'Собрать черновик из каталога? Текущие дни и несохранённые правки будут заменены.'
-
-export const FOREIGN_PLAN_SAVE_CONFIRM =
-  'Сохранить как ваш план? Текущий план другого источника будет заменён.'
+  'Собрать черновик из каталога? Текущий план и несохранённые правки будут заменены.'

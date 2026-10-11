@@ -1,6 +1,7 @@
 import type {
   AddPlanSlotRequest,
-  CreateManualPlanRequest,
+  CreateEmptyPlanRequest,
+  PlanDay,
   ReorderPlanSlotsRequest,
   ReplaceDaySlotsRequest,
   TrainingPlan,
@@ -11,29 +12,48 @@ import { apiClient } from './client'
 /**
  * Trainer manual plan editor.
  *
- * GET stays on the existing active-plan route. Slots are `days[].exercises`,
- * ordered by `sort_order`. `exercise_id` is the catalog row id.
+ * Prefix: `/api/v1/plans/clients/{client_user_id}/trainers/{trainer_user_id}`
+ * `exercise_id` is trainer_exercises.row_id.
  *
- * Mutation paths are the only place to retarget if fitboddy-plan-service
- * lands a different CRUD shape. Each call expects the updated TrainingPlan.
- *
- * Save in the editor uses replace-day (one request per changed day) and
- * create-manual for a plan that does not exist yet. Add, update, delete, and
- * reorder are available for callers that want per-slot writes.
+ * GET and POST `/active` return the training plan. Day writes return that day,
+ * and delete returns 204, so the editor refetches GET `/active` after a save.
+ * POST `/active` creates an empty plan and conflicts when one is already active.
+ * Replacing an existing plan stays on POST `/api/v1/plans/generate`.
  */
+function trainerPlanBase(clientUserId: string, trainerUserId: string): string {
+  return `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}`
+}
+
 export const planEditorPaths = {
-  replaceDaySlots: (clientUserId: string, trainerUserId: string, dayIndex: number) =>
-    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/days/${dayIndex}/slots`,
-  addSlot: (clientUserId: string, trainerUserId: string, dayIndex: number) =>
-    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/days/${dayIndex}/slots`,
-  updateSlot: (clientUserId: string, trainerUserId: string, dayIndex: number, lineId: string) =>
-    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/days/${dayIndex}/slots/${encodeURIComponent(lineId)}`,
-  deleteSlot: (clientUserId: string, trainerUserId: string, dayIndex: number, lineId: string) =>
-    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/days/${dayIndex}/slots/${encodeURIComponent(lineId)}`,
-  reorderSlots: (clientUserId: string, trainerUserId: string, dayIndex: number) =>
-    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/days/${dayIndex}/slots/order`,
-  createManualPlan: (clientUserId: string, trainerUserId: string) =>
-    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/manual`,
+  active: (clientUserId: string, trainerUserId: string) =>
+    `${trainerPlanBase(clientUserId, trainerUserId)}/active`,
+  replaceDay: (clientUserId: string, trainerUserId: string, dayIndex: number) =>
+    `${trainerPlanBase(clientUserId, trainerUserId)}/days/${dayIndex}`,
+  addExercise: (clientUserId: string, trainerUserId: string, dayIndex: number) =>
+    `${trainerPlanBase(clientUserId, trainerUserId)}/days/${dayIndex}/exercises`,
+  updateExercise: (clientUserId: string, trainerUserId: string, dayIndex: number, lineId: string) =>
+    `${trainerPlanBase(clientUserId, trainerUserId)}/days/${dayIndex}/exercises/${encodeURIComponent(lineId)}`,
+  deleteExercise: (clientUserId: string, trainerUserId: string, dayIndex: number, lineId: string) =>
+    `${trainerPlanBase(clientUserId, trainerUserId)}/days/${dayIndex}/exercises/${encodeURIComponent(lineId)}`,
+  reorderExercises: (clientUserId: string, trainerUserId: string, dayIndex: number) =>
+    `${trainerPlanBase(clientUserId, trainerUserId)}/days/${dayIndex}/exercises/order`,
+}
+
+export async function getTrainerClientPlan(clientUserId: string, trainerUserId: string): Promise<TrainingPlan> {
+  const { data } = await apiClient.get<TrainingPlan>(planEditorPaths.active(clientUserId, trainerUserId))
+  return data
+}
+
+export async function createEmptyPlan(
+  clientUserId: string,
+  trainerUserId: string,
+  payload: CreateEmptyPlanRequest,
+): Promise<TrainingPlan> {
+  const { data } = await apiClient.post<TrainingPlan>(
+    planEditorPaths.active(clientUserId, trainerUserId),
+    payload,
+  )
+  return data
 }
 
 export async function replaceDaySlots(
@@ -41,9 +61,9 @@ export async function replaceDaySlots(
   trainerUserId: string,
   dayIndex: number,
   payload: ReplaceDaySlotsRequest,
-): Promise<TrainingPlan> {
-  const { data } = await apiClient.put<TrainingPlan>(
-    planEditorPaths.replaceDaySlots(clientUserId, trainerUserId, dayIndex),
+): Promise<PlanDay> {
+  const { data } = await apiClient.put<PlanDay>(
+    planEditorPaths.replaceDay(clientUserId, trainerUserId, dayIndex),
     payload,
   )
   return data
@@ -54,9 +74,9 @@ export async function addPlanSlot(
   trainerUserId: string,
   dayIndex: number,
   payload: AddPlanSlotRequest,
-): Promise<TrainingPlan> {
-  const { data } = await apiClient.post<TrainingPlan>(
-    planEditorPaths.addSlot(clientUserId, trainerUserId, dayIndex),
+): Promise<PlanDay> {
+  const { data } = await apiClient.post<PlanDay>(
+    planEditorPaths.addExercise(clientUserId, trainerUserId, dayIndex),
     payload,
   )
   return data
@@ -68,9 +88,9 @@ export async function updatePlanSlot(
   dayIndex: number,
   lineId: string,
   payload: UpdatePlanSlotRequest,
-): Promise<TrainingPlan> {
-  const { data } = await apiClient.patch<TrainingPlan>(
-    planEditorPaths.updateSlot(clientUserId, trainerUserId, dayIndex, lineId),
+): Promise<PlanDay> {
+  const { data } = await apiClient.patch<PlanDay>(
+    planEditorPaths.updateExercise(clientUserId, trainerUserId, dayIndex, lineId),
     payload,
   )
   return data
@@ -81,11 +101,8 @@ export async function deletePlanSlot(
   trainerUserId: string,
   dayIndex: number,
   lineId: string,
-): Promise<TrainingPlan> {
-  const { data } = await apiClient.delete<TrainingPlan>(
-    planEditorPaths.deleteSlot(clientUserId, trainerUserId, dayIndex, lineId),
-  )
-  return data
+): Promise<void> {
+  await apiClient.delete(planEditorPaths.deleteExercise(clientUserId, trainerUserId, dayIndex, lineId))
 }
 
 export async function reorderPlanSlots(
@@ -93,21 +110,9 @@ export async function reorderPlanSlots(
   trainerUserId: string,
   dayIndex: number,
   payload: ReorderPlanSlotsRequest,
-): Promise<TrainingPlan> {
-  const { data } = await apiClient.put<TrainingPlan>(
-    planEditorPaths.reorderSlots(clientUserId, trainerUserId, dayIndex),
-    payload,
-  )
-  return data
-}
-
-export async function createManualPlan(
-  clientUserId: string,
-  trainerUserId: string,
-  payload: CreateManualPlanRequest,
-): Promise<TrainingPlan> {
-  const { data } = await apiClient.post<TrainingPlan>(
-    planEditorPaths.createManualPlan(clientUserId, trainerUserId),
+): Promise<PlanDay> {
+  const { data } = await apiClient.put<PlanDay>(
+    planEditorPaths.reorderExercises(clientUserId, trainerUserId, dayIndex),
     payload,
   )
   return data

@@ -35,6 +35,7 @@ type TrainerPlanEditorProps = {
   generatePending: boolean
   generateDisabledReason: string | null
   foreignPlanNotice: string | null
+  canStartEmpty: boolean
   onChangeDays: (days: EditorDay[]) => void
   onSave: () => void
   onGenerate: () => void
@@ -56,6 +57,7 @@ export function TrainerPlanEditor({
   generatePending,
   generateDisabledReason,
   foreignPlanNotice,
+  canStartEmpty,
   onChangeDays,
   onSave,
   onGenerate,
@@ -128,6 +130,7 @@ export function TrainerPlanEditor({
         <EmptyPlanState
           dayCount={emptyDayCount}
           onDayCount={setEmptyDayCount}
+          canStartEmpty={canStartEmpty}
           generatePending={generatePending}
           generateDisabledReason={generateDisabledReason}
           onGenerate={onGenerate}
@@ -201,6 +204,7 @@ export function TrainerPlanEditor({
 function EmptyPlanState({
   dayCount,
   onDayCount,
+  canStartEmpty,
   generatePending,
   generateDisabledReason,
   onGenerate,
@@ -208,6 +212,7 @@ function EmptyPlanState({
 }: {
   dayCount: number
   onDayCount: (value: number) => void
+  canStartEmpty: boolean
   generatePending: boolean
   generateDisabledReason: string | null
   onGenerate: () => void
@@ -215,32 +220,40 @@ function EmptyPlanState({
 }) {
   return (
     <EmptyState
-      title="Плана пока нет"
-      description="Соберите черновик из каталога или начните с пустых дней цикла."
+      title={canStartEmpty ? 'Плана пока нет' : 'Свой план ещё не составлен'}
+      description={
+        canStartEmpty
+          ? 'Соберите черновик из каталога или начните с пустых дней цикла.'
+          : 'Замените текущий план сборкой из каталога.'
+      }
       action={
         <div className="flex w-full max-w-sm flex-col gap-3">
           <Button type="button" className="w-full" disabled={generatePending || Boolean(generateDisabledReason)} onClick={onGenerate}>
             <Library size={16} />
             {generatePending ? 'Собираем…' : 'Собрать из каталога'}
           </Button>
-          <div className="grid gap-1.5 text-left">
-            <Label htmlFor="empty-cycle-days">Дней в цикле</Label>
-            <Input
-              id="empty-cycle-days"
-              type="number"
-              min={1}
-              max={7}
-              value={dayCount}
-              onChange={(event) => {
-                const next = Number(event.target.value)
-                if (!Number.isFinite(next)) return
-                onDayCount(Math.min(7, Math.max(1, Math.trunc(next))))
-              }}
-            />
-          </div>
-          <Button type="button" variant="secondary" className="w-full" onClick={onStartEmpty}>
-            Начать с пустого
-          </Button>
+          {canStartEmpty ? (
+            <>
+              <div className="grid gap-1.5 text-left">
+                <Label htmlFor="empty-cycle-days">Дней в цикле</Label>
+                <Input
+                  id="empty-cycle-days"
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={dayCount}
+                  onChange={(event) => {
+                    const next = Number(event.target.value)
+                    if (!Number.isFinite(next)) return
+                    onDayCount(Math.min(28, Math.max(1, Math.trunc(next))))
+                  }}
+                />
+              </div>
+              <Button type="button" variant="secondary" className="w-full" onClick={onStartEmpty}>
+                Начать с пустого
+              </Button>
+            </>
+          ) : null}
         </div>
       }
     />
