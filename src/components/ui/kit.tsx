@@ -138,7 +138,8 @@ export function Stepper({
 }
 
 function roundStep(value: number, step: number): number {
-  const decimals = step < 1 ? 1 : 0
+  // Шаг 2.5 кг не должен схлопываться до целого: 40 + 2.5 = 42.5, а не 43.
+  const decimals = Number.isInteger(step) ? 0 : 1
   return Number(value.toFixed(decimals))
 }
 
