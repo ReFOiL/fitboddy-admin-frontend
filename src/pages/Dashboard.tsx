@@ -8,6 +8,8 @@ import { useClientPlanModel } from '../hooks/use-client-plan-model'
 import { useConversations, useUnreadCount } from '../hooks/use-messages'
 import { useWorkoutSession } from '../hooks/use-workout-session'
 import { HeroCard, QuickActionsSection } from '../components/dashboard'
+import { ClientPlanPending } from '../components/plan/ClientPlanPending'
+import { GenerateBlockNote } from '../components/plan/GenerateBlockNote'
 import { TodayWorkoutCard } from '../components/plan/TodayWorkoutCard'
 import { WeekStrip } from '../components/plan/WeekStrip'
 import { WorkoutSession } from '../components/plan/WorkoutSession'
@@ -17,6 +19,7 @@ import { Skeleton } from '../components/ui/skeleton'
 import { QueryState } from '../components/shared'
 import { formatLastMessagePreview } from '../lib/messages-formatters'
 import { selectPlanDay } from '../lib/plan-day-selector'
+import { clientSystemGenerateBlockReason } from '../lib/plan-generate-reason'
 import type { AuthUser } from '../types/auth'
 
 export function DashboardPage() {
@@ -71,6 +74,13 @@ function ClientTodayDashboard({ user }: { user: AuthUser }) {
   const generationEnabled = model.hasActiveTrainer
     ? model.canGenerateTrainerPlan
     : model.canGenerateSystemPlan
+  const systemGenerateReason = clientSystemGenerateBlockReason({
+    isPending: Boolean(model.generatePlanMutation.isPending),
+    profile: model.profile,
+    profileLoading: model.profileQuery.isLoading,
+    relationLoading: model.clientActiveRelationQuery.isLoading,
+    hasActiveTrainer: model.hasActiveTrainer,
+  })
   const busy = model.completeDayMutation.isPending || model.replaceExerciseMutation.isPending
 
   const finishWorkout = () => {
@@ -136,7 +146,9 @@ function ClientTodayDashboard({ user }: { user: AuthUser }) {
         <Card className="border-primary/25">
           <CardHeader>
             <CardTitle>Заверши профиль</CardTitle>
-            <CardDescription>Ответы помогут подобрать безопасный и подходящий план тренировок.</CardDescription>
+            <CardDescription>
+              {systemGenerateReason ?? 'Ответы помогут подобрать безопасный и подходящий план тренировок.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild size="lg" className="h-12 w-full">
@@ -157,39 +169,36 @@ function ClientTodayDashboard({ user }: { user: AuthUser }) {
       ) : null}
 
       {model.questionnaireReady && !model.hasActivePlan && !model.activePlanQuery.isLoading ? (
-        <Card className="border-primary/30 bg-gradient-to-b from-primary/10 to-transparent">
-          <CardHeader>
-            <CardTitle>Начни тренироваться</CardTitle>
-            <CardDescription>
-              {model.hasActiveTrainer
-                ? `Создай план от ${model.activeTrainerDisplay || 'тренера'} по своей анкете.`
-                : 'Создай самостоятельный план по своей анкете.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              type="button"
-              size="lg"
-              className="h-12 w-full"
-              disabled={!generationEnabled}
-              onClick={() => model.runGenerate(generationSource)}
-            >
-              {model.generatePlanMutation.isPending
-                ? 'Генерируем…'
-                : model.hasActiveTrainer
-                  ? 'Создать план тренера'
-                  : 'Тренироваться самостоятельно'}
-            </Button>
-            {!model.hasActiveTrainer ? (
+        model.clientActiveRelationQuery.isLoading ? (
+          <Skeleton className="h-32 w-full rounded-2xl" />
+        ) : model.hasActiveTrainer ? (
+          <ClientPlanPending />
+        ) : (
+          <Card className="border-primary/30 bg-gradient-to-b from-primary/10 to-transparent">
+            <CardHeader>
+              <CardTitle>Начни тренироваться</CardTitle>
+              <CardDescription>Создай самостоятельный план по своей анкете.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button
+                type="button"
+                size="lg"
+                className="h-12 w-full"
+                disabled={!generationEnabled}
+                onClick={() => model.runGenerate(generationSource)}
+              >
+                {model.generatePlanMutation.isPending ? 'Генерируем…' : 'Тренироваться самостоятельно'}
+              </Button>
+              <GenerateBlockNote reason={generationEnabled ? null : systemGenerateReason} />
               <p className="text-center text-sm text-secondary-foreground">
                 Или{' '}
                 <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
                   выбрать тренера
                 </Link>
               </p>
-            ) : null}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )
       ) : null}
 
       {model.hasActivePlan ? (
@@ -226,15 +235,22 @@ function ClientTodayDashboard({ user }: { user: AuthUser }) {
                     Можно переходить к следующему циклу.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={!generationEnabled}
-                  onClick={() => model.runGenerate(generationSource)}
-                >
-                  <RefreshCw size={16} />
-                  {model.generatePlanMutation.isPending ? 'Генерируем…' : 'Следующий цикл'}
-                </Button>
+                {model.hasActiveTrainer ? (
+                  <p className="text-sm text-secondary-foreground">Следующий цикл соберёт тренер.</p>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      className="w-full"
+                      disabled={!generationEnabled}
+                      onClick={() => model.runGenerate(generationSource)}
+                    >
+                      <RefreshCw size={16} />
+                      {model.generatePlanMutation.isPending ? 'Генерируем…' : 'Следующий цикл'}
+                    </Button>
+                    <GenerateBlockNote reason={generationEnabled ? null : systemGenerateReason} />
+                  </>
+                )}
               </CardContent>
             </Card>
           ) : null}

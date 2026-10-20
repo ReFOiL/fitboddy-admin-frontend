@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { getTrainerGenerationPolicy, upsertTrainerGenerationPolicy } from '../api/plans'
 import { listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
+import { StickySaveBar } from '../components/plan/StickySaveBar'
 import { useAuth } from '../hooks/use-auth'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
 import {
@@ -545,11 +546,7 @@ function PlanRulesEditor({
         </ul>
       </article>
 
-      <div
-        role="region"
-        aria-label="Сохранение правил"
-        className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:inset-auto md:z-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none"
-      >
+      <StickySaveBar ariaLabel="Сохранение правил">
         <div className="flex items-center gap-3">
           <span className={isDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
             {saveMutation.isPending
@@ -570,7 +567,7 @@ function PlanRulesEditor({
             {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить правила'}
           </button>
         </div>
-      </div>
+      </StickySaveBar>
     </section>
   )
 }

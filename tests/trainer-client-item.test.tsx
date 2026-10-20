@@ -26,7 +26,7 @@ describe('TrainerClientItem', () => {
 
     expect(screen.getByRole('link', { name: 'План' })).toHaveAttribute(
       'href',
-      '/clients/profile?clientUserId=client-1#plan',
+      '/clients/client-1/plan',
     )
   })
 })

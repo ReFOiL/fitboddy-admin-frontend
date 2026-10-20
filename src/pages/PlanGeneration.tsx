@@ -16,6 +16,8 @@ import { useClientLoads, useClientPlatformLoads } from '../hooks/use-plans'
 import { useWorkoutSession } from '../hooks/use-workout-session'
 import { listPlatformExercises, listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
+import { ClientPlanPending } from '../components/plan/ClientPlanPending'
+import { GenerateBlockNote } from '../components/plan/GenerateBlockNote'
 import { PlanCollapsible } from '../components/plan/PlanCollapsible'
 import { PlanSchedule } from '../components/plan/PlanSchedule'
 import { TodayWorkoutCard } from '../components/plan/TodayWorkoutCard'
@@ -30,6 +32,7 @@ import { collectCatalogEquipmentTags, formatEquipmentLabel } from '../lib/equipm
 import {
   textOrFallback,
 } from '../lib/plan-formatters'
+import { clientSystemGenerateBlockReason } from '../lib/plan-generate-reason'
 import { selectPlanDay } from '../lib/plan-day-selector'
 import { cn } from '../lib/utils'
 
@@ -61,7 +64,6 @@ export function PlanGenerationPage() {
     todayWorkout,
     hasNoTodayWorkout,
     canGenerateSystemPlan,
-    canGenerateTrainerPlan,
     todayIso,
     completedDaysCount,
     totalPlanDays,
@@ -184,6 +186,13 @@ export function PlanGenerationPage() {
     metaQuery.data?.workout_locations.find((item) => item.value === profile?.workout_location)?.label ??
     textOrFallback(profile?.workout_location)
 
+  const systemGenerateReason = clientSystemGenerateBlockReason({
+    isPending: generatePlanMutation.isPending,
+    profile,
+    profileLoading: profileQuery.isLoading,
+    relationLoading: clientActiveRelationQuery.isLoading,
+    hasActiveTrainer,
+  })
   const isSystemPlan = activePlan?.source === 'system'
   const isPreviousTrainerPlan = Boolean(
     activePlan?.source === 'trainer' &&
@@ -271,7 +280,9 @@ export function PlanGenerationPage() {
         <Card className="border-primary/20">
           <CardHeader>
             <CardTitle className="text-xl">Сначала анкета</CardTitle>
-            <CardDescription>Нужны цель, уровень, место тренировок, возраст и пол.</CardDescription>
+            <CardDescription>
+              {systemGenerateReason ?? 'Нужны цель, уровень, место тренировок, возраст и пол.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild type="button" size="lg" className="h-12 w-full">
@@ -292,14 +303,15 @@ export function PlanGenerationPage() {
       ) : null}
 
       {questionnaireReady && !hasActivePlan && !activePlanQuery.isLoading ? (
+        clientActiveRelationQuery.isLoading ? (
+          <Skeleton className="h-32 w-full rounded-2xl" />
+        ) : hasActiveTrainer ? (
+          <ClientPlanPending />
+        ) : (
         <Card className="border-primary/30 bg-gradient-to-b from-primary/10 to-transparent">
           <CardHeader>
             <CardTitle className="text-xl">Собери план</CardTitle>
-            <CardDescription>
-              {activeTrainerUserId
-                ? `Можно тренироваться самостоятельно или с ${activeTrainerDisplay}.`
-                : 'Системный план по анкете — или выбери тренера.'}
-            </CardDescription>
+            <CardDescription>Системный план по анкете — или выбери тренера.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
@@ -316,35 +328,22 @@ export function PlanGenerationPage() {
                 <div className="font-medium">{locationLabel}</div>
               </div>
             </div>
-            {hasActiveTrainer ? (
-              <Button
-                type="button"
-                size="lg"
-                className="h-12 w-full"
-                disabled={!canGenerateTrainerPlan}
-                onClick={() => runGenerate('trainer')}
-              >
-                {generatePlanMutation.isPending ? 'Генерируем…' : 'План от тренера'}
-              </Button>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  size="lg"
-                  className="h-12 w-full"
-                  disabled={!canGenerateSystemPlan}
-                  onClick={() => runGenerate('system')}
-                >
-                  {generatePlanMutation.isPending ? 'Генерируем…' : 'Тренироваться самостоятельно'}
-                </Button>
-                <p className="text-center text-sm text-secondary-foreground">
-                  Или{' '}
-                  <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
-                    выбери тренера
-                  </Link>
-                </p>
-              </>
-            )}
+            <Button
+              type="button"
+              size="lg"
+              className="h-12 w-full"
+              disabled={!canGenerateSystemPlan}
+              onClick={() => runGenerate('system')}
+            >
+              {generatePlanMutation.isPending ? 'Генерируем…' : 'Тренироваться самостоятельно'}
+            </Button>
+            <GenerateBlockNote reason={canGenerateSystemPlan ? null : systemGenerateReason} />
+            <p className="text-center text-sm text-secondary-foreground">
+              Или{' '}
+              <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
+                выбери тренера
+              </Link>
+            </p>
             {hasRelationError ? (
               <AlertBanner tone="warning" title="Не удалось проверить связь с тренером">
                 Самостоятельный режим доступен.
@@ -360,6 +359,7 @@ export function PlanGenerationPage() {
             ) : null}
           </CardContent>
         </Card>
+        )
       ) : null}
 
       {hasActivePlan ? (
@@ -415,20 +415,9 @@ export function PlanGenerationPage() {
                   </p>
                 ) : null}
                 {hasActiveTrainer ? (
-                  <Button
-                    type="button"
-                    className="w-full"
-                    disabled={!canGenerateTrainerPlan}
-                    onClick={() => runGenerate('trainer')}
-                  >
-                    {generatePlanMutation.isPending
-                      ? 'Генерируем…'
-                      : showNextCycleCta
-                        ? 'Следующий цикл'
-                        : isPreviousTrainerPlan
-                          ? 'Заменить план новым тренером'
-                          : 'Пересобрать план тренера'}
-                  </Button>
+                  <p className="text-sm text-secondary-foreground">
+                    Программу составляет тренер. Здесь можно смотреть расписание и отмечать тренировки.
+                  </p>
                 ) : (
                   <>
                     <Button
@@ -443,6 +432,7 @@ export function PlanGenerationPage() {
                           ? 'Следующий цикл'
                           : 'Пересобрать системный'}
                     </Button>
+                    <GenerateBlockNote reason={canGenerateSystemPlan ? null : systemGenerateReason} />
                     <p className="text-xs text-secondary-foreground">
                       Нет тренера —{' '}
                       <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
