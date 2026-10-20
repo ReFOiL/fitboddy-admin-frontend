@@ -10,7 +10,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className
       ref={ref}
       type={type}
       className={cn(
-        'h-11 w-full rounded-lg border border-border bg-surface px-3 py-2 text-base outline-none transition placeholder:text-secondary-foreground focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:text-sm',
+        'h-12 w-full rounded-2xl border-2 border-foreground bg-background px-4 text-[17px] outline-none placeholder:text-secondary-foreground focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-50',
         type === 'number' &&
           '[appearance:textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none',
         className,

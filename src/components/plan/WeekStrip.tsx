@@ -29,11 +29,8 @@ export function WeekStrip({ days, focusedDayId, todayIso, onSelectDay }: WeekStr
             className={cn(
               'flex min-w-[3.25rem] flex-col items-center rounded-2xl border px-2.5 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               isSelected
-                ? 'border-primary bg-primary/15 text-foreground ring-2 ring-primary/30'
-                : day.is_completed
-                  ? 'border-border/50 bg-secondary/20 text-secondary-foreground'
-                  : 'border-border/70 bg-background/60',
-              !isSelected && isToday ? 'border-primary/50' : null,
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-foreground bg-background',
             )}
           >
             <span className="text-[11px] font-medium uppercase tracking-wide">
@@ -42,7 +39,7 @@ export function WeekStrip({ days, focusedDayId, todayIso, onSelectDay }: WeekStr
             <span className="text-sm font-semibold">{formatPlanDate(day.scheduled_for)}</span>
             {day.is_completed ? <Check size={12} className="mt-0.5 text-primary" /> : null}
             {isToday && !day.is_completed ? (
-              <span className="mt-0.5 text-[10px] font-semibold text-primary">сегодня</span>
+              <span className="mt-0.5 text-[10px] font-semibold">сегодня</span>
             ) : null}
           </button>
         )

@@ -30,7 +30,7 @@ function MessageStatus({ status, deliveryState }: { status: string; deliveryStat
       <Icon
         size={14}
         aria-hidden="true"
-        className={cn(deliveryState === 'pending' && 'animate-spin', status === 'read' && 'text-sky-300')}
+        className={cn(deliveryState === 'pending' && 'animate-spin')}
       />
       <span className="sr-only">{label}</span>
     </span>
@@ -50,8 +50,8 @@ export function ChatBubble({
     <li className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
       <article
         className={cn(
-          'max-w-[88%] rounded-2xl px-3 py-2 text-[15px] leading-relaxed shadow-sm sm:max-w-[82%] sm:text-sm',
-          mine ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-bl-md bg-secondary text-foreground',
+          'max-w-[88%] rounded-2xl px-3 py-2 text-[17px] leading-relaxed sm:max-w-[82%]',
+          mine ? 'rounded-br-md bg-foreground text-background' : 'rounded-bl-md border border-border bg-background text-foreground',
           deliveryState === 'failed' && 'ring-1 ring-destructive',
         )}
         aria-label={mine ? 'Ваше сообщение' : 'Входящее сообщение'}

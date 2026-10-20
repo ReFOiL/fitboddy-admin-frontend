@@ -25,6 +25,19 @@ export async function refresh(refreshToken: string): Promise<RefreshResponse> {
   return data
 }
 
+export type ClientLoginLookup = {
+  user_id: string
+  login: string
+  role: 'client'
+}
+
+export async function lookupClientByLogin(login: string): Promise<ClientLoginLookup> {
+  const { data } = await apiClient.get<ClientLoginLookup>('/api/v1/auth/clients/by-login', {
+    params: { login },
+  })
+  return data
+}
+
 export async function me(): Promise<AuthUser> {
   const { data } = await apiClient.get<AuthUser>('/api/v1/auth/me')
   return data

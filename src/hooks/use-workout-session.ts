@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { clearSessionChecks, loadSessionChecks, saveSessionChecks } from '../lib/plan-session'
+import { clearSessionChecks, clearWorkoutStart, loadSessionChecks, markWorkoutStarted, saveSessionChecks } from '../lib/plan-session'
 import type { TodayWorkout } from '../types/plan'
 
 type SessionDraft = {
@@ -29,7 +29,10 @@ export function useWorkoutSession(workout: TodayWorkout | undefined) {
   }
 
   const finish = () => {
-    if (dayId) clearSessionChecks(dayId)
+    if (dayId) {
+      clearSessionChecks(dayId)
+      clearWorkoutStart(dayId)
+    }
     setDraft(null)
     setIsActive(false)
   }
@@ -40,7 +43,10 @@ export function useWorkoutSession(workout: TodayWorkout | undefined) {
 
   return {
     isActive: Boolean(isActive && workout && !workout.is_completed),
-    start: () => setIsActive(true),
+    start: () => {
+      if (dayId) markWorkoutStarted(dayId)
+      setIsActive(true)
+    },
     collapse: () => setIsActive(false),
     finish,
     checkedLineIds,

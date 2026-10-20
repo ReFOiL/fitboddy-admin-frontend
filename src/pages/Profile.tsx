@@ -4,7 +4,8 @@ import { CheckCircle2, Dumbbell, HeartPulse, UserRound } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
-import { ProfileFormField, ProfileSelectField } from '../components/profile'
+import { NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
+import { notificationsEnabled } from '../config/features'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
@@ -24,7 +25,7 @@ import {
 } from '../lib/profile-schema'
 
 export function ProfilePage() {
-  const { user } = useAuth()
+  const { user, logoutMutation } = useAuth()
   const targetUserId = user?.user_id ?? ''
   const { profileQuery, metaQuery, upsertMutation, uploadAvatarMutation } = useProfile(targetUserId)
 
@@ -109,12 +110,8 @@ export function ProfilePage() {
   return (
     <form className="space-y-5 pb-40 md:pb-0" onSubmit={submitProfile} noValidate>
       <header>
-        <h1 className="text-2xl font-semibold sm:text-3xl">Настройки профиля</h1>
-        <p className="mt-1 max-w-2xl text-sm text-secondary-foreground sm:text-base">
-          {isTrainerOwnProfile
-            ? 'Обновляйте данные, которые видят ваши клиенты.'
-            : 'Поддерживайте данные актуальными — они используются при подборе нагрузки и составлении планов.'}
-        </p>
+        <h1 className="text-[28px] font-bold">Профиль</h1>
+        {targetUserId ? <p className="mt-2 text-[15px] text-secondary-foreground">ID: {targetUserId}</p> : null}
       </header>
 
       {isNotFound ? (
@@ -360,7 +357,18 @@ export function ProfilePage() {
         </>
       ) : null}
 
-      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      {notificationsEnabled() ? <NotificationSettings /> : null}
+
+      <Button
+        type="button"
+        variant="destructive"
+        className="w-full"
+        disabled={logoutMutation.isPending}
+        onClick={() => logoutMutation.mutate()}
+      >
+        {logoutMutation.isPending ? 'Выходим…' : 'Выйти'}
+      </Button>
+      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 bg-background px-4 py-3 md:static md:p-0">
         <div className="mx-auto flex max-w-6xl items-center gap-3">
           <span
             className={isFormDirty ? 'text-sm font-medium text-foreground' : 'text-sm text-secondary-foreground'}

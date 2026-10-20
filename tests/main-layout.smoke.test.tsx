@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
@@ -21,14 +22,19 @@ vi.mock('../src/hooks/use-messages', () => ({
 }))
 
 function renderLayout(path = '/home') {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="*" element={<div>Контент роли</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route path="*" element={<div>Контент роли</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
@@ -50,9 +56,9 @@ describe('MainLayout role smoke', () => {
     const mobileNav = screen.getByRole('navigation', { name: 'Мобильная навигация' })
     expect(within(mobileNav).getAllByRole('link')).toHaveLength(4)
     expect(within(mobileNav).getByRole('link', { name: 'Главная' })).toBeInTheDocument()
+    expect(within(mobileNav).getByRole('link', { name: 'План' })).toBeInTheDocument()
     expect(within(mobileNav).getByRole('link', { name: 'Чат, 3 непрочитанных' })).toBeInTheDocument()
-    expect(within(mobileNav).getByRole('link', { name: 'Тренер' })).toBeInTheDocument()
-    expect(within(mobileNav).getByRole('link', { name: 'Ещё' })).toBeInTheDocument()
+    expect(within(mobileNav).getByRole('link', { name: 'Профиль' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Перейти к основному содержимому' })).toHaveAttribute('href', '#main-content')
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content')
   })
@@ -62,8 +68,9 @@ describe('MainLayout role smoke', () => {
     renderLayout()
 
     expect(screen.getAllByText('Клиенты').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Аналитика').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Каталог').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Упражнения').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Сегодня').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Аналитика')).not.toBeInTheDocument()
     expect(screen.queryByText('План')).not.toBeInTheDocument()
   })
 
@@ -72,7 +79,7 @@ describe('MainLayout role smoke', () => {
     renderLayout('/profile')
 
     const mobileNav = screen.getByRole('navigation', { name: 'Мобильная навигация' })
-    expect(within(mobileNav).getByRole('link', { name: 'Ещё' })).toHaveAttribute('aria-current', 'page')
+    expect(within(mobileNav).getByRole('link', { name: 'Профиль' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('hides mobile tabs inside a chat thread', () => {

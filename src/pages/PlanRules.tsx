@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { getTrainerGenerationPolicy, upsertTrainerGenerationPolicy } from '../api/plans'
 import { listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
-import { StickySaveBar } from '../components/plan/StickySaveBar'
 import { useAuth } from '../hooks/use-auth'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
 import {
@@ -14,6 +13,7 @@ import {
   normalizeGenerationPolicy,
 } from '../lib/generation-policy'
 import { getUserErrorMessage } from '../lib/user-error-message'
+import { StickySaveBar } from '../components/plan/StickySaveBar'
 import type { TrainerExercise } from '../types/exercise'
 import type { GenerationPolicy } from '../types/generation-policy'
 
@@ -93,7 +93,7 @@ function SplitEditor({
           {categories.map((category, index) => (
             <li
               key={`${category}-${index}`}
-              className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-sm"
+              className="inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-foreground px-4 text-[17px]"
             >
               <span className="text-secondary-foreground">{index + 1}.</span>
               <span>{categoryLabel(category)}</span>
@@ -131,7 +131,7 @@ export function PlanRulesPage() {
   if (!trainerUserId) {
     return (
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="text-secondary-foreground">Нужно войти как тренер.</p>
       </section>
     )
@@ -140,7 +140,7 @@ export function PlanRulesPage() {
   if (policyQuery.isLoading) {
     return (
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="text-secondary-foreground">Загрузка…</p>
       </section>
     )
@@ -149,7 +149,7 @@ export function PlanRulesPage() {
   if (policyQuery.isError || !policyQuery.data) {
     return (
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="text-destructive">Не удалось загрузить. Попробуй ещё раз.</p>
         <button
           type="button"
@@ -180,8 +180,6 @@ export function PlanRulesPage() {
   )
 }
 
-type SaveNotice = { kind: 'success' | 'error'; text: string }
-
 function PlanRulesEditor({
   trainerUserId,
   initialPolicy,
@@ -202,7 +200,8 @@ function PlanRulesEditor({
   const [savedPolicy, setSavedPolicy] = useState(initialPolicy)
   const [pairLeft, setPairLeft] = useState('')
   const [pairRight, setPairRight] = useState('')
-  const [notice, setNotice] = useState<SaveNotice | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+  const [errorText, setErrorText] = useState<string | null>(null)
   const [selectedGoal, setSelectedGoal] = useState<(typeof GOALS)[number]['value']>('maintenance')
   const isDirty = isGenerationPolicyDirty(savedPolicy, draft)
 
@@ -215,16 +214,12 @@ function PlanRulesEditor({
       })
       setSavedPolicy(normalized)
       setDraft(normalized)
-      setNotice({
-        kind: 'success',
-        text: 'Сохранено. Новые планы для клиентов уже учитывают эти правила.',
-      })
+      setErrorText(null)
+      setMessage('Сохранено. Новые планы для клиентов уже учитывают эти правила.')
     },
     onError: (error) => {
-      setNotice({
-        kind: 'error',
-        text: getUserErrorMessage(error, 'Не удалось сохранить правила. Попробуй ещё раз.'),
-      })
+      setMessage(null)
+      setErrorText(getUserErrorMessage(error, 'Не удалось сохранить. Попробуй ещё раз.'))
     },
   })
 
@@ -253,20 +248,20 @@ function PlanRulesEditor({
   return (
     <section className="space-y-5 pb-40 md:pb-0">
       <header>
-        <h1 className="text-2xl font-semibold sm:text-3xl">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="mt-1 max-w-3xl text-sm text-secondary-foreground sm:text-base">
           Здесь задаётся, как собираются планы для ваших клиентов: сколько тренировок в неделю, какие
           зоны тела в какие дни и какие упражнения нельзя ставить рядом.
         </p>
       </header>
 
-      {notice?.kind === 'error' ? (
+      {errorText ? (
         <p role="alert" className="text-sm text-destructive">
-          {notice.text}
+          {errorText}
         </p>
-      ) : notice?.kind === 'success' && !isDirty ? (
+      ) : message && !isDirty ? (
         <p role="status" className="text-sm text-secondary-foreground">
-          {notice.text}
+          {message}
         </p>
       ) : null}
 
@@ -289,17 +284,12 @@ function PlanRulesEditor({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2"
                 value={draft.default_workouts_per_week[level.value] ?? 3}
                 onChange={(event) => {
-                  const raw = event.target.value
+                  const next = clampBoundedInt(event.target.value, 1, 7, 3)
                   setDraft((current) => ({
                     ...current,
                     default_workouts_per_week: {
                       ...current.default_workouts_per_week,
-                      [level.value]: clampBoundedInt(
-                        raw,
-                        1,
-                        7,
-                        current.default_workouts_per_week[level.value] ?? 3,
-                      ),
+                      [level.value]: next,
                     },
                   }))
                 }}
@@ -448,70 +438,65 @@ function PlanRulesEditor({
             тренировке.
           </p>
         </div>
-        {catalogError ? (
-          <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            <p>{getUserErrorMessage(catalogError, 'Не удалось загрузить каталог упражнений.')}</p>
-            <button type="button" className="mt-2 underline" onClick={onRetryCatalog}>
-              Повторить
-            </button>
-          </div>
-        ) : catalogLoading ? (
-          <p className="text-sm text-secondary-foreground">Загрузка каталога упражнений…</p>
-        ) : exercises.length === 0 ? (
-          <p className="text-sm text-secondary-foreground">
-            В каталоге нет активных упражнений — добавить запрет пока нельзя.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <select
-              className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
-              value={pairLeft}
-              onChange={(event) => setPairLeft(event.target.value)}
-            >
-              <option value="">Первое упражнение</option>
-              {exercises.map((item) => (
-                <option key={item.row_id} value={item.row_id}>
-                  {item.exercise_name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
-              value={pairRight}
-              onChange={(event) => setPairRight(event.target.value)}
-            >
-              <option value="">Второе упражнение</option>
-              {exercises.map((item) => (
-                <option key={item.row_id} value={item.row_id}>
-                  {item.exercise_name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 py-2"
-              onClick={() => {
-                if (!pairLeft || !pairRight || pairLeft === pairRight) return
-                setDraft((current) => {
-                  const exists = current.excluded_pairs.some(
-                    ([left, right]) =>
-                      (left === pairLeft && right === pairRight) ||
-                      (left === pairRight && right === pairLeft),
-                  )
-                  if (exists) return current
-                  return {
-                    ...current,
-                    excluded_pairs: [...current.excluded_pairs, [pairLeft, pairRight]],
-                  }
-                })
-                setPairLeft('')
-                setPairRight('')
-              }}
-            >
-              Добавить запрет
-            </button>
-          </div>
-        )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {catalogError ? (
+            <div role="alert" className="text-sm text-destructive">
+              <p>{getUserErrorMessage(catalogError, 'Не удалось загрузить каталог упражнений.')}</p>
+              <button type="button" className="mt-2 underline" onClick={onRetryCatalog}>
+                Повторить
+              </button>
+            </div>
+          ) : catalogLoading ? (
+            <p className="text-sm text-secondary-foreground">Загружаем каталог…</p>
+          ) : null}
+          <select
+            className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
+            value={pairLeft}
+            onChange={(event) => setPairLeft(event.target.value)}
+          >
+            <option value="">Первое упражнение</option>
+            {exercises.map((item) => (
+              <option key={item.row_id} value={item.row_id}>
+                {item.exercise_name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
+            value={pairRight}
+            onChange={(event) => setPairRight(event.target.value)}
+          >
+            <option value="">Второе упражнение</option>
+            {exercises.map((item) => (
+              <option key={item.row_id} value={item.row_id}>
+                {item.exercise_name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 py-2"
+            onClick={() => {
+              if (!pairLeft || !pairRight || pairLeft === pairRight) return
+              setDraft((current) => {
+                const exists = current.excluded_pairs.some(
+                  ([left, right]) =>
+                    (left === pairLeft && right === pairRight) ||
+                    (left === pairRight && right === pairLeft),
+                )
+                if (exists) return current
+                return {
+                  ...current,
+                  excluded_pairs: [...current.excluded_pairs, [pairLeft, pairRight]],
+                }
+              })
+              setPairLeft('')
+              setPairRight('')
+            }}
+          >
+            Добавить запрет
+          </button>
+        </div>
         <ul className="space-y-2 text-sm">
           {draft.excluded_pairs.length === 0 ? (
             <li className="text-secondary-foreground">
@@ -549,19 +534,15 @@ function PlanRulesEditor({
       <StickySaveBar ariaLabel="Сохранение правил">
         <div className="flex items-center gap-3">
           <span className={isDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
-            {saveMutation.isPending
-              ? 'Сохраняем правила…'
-              : isDirty
-                ? 'Есть несохранённые изменения'
-                : 'Правила сохранены'}
+            {isDirty ? 'Есть изменения' : 'Сохранено'}
           </span>
           <button
             type="button"
-            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:flex-none"
+            className="ml-auto inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-primary-foreground disabled:opacity-60 md:flex-none pb-[env(safe-area-inset-bottom)] md:pb-2.5"
             disabled={saveMutation.isPending || !isDirty}
             onClick={() => {
-              setNotice(null)
-              saveMutation.mutate(normalizeGenerationPolicy(draft))
+              setMessage(null)
+              saveMutation.mutate(draft)
             }}
           >
             {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить правила'}

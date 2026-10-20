@@ -16,7 +16,7 @@ export function UnreadBadge({ count, max = 99, className, ...props }: UnreadBadg
     <span
       aria-label={`${count} непрочитанных`}
       className={cn(
-        'inline-flex min-w-4 items-center justify-center rounded-full bg-info px-1 text-[10px] font-semibold leading-4 text-background',
+        'inline-flex min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold leading-4 text-background',
         className,
       )}
       {...props}

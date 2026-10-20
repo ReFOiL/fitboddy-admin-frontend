@@ -33,6 +33,21 @@ vi.mock('../src/hooks/use-messages', () => ({
   useConversations: () => ({ data: mocks.conversations }),
 }))
 
+vi.mock('../src/hooks/use-trainer-roster', () => ({
+  useTrainerRoster: () => ({
+    rows: [],
+    clientsQuery: { isLoading: false, isError: false, refetch: vi.fn() },
+  }),
+}))
+
+vi.mock('../src/hooks/use-relations', () => ({
+  useTrainerRelations: () => ({
+    trainerPublicationStatusQuery: { data: { is_published: true } },
+    upsertDiscoveryProfileMutation: { isPending: false, mutate: vi.fn() },
+    createRelationMutation: { isPending: false, mutate: vi.fn() },
+  }),
+}))
+
 const day: PlanDay = {
   day_id: 'day-1',
   day_index: 1,
@@ -135,7 +150,7 @@ describe('client Dashboard', () => {
     mocks.model = baseModel({ profile: { age: null }, questionnaireReady: false })
     renderDashboard()
 
-    expect(screen.getByRole('heading', { name: 'Сегодня' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Привет' })).toBeInTheDocument()
     expect(screen.getAllByRole('link')).toHaveLength(1)
     expect(screen.getByRole('link', { name: 'Продолжить заполнение' })).toHaveAttribute('href', '/profile/onboarding')
     expect(screen.queryByText('Добро пожаловать')).not.toBeInTheDocument()
@@ -216,12 +231,26 @@ describe('client Dashboard', () => {
     expect(mocks.runGenerate).toHaveBeenCalledWith('system')
   })
 
+  it('не даёт клиенту с тренером собрать следующий цикл самому', () => {
+    mocks.model = baseModel({
+      hasNoActivePlan: false,
+      hasActivePlan: true,
+      hasActiveTrainer: true,
+      activePlan: { ...plan, days: [{ ...day, is_completed: true }] },
+      showNextCycleCta: true,
+    })
+    renderDashboard()
+
+    expect(screen.getByText('Следующий цикл соберёт тренер.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Следующий цикл' })).not.toBeInTheDocument()
+    expect(mocks.runGenerate).not.toHaveBeenCalled()
+  })
+
   it('сохраняет trainer Dashboard с Hero и быстрыми действиями', () => {
     mocks.user.role = 'trainer'
     renderDashboard()
 
-    expect(screen.queryByRole('heading', { name: 'Сегодня' })).not.toBeInTheDocument()
-    expect(screen.getByText('Клиенты и связи')).toBeInTheDocument()
-    expect(screen.getByText('Тренер')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: '+ Пригласить клиента' }).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Тренируются сегодня/)).toBeInTheDocument()
   })
 })

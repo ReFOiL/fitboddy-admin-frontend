@@ -16,7 +16,6 @@ import { useClientLoads, useClientPlatformLoads } from '../hooks/use-plans'
 import { useWorkoutSession } from '../hooks/use-workout-session'
 import { listPlatformExercises, listTrainerExercises } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
-import { ClientPlanPending } from '../components/plan/ClientPlanPending'
 import { GenerateBlockNote } from '../components/plan/GenerateBlockNote'
 import { PlanCollapsible } from '../components/plan/PlanCollapsible'
 import { PlanSchedule } from '../components/plan/PlanSchedule'
@@ -29,11 +28,12 @@ import { Input } from '../components/ui/input'
 import { Skeleton } from '../components/ui/skeleton'
 import { AlertBanner, EmptyState, QueryState } from '../components/shared'
 import { collectCatalogEquipmentTags, formatEquipmentLabel } from '../lib/equipment'
+import { clientSystemGenerateBlockReason } from '../lib/plan-generate-reason'
 import {
   textOrFallback,
 } from '../lib/plan-formatters'
-import { clientSystemGenerateBlockReason } from '../lib/plan-generate-reason'
 import { selectPlanDay } from '../lib/plan-day-selector'
+import { loadWorkoutStart } from '../lib/plan-session'
 import { cn } from '../lib/utils'
 
 export function PlanGenerationPage() {
@@ -185,7 +185,6 @@ export function PlanGenerationPage() {
   const locationLabel =
     metaQuery.data?.workout_locations.find((item) => item.value === profile?.workout_location)?.label ??
     textOrFallback(profile?.workout_location)
-
   const systemGenerateReason = clientSystemGenerateBlockReason({
     isPending: generatePlanMutation.isPending,
     profile,
@@ -193,6 +192,7 @@ export function PlanGenerationPage() {
     relationLoading: clientActiveRelationQuery.isLoading,
     hasActiveTrainer,
   })
+
   const isSystemPlan = activePlan?.source === 'system'
   const isPreviousTrainerPlan = Boolean(
     activePlan?.source === 'trainer' &&
@@ -226,9 +226,10 @@ export function PlanGenerationPage() {
 
   const finishWorkout = () => {
     if (!todayWorkout || todayWorkout.is_completed) return
-    completeDayMutation.mutate(todayWorkout.day_index, {
-      onSuccess: workoutSession.finish,
-    })
+    completeDayMutation.mutate(
+      { dayIndex: todayWorkout.day_index, startedAt: loadWorkoutStart(todayWorkout.day_id) },
+      { onSuccess: workoutSession.finish },
+    )
   }
 
   if (!isClient) {
@@ -270,6 +271,7 @@ export function PlanGenerationPage() {
   /* ——— Home ——— */
   return (
     <div className="mx-auto w-full max-w-lg space-y-4 md:max-w-3xl">
+      <h1 className="text-[28px] font-bold">План</h1>
       {(clientActiveRelationQuery.isLoading || profileQuery.isLoading || activePlanQuery.isLoading) &&
       !hasActivePlan &&
       !hasNoActivePlan ? (
@@ -306,9 +308,14 @@ export function PlanGenerationPage() {
         clientActiveRelationQuery.isLoading ? (
           <Skeleton className="h-32 w-full rounded-2xl" />
         ) : hasActiveTrainer ? (
-          <ClientPlanPending />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xl">Тренер ещё составляет программу</CardTitle>
+              <CardDescription>Напишем, когда план будет готов.</CardDescription>
+            </CardHeader>
+          </Card>
         ) : (
-        <Card className="border-primary/30 bg-gradient-to-b from-primary/10 to-transparent">
+        <Card>
           <CardHeader>
             <CardTitle className="text-xl">Собери план</CardTitle>
             <CardDescription>Системный план по анкете — или выбери тренера.</CardDescription>
@@ -391,7 +398,7 @@ export function PlanGenerationPage() {
           />
 
           {showNextCycleCta ? (
-            <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+            <div className="rounded-2xl border-2 border-foreground px-4 py-3 text-[17px]">
               Цикл завершён{currentAdherence != null ? ` · выполнено ${currentAdherence}%` : ''}. Можно запустить
               следующий в настройках ниже.
             </div>

@@ -113,7 +113,7 @@ export function MuscleTargetPicker({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-border/70 bg-gradient-to-b from-background to-secondary/20 p-3 shadow-inner">
+      <div className="rounded-2xl border-2 border-foreground p-3">
         <MuscleAnatomyMap
           primaryRegions={primaryRegions}
           secondaryRegions={secondaryRegions}

@@ -52,6 +52,21 @@ describe('getUserErrorMessage', () => {
     ).toBe('Не удалось загрузить видео.')
   })
 
+  it('переводит конфликты и проверки плана', () => {
+    expect(getUserErrorMessage(apiError(409, 'plan day already exists'), 'Не удалось.')).toBe(
+      'Такой день уже есть в этой неделе.',
+    )
+    expect(getUserErrorMessage(apiError(422, 'cannot copy a day onto itself'), 'Не удалось.')).toBe(
+      'Нельзя скопировать день на себя.',
+    )
+    expect(getUserErrorMessage(apiError(422, 'note must be at most 500 characters'), 'Не удалось.')).toBe(
+      'Заметка не длиннее 500 символов.',
+    )
+    expect(getUserErrorMessage(apiError(422, 'scheduled_time must be HH:MM'), 'Не удалось.')).toBe(
+      'Время укажите как ЧЧ:ММ.',
+    )
+  })
+
   it('показывает понятное сообщение при отсутствии сети', () => {
     expect(
       getUserErrorMessage({ isAxiosError: true }, 'Не удалось сохранить.'),

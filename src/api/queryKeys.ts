@@ -37,7 +37,7 @@ export const queryKeys = {
   },
   plans: {
     activeByUser: (userId: string) => ['plans', 'active-by-user', userId] as const,
-    trainerClient: (clientUserId: string, trainerUserId: string) =>
+    trainerClientPlan: (clientUserId: string, trainerUserId: string) =>
       ['plans', 'trainer-client', clientUserId, trainerUserId] as const,
     today: (userId: string) => ['plans', 'today', userId] as const,
     clientLoads: (clientUserId: string, trainerUserId: string) =>
@@ -45,5 +45,6 @@ export const queryKeys = {
     clientPlatformLoads: (clientUserId: string) => ['plans', 'client-platform-loads', clientUserId] as const,
     trainerGenerationPolicy: (trainerUserId: string) =>
       ['plans', 'trainer-generation-policy', trainerUserId] as const,
+    notificationSettings: ['plans', 'notification-settings'] as const,
   },
 }

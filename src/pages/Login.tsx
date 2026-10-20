@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Eye, EyeOff, ShieldCheck, Sparkles, Users } from 'lucide-react'
+import { Eye, EyeOff, ShieldCheck, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -96,13 +96,9 @@ export function LoginPage() {
   return (
     <main className="min-h-dvh bg-background px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:py-14">
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card className="order-2 border-primary/30 lg:order-1">
+        <Card className="order-2 lg:order-1">
           <CardHeader>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs text-primary">
-              <Sparkles size={14} />
-              Fitboddy для тренировок
-            </div>
-            <CardTitle className="text-2xl md:text-3xl">Тренируйтесь системно, а не хаотично</CardTitle>
+            <CardTitle className="text-[28px]">Тренировки с тренером</CardTitle>
             <CardDescription className="text-base">План, связь с тренером и прогресс — в одном месте.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm text-secondary-foreground">

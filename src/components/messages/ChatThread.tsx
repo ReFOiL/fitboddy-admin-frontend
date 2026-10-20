@@ -162,7 +162,7 @@ export function ChatThread({
           <Button
             type="button"
             size="sm"
-            className="absolute bottom-3 right-3 gap-1.5 rounded-full shadow-lg"
+            className="absolute bottom-3 right-3 gap-1.5 rounded-full"
             onClick={scrollToBottom}
             aria-label="Прокрутить к новым сообщениям"
           >

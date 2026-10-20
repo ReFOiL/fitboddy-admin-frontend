@@ -19,38 +19,33 @@ export function MobileTabBar({ role, unreadCount, hidden = false }: MobileTabBar
     <nav
       aria-label="Мобильная навигация"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden',
+        'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden',
         hidden ? 'hidden' : 'block',
       )}
     >
       <div
-        className="mx-auto grid h-[4.25rem] w-full max-w-6xl items-center px-1"
-        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        className="mx-auto grid h-[4.25rem] w-full max-w-6xl items-end px-1"
+        style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}
       >
         {items.map((item) => {
           const active = isNavItemActive(item, location.pathname)
           const label = item.mobileLabel ?? item.label
           const Icon = item.icon
           const isMessages = item.path === APP_PATHS.messages
-
           return (
             <Link
               key={item.id}
               to={item.path}
               aria-current={active ? 'page' : undefined}
               aria-label={isMessages && unreadCount > 0 ? `${label}, ${unreadCount} непрочитанных` : label}
-              className={cn(
-                'flex h-full min-h-12 items-center justify-center rounded-lg px-1 text-[11px] font-medium transition',
-                active ? 'bg-primary/20 text-foreground' : 'text-secondary-foreground',
-              )}
+              className="flex h-full min-h-12 flex-col items-center justify-end pb-2 text-[12px] font-medium"
             >
-              <span className="relative mx-auto flex flex-col items-center gap-0.5">
-                <span className="relative">
-                  <Icon size={18} />
-                  {isMessages ? <UnreadBadge count={unreadCount} className="absolute -right-2.5 -top-1.5" /> : null}
-                </span>
-                {label}
+              <span className={cn('mb-1 h-0.5 w-8 rounded-full', active ? 'bg-primary' : 'bg-transparent')} />
+              <span className="relative">
+                <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
+                {isMessages ? <UnreadBadge count={unreadCount} className="absolute -right-3 -top-2" /> : null}
               </span>
+              <span className="mt-0.5">{label}</span>
             </Link>
           )
         })}

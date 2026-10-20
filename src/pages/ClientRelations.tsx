@@ -44,7 +44,7 @@ export function ClientRelationsPage() {
       {mustCompleteQuestionnaire ? <ClientProfileRequiredCard /> : null}
 
       {activeRelation?.trainer_user_id ? (
-        <Card className={unreadCount > 0 ? 'border-primary/50 bg-primary/5' : 'border-primary/20'}>
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
