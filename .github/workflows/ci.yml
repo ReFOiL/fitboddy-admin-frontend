@@ -3,7 +3,10 @@ name: Frontend CI
 on:
   pull_request:
   push:
-    branches: ["main"]
+    branches:
+      - main
+      # Ветка конфликтует с main, поэтому pull_request не создаёт merge ref и Actions молчит.
+      - cursor/redesign-trainer-client-ui-d095
 
 jobs:
   build-and-test:
