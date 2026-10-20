@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
 import { NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
+import { notificationsEnabled } from '../config/features'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
@@ -356,7 +357,7 @@ export function ProfilePage() {
         </>
       ) : null}
 
-      <NotificationSettings />
+      {notificationsEnabled() ? <NotificationSettings /> : null}
 
       <Button
         type="button"

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { QueryState } from '../shared'
 import { Button } from '../ui/button'
 import { SectionLabel } from '../ui/kit'
+import { notificationsEnabled } from '../../config/features'
 import { useNotificationSettings } from '../../hooks/use-notification-settings'
 import {
   formatLinkExpiry,
@@ -19,6 +20,7 @@ type IssuedLink = {
 }
 
 export function NotificationSettings() {
+  const enabled = notificationsEnabled()
   const { settingsQuery, updateMutation, linkMutation, unlinkMutation } = useNotificationSettings()
   const [issued, setIssued] = useState<IssuedLink | null>(null)
   const [linkError, setLinkError] = useState<string | null>(null)
@@ -58,6 +60,8 @@ export function NotificationSettings() {
     if (next !== '' && next === settings.timezone && !settings.timezone_is_default) return
     updateMutation.mutate({ kind: 'timezone', timezone: next === '' ? null : next })
   }
+
+  if (!enabled) return null
 
   return (
     <section className="space-y-2">

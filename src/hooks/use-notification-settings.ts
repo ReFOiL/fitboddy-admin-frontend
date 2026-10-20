@@ -8,16 +8,20 @@ import {
   unlinkTelegram,
   updateNotificationSettings,
 } from '../api'
+import { notificationsEnabled } from '../config/features'
 import { notificationSettingsBody } from '../lib/notification-settings'
 import { getUserErrorMessage } from '../lib/user-error-message'
 import type { NotificationSettingsPatch } from '../types/notifications'
 
 export function useNotificationSettings() {
   const queryClient = useQueryClient()
+  // Пока флаг выключен, наблюдатель не ходит в сеть даже если компонент смонтирован.
+  const active = notificationsEnabled()
 
   const settingsQuery = useQuery({
     queryKey: queryKeys.plans.notificationSettings,
     queryFn: getNotificationSettings,
+    enabled: active,
     retry: false,
   })
 

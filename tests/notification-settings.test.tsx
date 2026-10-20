@@ -104,8 +104,19 @@ describe('NotificationSettings', () => {
     mocks.link.mockReset()
     mocks.unlink.mockReset()
     mocks.refetch.mockReset()
+    vi.stubEnv('VITE_NOTIFICATIONS_ENABLED', 'true')
     vi.stubEnv('VITE_TELEGRAM_BOT_USERNAME', 'FitboddyBot')
     vi.stubGlobal('open', vi.fn())
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('не показывает блок, пока флаг выключен', () => {
+    vi.stubEnv('VITE_NOTIFICATIONS_ENABLED', 'false')
+    const { container } = render(<NotificationSettings />)
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('показывает кнопку подключения и не запрашивает код без бота', async () => {
