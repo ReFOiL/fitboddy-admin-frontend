@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Link2Off, MessageSquare, UserCheck } from 'lucide-react'
+import { CalendarDays, Link2Off, MessageSquare, UserCheck } from 'lucide-react'
 
 import { Button } from '../ui/button'
 import { APP_PATHS } from '../../config'
@@ -35,6 +35,12 @@ export function TrainerClientItem({ relation, leaveDisabled, onLeave }: TrainerC
           <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(relation.client_user_id)}`}>
             <MessageSquare size={14} className="shrink-0" />
             Написать
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary" className="h-11 w-full sm:h-8 sm:w-auto">
+          <Link to={`${APP_PATHS.clientProfile}?clientUserId=${encodeURIComponent(relation.client_user_id)}#plan`}>
+            <CalendarDays size={14} className="shrink-0" />
+            План
           </Link>
         </Button>
         <Button asChild size="sm" variant="secondary" className="h-11 w-full sm:h-8 sm:w-auto">

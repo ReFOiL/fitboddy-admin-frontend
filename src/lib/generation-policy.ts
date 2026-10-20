@@ -8,12 +8,26 @@ export const DEFAULT_SESSION_BOUNDS: Record<string, SessionSizeBounds> = {
   rehabilitation: { min: 3, max: 4 },
 }
 
+export function clampBoundedInt(raw: string, min: number, max: number, fallback: number): number {
+  if (raw.trim() === '') return fallback
+  const next = Number(raw)
+  if (!Number.isFinite(next)) return fallback
+  return Math.min(max, Math.max(min, Math.trunc(next)))
+}
+
+function clampWorkoutsPerWeek(value: unknown): number {
+  if (value == null || value === '') return 3
+  const next = Number(value)
+  if (!Number.isFinite(next)) return 3
+  return Math.min(7, Math.max(1, Math.trunc(next)))
+}
+
 function normalizeSessionBounds(raw: unknown, fallback: SessionSizeBounds): SessionSizeBounds {
   if (!raw || typeof raw !== 'object') return fallback
   const min = Number((raw as SessionSizeBounds).min)
   const max = Number((raw as SessionSizeBounds).max)
-  const safeMin = Number.isFinite(min) ? Math.min(12, Math.max(1, min)) : fallback.min
-  const safeMax = Number.isFinite(max) ? Math.min(12, Math.max(1, max)) : fallback.max
+  const safeMin = Number.isFinite(min) ? Math.min(12, Math.max(1, Math.trunc(min))) : fallback.min
+  const safeMax = Number.isFinite(max) ? Math.min(12, Math.max(1, Math.trunc(max))) : fallback.max
   return safeMin <= safeMax ? { min: safeMin, max: safeMax } : { min: safeMax, max: safeMin }
 }
 
@@ -43,7 +57,7 @@ export function normalizeGenerationPolicy(
       ]),
     ),
     default_workouts_per_week: Object.fromEntries(
-      Object.entries(workouts).map(([key, value]) => [key, Number(value) || 3]),
+      Object.entries(workouts).map(([key, value]) => [key, clampWorkoutsPerWeek(value)]),
     ),
     exercises_per_session: Object.fromEntries(
       Object.entries(DEFAULT_SESSION_BOUNDS).map(([key, fallback]) => [
