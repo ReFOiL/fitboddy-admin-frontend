@@ -45,5 +45,6 @@ export const queryKeys = {
     clientPlatformLoads: (clientUserId: string) => ['plans', 'client-platform-loads', clientUserId] as const,
     trainerGenerationPolicy: (trainerUserId: string) =>
       ['plans', 'trainer-generation-policy', trainerUserId] as const,
+    notificationSettings: ['plans', 'notification-settings'] as const,
   },
 }

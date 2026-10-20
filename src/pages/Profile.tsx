@@ -4,7 +4,7 @@ import { CheckCircle2, Dumbbell, HeartPulse, UserRound } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 
-import { ProfileFormField, ProfileSelectField } from '../components/profile'
+import { NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
@@ -355,6 +355,8 @@ export function ProfilePage() {
           </Card>
         </>
       ) : null}
+
+      <NotificationSettings />
 
       <Button
         type="button"
