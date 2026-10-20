@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import axios from 'axios'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -19,8 +20,10 @@ import { formatWorkoutCategory } from '../../lib/muscles'
 import { clientDisplayName } from '../../lib/person'
 import { lastCompletedDay } from '../../lib/roster'
 import { isProfileCompleted } from '../../lib/profile-completion'
+import { getTrainerPlanComposeBlockReason } from '../../lib/trainer-plan-compose'
 import type { TrainerExercise } from '../../types/exercise'
 import type { CopyDayMode } from '../../types/plan'
+import { GenerateBlockNote } from '../plan/GenerateBlockNote'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
@@ -60,6 +63,15 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const manual = useManualPlan(clientUserId, trainerUserId)
   const { activePlanQuery, generatePlanMutation } = usePlans(clientUserId)
   const { profileQuery, metaQuery } = useProfile(clientUserId)
+  const profileStatus = axios.isAxiosError(profileQuery.error) ? profileQuery.error.response?.status : undefined
+  const composeBlockReason = getTrainerPlanComposeBlockReason({
+    isProfileLoading: profileQuery.isLoading,
+    isNotFound: profileStatus === 404,
+    isForbidden: profileStatus === 403,
+    hasProfileLoadError: Boolean(profileQuery.isError && profileStatus !== 404 && profileStatus !== 403),
+    hasProfile: Boolean(profileQuery.data),
+    questionnaireReady: isProfileCompleted(profileQuery.data),
+  })
   const { trainerClientsQuery, leaveRelationMutation, trainerFunnelQuery } = useTrainerRelations({ trainerUserId })
   const catalogQuery = useQuery({
     queryKey: queryKeys.exercises.trainerCatalog(trainerUserId, false),
@@ -149,10 +161,11 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
 
   const assemble = () => {
     const profile = profileQuery.data
-    if (!profile || !isProfileCompleted(profile)) {
-      window.alert('Сначала нужна заполненная анкета клиента.')
+    if (composeBlockReason) {
+      window.alert(composeBlockReason)
       return
     }
+    if (!profile) return
     if (plan && !window.confirm('Собрать из каталога? Текущий план будет заменён.')) return
     generatePlanMutation.mutate(
       {
@@ -430,6 +443,9 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
         <div className="px-1 py-10 text-center">
           <p className="text-[22px] font-bold">Плана ещё нет</p>
           <p className="mt-2 text-[17px] text-secondary-foreground">Соберите программу из каталога.</p>
+          <div className="mt-3">
+            <GenerateBlockNote reason={composeBlockReason} />
+          </div>
         </div>
       ) : null}
 

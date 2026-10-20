@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 
 import { ProtectedRoute, RoleRoute, RouteErrorBoundary } from './components'
 import { MainLayout } from './components/layout/MainLayout'
-import { APP_PATHS, type AppRole, resolveCatalogPath, resolveDocumentTitle, resolveRelationsPath } from './config'
+import { APP_PATHS, clientProfilePath, type AppRole, resolveCatalogPath, resolveDocumentTitle, resolveRelationsPath } from './config'
 import { useAuth } from './hooks/use-auth'
 
 const AnalyticsPage = lazy(async () => ({ default: (await import('./pages/Analytics')).AnalyticsPage }))
@@ -30,6 +30,12 @@ const TrainerClientProfilePage = lazy(async () => ({
 }))
 const MessagesPage = lazy(async () => ({ default: (await import('./pages/Messages')).MessagesPage }))
 const MorePage = lazy(async () => ({ default: (await import('./pages/More')).MorePage }))
+
+// Старый адрес редактора из #4/#5. Студия плана живёт в профиле клиента.
+function LegacyClientPlanRedirect() {
+  const { clientUserId = '' } = useParams()
+  return <Navigate to={clientProfilePath(clientUserId)} replace />
+}
 
 function App() {
   const { user } = useAuth()
@@ -70,6 +76,14 @@ function App() {
               element={
                 <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
                   <TrainerClientProfilePage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.clientPlan.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <LegacyClientPlanRedirect />
                 </RoleRoute>
               }
             />

@@ -7,10 +7,13 @@ import { queryKeys } from '../api/queryKeys'
 import { useAuth } from '../hooks/use-auth'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
 import {
+  clampBoundedInt,
   DEFAULT_SESSION_BOUNDS,
   isGenerationPolicyDirty,
   normalizeGenerationPolicy,
 } from '../lib/generation-policy'
+import { getUserErrorMessage } from '../lib/user-error-message'
+import { StickySaveBar } from '../components/plan/StickySaveBar'
 import type { TrainerExercise } from '../types/exercise'
 import type { GenerationPolicy } from '../types/generation-policy'
 
@@ -168,6 +171,11 @@ export function PlanRulesPage() {
       trainerUserId={trainerUserId}
       initialPolicy={normalizeGenerationPolicy(policyQuery.data)}
       exercises={exercises}
+      catalogError={catalogQuery.isError ? catalogQuery.error : null}
+      catalogLoading={catalogQuery.isLoading}
+      onRetryCatalog={() => {
+        void catalogQuery.refetch()
+      }}
     />
   )
 }
@@ -176,10 +184,16 @@ function PlanRulesEditor({
   trainerUserId,
   initialPolicy,
   exercises,
+  catalogError,
+  catalogLoading,
+  onRetryCatalog,
 }: {
   trainerUserId: string
   initialPolicy: GenerationPolicy
   exercises: TrainerExercise[]
+  catalogError: unknown
+  catalogLoading: boolean
+  onRetryCatalog: () => void
 }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState(initialPolicy)
@@ -187,6 +201,7 @@ function PlanRulesEditor({
   const [pairLeft, setPairLeft] = useState('')
   const [pairRight, setPairRight] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+  const [errorText, setErrorText] = useState<string | null>(null)
   const [selectedGoal, setSelectedGoal] = useState<(typeof GOALS)[number]['value']>('maintenance')
   const isDirty = isGenerationPolicyDirty(savedPolicy, draft)
 
@@ -199,9 +214,13 @@ function PlanRulesEditor({
       })
       setSavedPolicy(normalized)
       setDraft(normalized)
+      setErrorText(null)
       setMessage('Сохранено. Новые планы для клиентов уже учитывают эти правила.')
     },
-    onError: () => setMessage('Не удалось сохранить. Попробуй ещё раз.'),
+    onError: (error) => {
+      setMessage(null)
+      setErrorText(getUserErrorMessage(error, 'Не удалось сохранить. Попробуй ещё раз.'))
+    },
   })
 
   useUnsavedChangesGuard(isDirty && !saveMutation.isPending)
@@ -227,7 +246,7 @@ function PlanRulesEditor({
   const selectedGoalLabel = GOALS.find((item) => item.value === selectedGoal)?.label ?? selectedGoal
 
   return (
-    <section className="space-y-5 pb-24 md:pb-0">
+    <section className="space-y-5 pb-40 md:pb-0">
       <header>
         <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="mt-1 max-w-3xl text-sm text-secondary-foreground sm:text-base">
@@ -236,11 +255,12 @@ function PlanRulesEditor({
         </p>
       </header>
 
-      {message && (!isDirty || message.startsWith('Не удалось')) ? (
-        <p
-          role={message.startsWith('Не удалось') ? 'alert' : 'status'}
-          className={`text-sm ${message.startsWith('Не удалось') ? 'text-destructive' : 'text-secondary-foreground'}`}
-        >
+      {errorText ? (
+        <p role="alert" className="text-sm text-destructive">
+          {errorText}
+        </p>
+      ) : message && !isDirty ? (
+        <p role="status" className="text-sm text-secondary-foreground">
           {message}
         </p>
       ) : null}
@@ -264,12 +284,12 @@ function PlanRulesEditor({
                 className="w-full rounded-lg border border-border bg-background px-3 py-2"
                 value={draft.default_workouts_per_week[level.value] ?? 3}
                 onChange={(event) => {
-                  const next = Number(event.target.value)
+                  const next = clampBoundedInt(event.target.value, 1, 7, 3)
                   setDraft((current) => ({
                     ...current,
                     default_workouts_per_week: {
                       ...current.default_workouts_per_week,
-                      [level.value]: Number.isFinite(next) ? next : 3,
+                      [level.value]: next,
                     },
                   }))
                 }}
@@ -304,11 +324,11 @@ function PlanRulesEditor({
                       className="w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
                       value={bounds.min}
                       onChange={(event) => {
-                        const next = Number(event.target.value)
+                        const raw = event.target.value
                         setDraft((current) => {
                           const currentBounds =
                             current.exercises_per_session[slot.value] ?? DEFAULT_SESSION_BOUNDS[slot.value]
-                          const min = Number.isFinite(next) ? next : currentBounds.min
+                          const min = clampBoundedInt(raw, 1, 12, currentBounds.min)
                           return {
                             ...current,
                             exercises_per_session: {
@@ -332,11 +352,11 @@ function PlanRulesEditor({
                       className="w-full rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
                       value={bounds.max}
                       onChange={(event) => {
-                        const next = Number(event.target.value)
+                        const raw = event.target.value
                         setDraft((current) => {
                           const currentBounds =
                             current.exercises_per_session[slot.value] ?? DEFAULT_SESSION_BOUNDS[slot.value]
-                          const max = Number.isFinite(next) ? next : currentBounds.max
+                          const max = clampBoundedInt(raw, 1, 12, currentBounds.max)
                           return {
                             ...current,
                             exercises_per_session: {
@@ -419,6 +439,16 @@ function PlanRulesEditor({
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {catalogError ? (
+            <div role="alert" className="text-sm text-destructive">
+              <p>{getUserErrorMessage(catalogError, 'Не удалось загрузить каталог упражнений.')}</p>
+              <button type="button" className="mt-2 underline" onClick={onRetryCatalog}>
+                Повторить
+              </button>
+            </div>
+          ) : catalogLoading ? (
+            <p className="text-sm text-secondary-foreground">Загружаем каталог…</p>
+          ) : null}
           <select
             className="w-full flex-1 rounded-xl border border-border bg-background px-3 py-2"
             value={pairLeft}
@@ -501,7 +531,7 @@ function PlanRulesEditor({
         </ul>
       </article>
 
-      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 bg-background px-4 py-3 md:static md:z-0 md:p-0">
+      <StickySaveBar ariaLabel="Сохранение правил">
         <div className="flex items-center gap-3">
           <span className={isDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
             {isDirty ? 'Есть изменения' : 'Сохранено'}
@@ -518,7 +548,7 @@ function PlanRulesEditor({
             {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить правила'}
           </button>
         </div>
-      </div>
+      </StickySaveBar>
     </section>
   )
 }

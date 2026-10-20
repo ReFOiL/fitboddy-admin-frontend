@@ -14,11 +14,13 @@ import {
   upsertClientPlatformLoad,
 } from '../api'
 import { getUserErrorMessage } from '../lib/user-error-message'
+import { useAuthStore } from '../stores/auth.store'
 import type { UpsertClientLoadRequest } from '../types/exercise'
 import type { GeneratePlanRequest } from '../types/plan'
 
 export function usePlans(userId: string) {
   const queryClient = useQueryClient()
+  const currentUserId = useAuthStore((state) => state.user?.user_id ?? '')
 
   const activePlanQuery = useQuery({
     queryKey: queryKeys.plans.activeByUser(userId),
@@ -30,7 +32,7 @@ export function usePlans(userId: string) {
   const todayWorkoutQuery = useQuery({
     queryKey: queryKeys.plans.today(userId),
     queryFn: async () => getTodayWorkout(),
-    enabled: Boolean(userId),
+    enabled: Boolean(userId) && userId === currentUserId,
     retry: false,
   })
 

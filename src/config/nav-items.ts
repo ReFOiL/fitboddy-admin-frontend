@@ -39,7 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Menu,
     roles: ['trainer'],
     surfaces: ['desktop', 'mobile'],
-    activePaths: [APP_PATHS.clientProfile],
+    activePaths: [APP_PATHS.clientProfile, APP_PATHS.clientPlan],
   },
   {
     id: 'plan',

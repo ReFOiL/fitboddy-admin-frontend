@@ -2,6 +2,8 @@ export { APP_BRAND_NAME, formatPageTitle } from './brand'
 export { notificationsEnabled } from './features'
 export {
   APP_PATHS,
+  clientPlanPath,
+  clientProfilePath,
   resolveCatalogPath,
   resolveDocumentTitle,
   resolveRelationsPath,

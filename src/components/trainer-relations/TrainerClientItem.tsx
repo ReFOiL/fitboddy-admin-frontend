@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Link2Off, MessageSquare, UserCheck } from 'lucide-react'
+import { CalendarDays, Link2Off, MessageSquare, UserCheck } from 'lucide-react'
 
 import { Button } from '../ui/button'
-import { APP_PATHS } from '../../config'
+import { APP_PATHS, clientPlanPath, clientProfilePath } from '../../config'
 import { formatRussianDate, formatTrainerClientCardSubtitle, formatTrainerClientCardTitle } from '../../lib/relations-formatters'
 import type { TrainerClientRelation } from '../../types/relation'
 
@@ -32,15 +32,19 @@ export function TrainerClientItem({ relation, leaveDisabled, onLeave }: TrainerC
       <div className="mt-3 text-xs text-secondary-foreground">С нами с {formatRussianDate(relation.created_at)}</div>
       <div className="mt-4 grid gap-2 sm:flex sm:gap-2">
         <Button asChild size="sm" className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto">
+          <Link to={clientPlanPath(relation.client_user_id)}>
+            <CalendarDays size={14} className="shrink-0" />
+            План
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary" className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto">
           <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(relation.client_user_id)}`}>
             <MessageSquare size={14} className="shrink-0" />
             Написать
           </Link>
         </Button>
         <Button asChild size="sm" variant="secondary" className="h-11 w-full sm:h-8 sm:w-auto">
-          <Link to={`${APP_PATHS.clientProfile}?clientUserId=${encodeURIComponent(relation.client_user_id)}`}>
-            Открыть профиль
-          </Link>
+          <Link to={clientProfilePath(relation.client_user_id)}>Открыть профиль</Link>
         </Button>
         <Button
           size="sm"

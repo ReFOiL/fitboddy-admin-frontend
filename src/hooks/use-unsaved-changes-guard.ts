@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { useBeforeUnload } from 'react-router-dom'
+import { useBeforeUnload, useBlocker, type BlockerFunction } from 'react-router-dom'
 
 export const UNSAVED_CHANGES_MESSAGE = 'Есть несохранённые изменения. Покинуть страницу?'
 
@@ -7,46 +7,39 @@ export function useUnsavedChangesGuard(
   isDirty: boolean,
   message = UNSAVED_CHANGES_MESSAGE,
 ) {
-  const isDirtyRef = useRef(isDirty)
-  const messageRef = useRef(message)
-
-  useEffect(() => {
-    isDirtyRef.current = isDirty
-    messageRef.current = message
-  }, [isDirty, message])
+  const resetOnceRef = useRef(false)
 
   useBeforeUnload(
-    useCallback((event) => {
-      if (!isDirtyRef.current) return
-      event.preventDefault()
-      event.returnValue = ''
-    }, []),
+    useCallback(
+      (event) => {
+        if (!isDirty) return
+        event.preventDefault()
+        event.returnValue = ''
+      },
+      [isDirty],
+    ),
   )
 
+  const shouldBlock = useCallback<BlockerFunction>(
+    ({ currentLocation, nextLocation }) => {
+      if (!isDirty) return false
+      const samePlace =
+        currentLocation.pathname === nextLocation.pathname &&
+        currentLocation.search === nextLocation.search
+      if (samePlace) return false
+      return !window.confirm(message)
+    },
+    [isDirty, message],
+  )
+  const blocker = useBlocker(shouldBlock)
+
   useEffect(() => {
-    if (!isDirty) return
-
-    const originalPushState = window.history.pushState
-    const originalReplaceState = window.history.replaceState
-
-    const shouldNavigate = () =>
-      !isDirtyRef.current || window.confirm(messageRef.current)
-
-    window.history.pushState = function pushState(...args) {
-      if (shouldNavigate()) {
-        originalPushState.apply(this, args)
-      }
+    if (blocker.state !== 'blocked') {
+      resetOnceRef.current = false
+      return
     }
-
-    window.history.replaceState = function replaceState(...args) {
-      if (shouldNavigate()) {
-        originalReplaceState.apply(this, args)
-      }
-    }
-
-    return () => {
-      window.history.pushState = originalPushState
-      window.history.replaceState = originalReplaceState
-    }
-  }, [isDirty])
+    if (resetOnceRef.current) return
+    resetOnceRef.current = true
+    blocker.reset()
+  }, [blocker])
 }

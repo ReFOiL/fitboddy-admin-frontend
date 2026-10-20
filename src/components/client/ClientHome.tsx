@@ -9,11 +9,13 @@ import { calendarWeek, formatJsWeekdayShort, formatLowerWeekday, formatWorkoutCl
 import { formatLastMessagePreview } from '../../lib/messages-formatters'
 import { formatWorkoutCategory } from '../../lib/muscles'
 import { selectPlanDay } from '../../lib/plan-day-selector'
+import { clientSystemGenerateBlockReason } from '../../lib/plan-generate-reason'
 import { loadWorkoutStart } from '../../lib/plan-session'
 import { firstName } from '../../lib/person'
 import { lastCompletedDay, weekProgress } from '../../lib/roster'
 import type { AuthUser } from '../../types/auth'
 import type { PlanExercise } from '../../types/plan'
+import { GenerateBlockNote } from '../plan/GenerateBlockNote'
 import { WorkoutSession } from '../plan/WorkoutSession'
 import { Button } from '../ui/button'
 import { QueryState } from '../shared'
@@ -45,6 +47,13 @@ export function ClientHome({ user }: { user: AuthUser }) {
       : APP_PATHS.messages
   const generationSource = model.hasActiveTrainer ? 'trainer' : 'system'
   const generationEnabled = model.hasActiveTrainer ? model.canGenerateTrainerPlan : model.canGenerateSystemPlan
+  const systemGenerateReason = clientSystemGenerateBlockReason({
+    isPending: model.generatePlanMutation.isPending,
+    profile: model.profile,
+    profileLoading: model.profileQuery.isLoading,
+    relationLoading: model.clientActiveRelationQuery.isLoading,
+    hasActiveTrainer: model.hasActiveTrainer,
+  })
   const busy = model.completeDayMutation.isPending || model.replaceExerciseMutation.isPending
   const greetingName = firstName(model.profile?.full_name ?? '')
   const todayDate = parseIsoDate(model.todayIso) ?? new Date()
@@ -111,6 +120,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
         <div className="mt-6 border-y border-border py-4">
           <p className="text-[17px] font-semibold">Заполни анкету</p>
           <p className="mt-1 text-[15px] text-secondary-foreground">Так тренер сможет составить программу.</p>
+          <GenerateBlockNote reason={systemGenerateReason} />
           <Button asChild size="lg" className="mt-4 w-full">
             <Link to={APP_PATHS.profileOnboarding}>Продолжить заполнение</Link>
           </Button>
@@ -200,15 +210,19 @@ export function ClientHome({ user }: { user: AuthUser }) {
           </section>
 
           {model.showNextCycleCta ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="mt-4 w-full"
-              disabled={!generationEnabled}
-              onClick={() => model.runGenerate(generationSource)}
-            >
-              {model.generatePlanMutation.isPending ? 'Генерируем…' : 'Следующий цикл'}
-            </Button>
+            model.hasActiveTrainer ? (
+              <p className="mt-4 text-[15px] text-secondary-foreground">Следующий цикл соберёт тренер.</p>
+            ) : (
+              <Button
+                type="button"
+                variant="secondary"
+                className="mt-4 w-full"
+                disabled={!generationEnabled}
+                onClick={() => model.runGenerate(generationSource)}
+              >
+                {model.generatePlanMutation.isPending ? 'Генерируем…' : 'Следующий цикл'}
+              </Button>
+            )
           ) : null}
         </>
       ) : null}
@@ -231,6 +245,9 @@ export function ClientHome({ user }: { user: AuthUser }) {
             >
               {model.generatePlanMutation.isPending ? 'Генерируем…' : 'Тренироваться самостоятельно'}
             </Button>
+            <div className="mt-3">
+              <GenerateBlockNote reason={generationEnabled ? null : systemGenerateReason} />
+            </div>
             <p className="mt-4 text-center text-[17px]">
               Или{' '}
               <Link className="underline" to={APP_PATHS.trainers}>

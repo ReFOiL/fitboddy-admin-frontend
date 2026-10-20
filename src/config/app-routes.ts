@@ -11,6 +11,7 @@ export const APP_PATHS = {
   trainers: '/trainers',
   trainerProfile: '/trainers/:trainerUserId',
   clientProfile: '/clients/profile',
+  clientPlan: '/clients/:clientUserId/plan',
   planGeneration: '/plan-generation',
   analytics: '/analytics',
   exercises: '/exercises',
@@ -71,6 +72,10 @@ const TITLE_RULES: TitleRule[] = [
     matches: (pathname) => pathname === APP_PATHS.profile || pathname === APP_PATHS.profilesAlias,
   },
   {
+    title: 'План клиента',
+    matches: (pathname) => Boolean(matchPath(APP_PATHS.clientPlan, pathname)),
+  },
+  {
     title: 'Профиль клиента',
     matches: (pathname) => pathname === APP_PATHS.clientProfile,
   },
@@ -110,4 +115,12 @@ export function resolveRelationsPath(role: AppRole): string {
 
 export function resolveCatalogPath(role: AppRole): string {
   return role === 'trainer' ? APP_PATHS.exercises : APP_PATHS.home
+}
+
+export function clientProfilePath(clientUserId: string): string {
+  return `${APP_PATHS.clientProfile}?clientUserId=${encodeURIComponent(clientUserId)}`
+}
+
+export function clientPlanPath(clientUserId: string): string {
+  return `/clients/${encodeURIComponent(clientUserId)}/plan`
 }

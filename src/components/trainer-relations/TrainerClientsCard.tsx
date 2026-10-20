@@ -52,7 +52,9 @@ export function TrainerClientsCard({
               <Users size={18} className="text-primary" />
               Клиенты
             </CardTitle>
-            <CardDescription className="mt-1">Управляйте текущими клиентами.</CardDescription>
+            <CardDescription className="mt-1">
+              Откройте «План», чтобы составить программу из каталога и правил.
+            </CardDescription>
           </div>
           <div className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
             {total}
