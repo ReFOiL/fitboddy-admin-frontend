@@ -2,6 +2,9 @@ import { apiClient } from './client'
 import type { ClientExerciseLoad, UpsertClientLoadRequest } from '../types/exercise'
 import type { GenerationPolicy } from '../types/generation-policy'
 import type {
+  AddPlanDayRequest,
+  CopyPlanDayRequest,
+  CopyPlanWeekRequest,
   CreateEmptyPlanRequest,
   GeneratePlanRequest,
   PlanDay,
@@ -25,8 +28,8 @@ export async function getTodayWorkout(): Promise<TodayWorkout> {
   return data
 }
 
-export async function completePlanDay(dayIndex: number): Promise<TodayWorkout> {
-  const { data } = await apiClient.post<TodayWorkout>(`/api/v1/plans/me/days/${dayIndex}/complete`)
+export async function completePlanDay(dayIndex: number, startedAt?: string | null): Promise<TodayWorkout> {
+  const { data } = await apiClient.post<TodayWorkout>(`/api/v1/plans/me/days/${dayIndex}/complete`, startedAt ? { started_at: startedAt } : {})
   return data
 }
 
@@ -92,6 +95,55 @@ export async function createEmptyPlan(
     `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/active`,
     payload,
   )
+  return data
+}
+
+function trainerPlanRoot(clientUserId: string, trainerUserId: string): string {
+  return `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}`
+}
+
+export async function addPlanDay(clientUserId: string, trainerUserId: string, payload: AddPlanDayRequest): Promise<TrainingPlan> {
+  const { data } = await apiClient.post<TrainingPlan>(`${trainerPlanRoot(clientUserId, trainerUserId)}/days`, payload)
+  return data
+}
+
+export async function deletePlanDay(clientUserId: string, trainerUserId: string, dayIndex: number): Promise<TrainingPlan> {
+  const { data } = await apiClient.delete<TrainingPlan>(`${trainerPlanRoot(clientUserId, trainerUserId)}/days/${dayIndex}`)
+  return data
+}
+
+export async function patchPlanDayTime(
+  clientUserId: string,
+  trainerUserId: string,
+  dayIndex: number,
+  scheduledTime: string | null,
+): Promise<PlanDay> {
+  const { data } = await apiClient.patch<PlanDay>(`${trainerPlanRoot(clientUserId, trainerUserId)}/days/${dayIndex}`, {
+    scheduled_time: scheduledTime,
+  })
+  return data
+}
+
+export async function copyPlanDay(
+  clientUserId: string,
+  trainerUserId: string,
+  dayIndex: number,
+  payload: CopyPlanDayRequest,
+): Promise<TrainingPlan> {
+  const { data } = await apiClient.post<TrainingPlan>(
+    `${trainerPlanRoot(clientUserId, trainerUserId)}/days/${dayIndex}/copy`,
+    payload,
+  )
+  return data
+}
+
+export async function copyPlanWeek(
+  clientUserId: string,
+  trainerUserId: string,
+  week: number,
+  payload: CopyPlanWeekRequest,
+): Promise<TrainingPlan> {
+  const { data } = await apiClient.post<TrainingPlan>(`${trainerPlanRoot(clientUserId, trainerUserId)}/weeks/${week}/copy`, payload)
   return data
 }
 

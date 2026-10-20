@@ -68,7 +68,7 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
                     {day.exercises.map((exercise) => (
                       <li key={exercise.line_id}>
                         <Link
-                          to={exerciseDetailsTo(exercise.exercise_id, trainerUserId)}
+                          to={exerciseDetailsTo(exercise, trainerUserId)}
                           className="inline-flex min-h-11 items-center rounded-md hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         >
                           {exercise.exercise_name}
@@ -86,8 +86,14 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
   )
 }
 
-function exerciseDetailsTo(exerciseId: string, trainerUserId: string | null | undefined): string {
-  return trainerUserId
-    ? `/plan/exercises/${encodeURIComponent(exerciseId)}?trainer=${encodeURIComponent(trainerUserId)}`
-    : `/plan/exercises/${encodeURIComponent(exerciseId)}`
+function exerciseDetailsTo(
+  exercise: { exercise_id: string; line_id: string; note?: string | null },
+  trainerUserId: string | null | undefined,
+): string {
+  const params = new URLSearchParams()
+  if (trainerUserId) params.set('trainer', trainerUserId)
+  params.set('line', exercise.line_id)
+  if (exercise.note?.trim()) params.set('note', exercise.note.trim())
+  const query = params.toString()
+  return `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}${query ? `?${query}` : ''}`
 }

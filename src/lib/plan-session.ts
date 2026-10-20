@@ -49,6 +49,40 @@ export function saveSetChecks(dayId: string, lineId: string, checks: boolean[]):
   }
 }
 
+function workoutStartKey(dayId: string): string {
+  return `fitboddy:workout-start:${dayId}`
+}
+
+/** Запоминает момент «Начать тренировку», чтобы отправить его при завершении дня. */
+export function markWorkoutStarted(dayId: string, now = new Date()): string {
+  const key = workoutStartKey(dayId)
+  try {
+    const existing = localStorage.getItem(key)
+    if (existing) return existing
+    const stamp = now.toISOString()
+    localStorage.setItem(key, stamp)
+    return stamp
+  } catch {
+    return now.toISOString()
+  }
+}
+
+export function loadWorkoutStart(dayId: string): string | null {
+  try {
+    return localStorage.getItem(workoutStartKey(dayId))
+  } catch {
+    return null
+  }
+}
+
+export function clearWorkoutStart(dayId: string): void {
+  try {
+    localStorage.removeItem(workoutStartKey(dayId))
+  } catch {
+    // приватный режим
+  }
+}
+
 export function clearSessionChecks(dayId: string): void {
   try {
     sessionStorage.removeItem(sessionChecksKey(dayId))

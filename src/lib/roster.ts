@@ -28,9 +28,10 @@ export function lastCompletedDay(plan: TrainingPlan): PlanDay | null {
 }
 
 export function trainingTodaySubtitle(day: PlanDay): string {
-  if (day.is_completed) return `День ${day.day_index} · сделано`
+  const time = day.scheduled_time ? ` · ${day.scheduled_time}` : ''
+  if (day.is_completed) return `День ${day.day_index}${time} · сделано`
   const count = day.exercises.length
-  return `День ${day.day_index} · ${count} упр.`
+  return `День ${day.day_index}${time} · ${count} упр.`
 }
 
 function addedLabel(createdAt: string, todayIso: string): string {

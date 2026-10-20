@@ -78,6 +78,24 @@ export function missedWorkoutsLabel(count: number): string {
   return `Пропустил ${count} ${noun}`
 }
 
+export function formatWorkoutClock(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+}
+
+export function formatWorkoutDuration(startedAt?: string | null, finishedAt?: string | null): string | null {
+  if (!startedAt || !finishedAt) return null
+  const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime()
+  if (!Number.isFinite(ms) || ms < 0) return null
+  const minutes = Math.round(ms / 60000)
+  if (minutes < 1) return 'меньше минуты'
+  if (minutes < 60) return `${minutes} мин`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest ? `${hours} ч ${rest} мин` : `${hours} ч`
+}
+
 export function weeksLabel(count: number): string {
   const mod10 = count % 10
   const mod100 = count % 100

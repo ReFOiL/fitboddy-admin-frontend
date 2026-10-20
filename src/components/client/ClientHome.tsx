@@ -5,12 +5,13 @@ import { APP_PATHS } from '../../config'
 import { useClientPlanModel } from '../../hooks/use-client-plan-model'
 import { useConversations, useUnreadCount } from '../../hooks/use-messages'
 import { useWorkoutSession } from '../../hooks/use-workout-session'
-import { calendarWeek, formatJsWeekdayShort, formatLowerWeekday, parseIsoDate, toIsoDate } from '../../lib/dates'
+import { calendarWeek, formatJsWeekdayShort, formatLowerWeekday, formatWorkoutClock, formatWorkoutDuration, parseIsoDate, toIsoDate } from '../../lib/dates'
 import { formatLastMessagePreview } from '../../lib/messages-formatters'
 import { formatWorkoutCategory } from '../../lib/muscles'
 import { selectPlanDay } from '../../lib/plan-day-selector'
+import { loadWorkoutStart } from '../../lib/plan-session'
 import { firstName } from '../../lib/person'
-import { weekProgress } from '../../lib/roster'
+import { lastCompletedDay, weekProgress } from '../../lib/roster'
 import type { AuthUser } from '../../types/auth'
 import type { PlanExercise } from '../../types/plan'
 import { WorkoutSession } from '../plan/WorkoutSession'
@@ -52,10 +53,17 @@ export function ClientHome({ user }: { user: AuthUser }) {
   const cardDay = focused
   const weekStats = model.activePlan && cardDay ? weekProgress(model.activePlan, cardDay.week) : null
   const completedTotal = model.activePlan?.days.filter((day) => day.is_completed).length ?? 0
+  const lastDone = model.activePlan ? lastCompletedDay(model.activePlan) : null
+  const lastFinishedAt = lastDone?.finished_at ?? lastDone?.completed_at
+  const lastDuration = formatWorkoutDuration(lastDone?.started_at, lastFinishedAt)
+  const lastClock = lastFinishedAt ? formatWorkoutClock(lastFinishedAt) : ''
 
   const finishWorkout = () => {
     if (!model.todayWorkout || model.todayWorkout.is_completed) return
-    model.completeDayMutation.mutate(model.todayWorkout.day_index, { onSuccess: workoutSession.finish })
+    model.completeDayMutation.mutate(
+      { dayIndex: model.todayWorkout.day_index, startedAt: loadWorkoutStart(model.todayWorkout.day_id) },
+      { onSuccess: workoutSession.finish },
+    )
   }
 
   if (workoutSession.isActive && model.todayWorkout) {
@@ -144,7 +152,10 @@ export function ClientHome({ user }: { user: AuthUser }) {
             <section className="mt-4 rounded-3xl border-2 border-foreground p-4">
               <div className="text-[13px] font-bold uppercase">{daySelection.isToday ? 'Сегодня' : formatLowerWeekday(parseIsoDate(cardDay.scheduled_for) ?? todayDate)}</div>
               <h2 className="mt-1 text-[28px] font-bold">{workoutTitle(cardDay.exercises)}</h2>
-              <p className="mt-1 text-[17px]">{cardDay.exercises.length} упражнений</p>
+              <p className="mt-1 text-[17px]">
+                {cardDay.exercises.length} упражнений
+                {cardDay.scheduled_time ? ` · ${cardDay.scheduled_time}` : ''}
+              </p>
               <p className="mt-2 text-[15px] text-secondary-foreground">{previewNames(cardDay.exercises)}</p>
               {daySelection.isToday && model.todayWorkout && !model.todayWorkout.is_completed ? (
                 <Button type="button" size="lg" className="mt-4 w-full" onClick={workoutSession.start}>
@@ -181,6 +192,9 @@ export function ClientHome({ user }: { user: AuthUser }) {
               <div className="rounded-2xl border-2 border-foreground p-4">
                 <div className="text-[28px] font-bold leading-none">{completedTotal}</div>
                 <div className="mt-2 text-[15px]">тренировок всего</div>
+                {lastClock || lastDuration ? (
+                  <div className="mt-1 text-[15px]">последняя {[lastClock, lastDuration].filter(Boolean).join(' · ')}</div>
+                ) : null}
               </div>
             </div>
           </section>

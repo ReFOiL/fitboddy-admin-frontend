@@ -31,6 +31,7 @@ export type PlanExercise = {
   duration_seconds: number | null
   rest_seconds: number | null
   weight_kg: number | null
+  note?: string | null
   set_prescriptions: SetPrescription[]
 }
 
@@ -41,8 +42,11 @@ export type PlanDay = {
   week: number
   day_of_week: number
   volume_multiplier: number
+  scheduled_time?: string | null
   is_completed?: boolean
   completed_at?: string | null
+  started_at?: string | null
+  finished_at?: string | null
   exercises: PlanExercise[]
 }
 
@@ -56,8 +60,11 @@ export type TodayWorkout = {
   week: number
   day_of_week: number
   volume_multiplier: number
+  scheduled_time?: string | null
   is_completed: boolean
   completed_at: string | null
+  started_at?: string | null
+  finished_at?: string | null
   exercises: PlanExercise[]
 }
 
@@ -68,6 +75,26 @@ export type PlanSlotWrite = {
   duration_seconds?: number | null
   rest_seconds?: number | null
   weight_kg?: number | null
+  note?: string | null
+}
+
+export type AddPlanDayRequest = {
+  week: number
+  day_of_week: number
+  scheduled_time?: string | null
+}
+
+export type CopyDayMode = 'overwrite' | 'append'
+
+export type CopyPlanDayRequest = {
+  week: number
+  day_of_week: number
+  mode: CopyDayMode
+}
+
+export type CopyPlanWeekRequest = {
+  target_week: number
+  mode: CopyDayMode
 }
 
 export type CreateEmptyPlanRequest = {

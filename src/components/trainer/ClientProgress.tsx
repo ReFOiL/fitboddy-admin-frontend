@@ -1,4 +1,4 @@
-import { formatMonthDay, weeksLabel } from '../../lib/dates'
+import { formatMonthDay, formatWorkoutClock, formatWorkoutDuration, weeksLabel } from '../../lib/dates'
 import { formatDosage } from '../../lib/plan-draft'
 import { formatWeekdayShort } from '../../lib/plan-formatters'
 import { firstName } from '../../lib/person'
@@ -95,11 +95,15 @@ export function ClientProgress({
             {recent.map((day) => {
               const missed = !day.is_completed && day.scheduled_for.slice(0, 10) < todayIso
               const first = day.exercises[0]
+              const finishedAt = day.finished_at ?? day.completed_at
+              const clock = finishedAt ? formatWorkoutClock(finishedAt) : ''
+              const duration = formatWorkoutDuration(day.started_at, finishedAt)
+              const timing = [clock, duration].filter(Boolean).join(' · ')
               return (
                 <div key={day.day_id} className="border-b border-border py-3">
                   <div className="text-[17px] font-semibold">
                     {formatWeekdayShort(day.day_of_week)}, {formatMonthDay(day.scheduled_for)}
-                    {missed ? ' · пропущена' : ` · ${day.exercises.length} из ${day.exercises.length}`}
+                    {missed ? ' · пропущена' : timing ? ` · ${timing}` : ` · ${day.exercises.length} из ${day.exercises.length}`}
                   </div>
                   <div className="text-[15px] text-secondary-foreground">
                     {missed ? 'Тренировка не отмечена' : first ? `${first.exercise_name} ${formatDosage(first)}` : 'Без упражнений'}

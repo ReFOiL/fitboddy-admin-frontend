@@ -27,6 +27,7 @@ export function ClientExerciseDetailsPage() {
   const reps = searchParams.get('reps')
   const weight = searchParams.get('weight')
   const rest = searchParams.get('rest')
+  const note = searchParams.get('note')?.trim() || ''
   const lineId = searchParams.get('line') ?? ''
   const dayId = searchParams.get('day') ?? ''
   const dayIndex = Number(searchParams.get('dayIndex') ?? '0')
@@ -111,6 +112,8 @@ export function ClientExerciseDetailsPage() {
           {exercise.description}
         </p>
       ) : null}
+
+      {note ? <p className="mt-3 text-[17px]">{note}</p> : null}
 
       {setCount > 0 && dayId && lineId ? (
         <SetList

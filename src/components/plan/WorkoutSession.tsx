@@ -120,6 +120,7 @@ function exerciseDetailsTo(exercise: PlanExercise, workout: TodayWorkout, index 
   params.set('progress', `${index} из ${workout.exercises.length}`)
   if (workout.trainer_user_id) params.set('trainer', workout.trainer_user_id)
   params.set('sets', String(exercise.sets ?? exercise.set_prescriptions.length ?? 0))
+  if (exercise.note?.trim()) params.set('note', exercise.note.trim())
   if (exercise.reps != null) params.set('reps', String(exercise.reps))
   if (exercise.weight_kg != null) params.set('weight', String(exercise.weight_kg))
   if (exercise.rest_seconds != null) params.set('rest', String(exercise.rest_seconds))

@@ -47,7 +47,8 @@ export function usePlans(userId: string) {
   })
 
   const completeDayMutation = useMutation({
-    mutationFn: async (dayIndex: number) => completePlanDay(dayIndex),
+    mutationFn: async (input: { dayIndex: number; startedAt?: string | null }) =>
+      completePlanDay(input.dayIndex, input.startedAt),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.plans.today(userId) })
       void queryClient.invalidateQueries({

@@ -31,6 +31,7 @@ import {
   textOrFallback,
 } from '../lib/plan-formatters'
 import { selectPlanDay } from '../lib/plan-day-selector'
+import { loadWorkoutStart } from '../lib/plan-session'
 import { cn } from '../lib/utils'
 
 export function PlanGenerationPage() {
@@ -217,9 +218,10 @@ export function PlanGenerationPage() {
 
   const finishWorkout = () => {
     if (!todayWorkout || todayWorkout.is_completed) return
-    completeDayMutation.mutate(todayWorkout.day_index, {
-      onSuccess: workoutSession.finish,
-    })
+    completeDayMutation.mutate(
+      { dayIndex: todayWorkout.day_index, startedAt: loadWorkoutStart(todayWorkout.day_id) },
+      { onSuccess: workoutSession.finish },
+    )
   }
 
   if (!isClient) {

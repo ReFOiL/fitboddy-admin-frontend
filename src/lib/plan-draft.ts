@@ -9,6 +9,7 @@ export type DraftSlot = {
   durationSeconds: number | null
   restSeconds: number | null
   weightKg: number | null
+  note: string
 }
 
 export type DayDraft = {
@@ -17,6 +18,7 @@ export type DayDraft = {
   week: number
   dayOfWeek: number
   scheduledFor: string
+  scheduledTime: string | null
   isCompleted: boolean
   slots: DraftSlot[]
 }
@@ -28,6 +30,7 @@ export type SlotWrite = {
   duration_seconds: number | null
   rest_seconds: number | null
   weight_kg: number | null
+  note: string | null
 }
 
 function slotFromExercise(exercise: PlanExercise): DraftSlot {
@@ -40,6 +43,7 @@ function slotFromExercise(exercise: PlanExercise): DraftSlot {
     durationSeconds: exercise.duration_seconds,
     restSeconds: exercise.rest_seconds,
     weightKg: exercise.weight_kg,
+    note: exercise.note?.trim() ?? '',
   }
 }
 
@@ -56,6 +60,7 @@ export function dayDraftFromPlanDay(day: PlanDay): DayDraft {
     week: day.week,
     dayOfWeek: day.day_of_week,
     scheduledFor: day.scheduled_for.slice(0, 10),
+    scheduledTime: day.scheduled_time ?? null,
     isCompleted: Boolean(day.is_completed),
     slots: [...day.exercises]
       .sort((left, right) => left.sort_order - right.sort_order)
@@ -71,6 +76,7 @@ function slotSignature(slot: DraftSlot): string {
     slot.durationSeconds ?? '',
     slot.restSeconds ?? '',
     slot.weightKg ?? '',
+    slot.note.trim(),
   ].join(':')
 }
 
@@ -78,8 +84,16 @@ export function daySignature(day: DayDraft): string {
   return day.slots.map(slotSignature).join('|')
 }
 
-export function isDayDirty(baseline: DayDraft, draft: DayDraft): boolean {
+export function isSlotsDirty(baseline: DayDraft, draft: DayDraft): boolean {
   return daySignature(baseline) !== daySignature(draft)
+}
+
+export function isTimeDirty(baseline: DayDraft, draft: DayDraft): boolean {
+  return (baseline.scheduledTime ?? null) !== (draft.scheduledTime ?? null)
+}
+
+export function isDayDirty(baseline: DayDraft, draft: DayDraft): boolean {
+  return isSlotsDirty(baseline, draft) || isTimeDirty(baseline, draft)
 }
 
 export function dirtyDayIndexes(baseline: DayDraft[], draft: DayDraft[]): number[] {
@@ -92,39 +106,6 @@ export function dirtyDayIndexes(baseline: DayDraft[], draft: DayDraft[]): number
     .map((day) => day.dayIndex)
 }
 
-function cloneSlot(slot: DraftSlot, key: string): DraftSlot {
-  return { ...slot, key }
-}
-
-export function copyDayDraft(days: DayDraft[], fromIndex: number, toIndex: number): DayDraft[] {
-  const source = days.find((day) => day.dayIndex === fromIndex)
-  if (!source || fromIndex === toIndex) return days
-  return days.map((day) => {
-    if (day.dayIndex !== toIndex) return day
-    return {
-      ...day,
-      slots: source.slots.map((slot, index) => cloneSlot(slot, `copy-${toIndex}-${index}-${slot.exerciseId}`)),
-    }
-  })
-}
-
-/** Копирует дни по дню недели. Новые дни API не создаёт — цель без такого дня пропускается. */
-export function copyWeekDraft(days: DayDraft[], fromWeek: number, toWeek: number): DayDraft[] {
-  if (fromWeek === toWeek) return days
-  const sources = days.filter((day) => day.week === fromWeek)
-  return days.map((day) => {
-    if (day.week !== toWeek) return day
-    const source = sources.find((item) => item.dayOfWeek === day.dayOfWeek)
-    if (!source) return day
-    return {
-      ...day,
-      slots: source.slots.map((slot, index) =>
-        cloneSlot(slot, `week-${toWeek}-${day.dayIndex}-${index}-${slot.exerciseId}`),
-      ),
-    }
-  })
-}
-
 export function slotsToWrite(slots: DraftSlot[]): SlotWrite[] {
   return slots.map((slot) => ({
     exercise_id: slot.exerciseId,
@@ -133,6 +114,8 @@ export function slotsToWrite(slots: DraftSlot[]): SlotWrite[] {
     duration_seconds: slot.durationSeconds,
     rest_seconds: slot.restSeconds,
     weight_kg: slot.weightKg,
+    // Пустая заметка на замене дня очищает поле: сервер пишет null, если note нет в теле.
+    note: slot.note.trim() ? slot.note.trim() : null,
   }))
 }
 

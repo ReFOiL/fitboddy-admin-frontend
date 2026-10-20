@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { listTrainerExercises, queryKeys } from '../../api'
 import { APP_PATHS } from '../../config'
@@ -13,22 +14,16 @@ import { useTrainerRelations } from '../../hooks/use-relations'
 import { formatMonthDay, localTodayIso } from '../../lib/dates'
 import { formatEquipmentLabel } from '../../lib/equipment'
 import { formatWeekday, formatWeekdayShort } from '../../lib/plan-formatters'
-import {
-  copyDayDraft,
-  copyWeekDraft,
-  dirtyDayIndexes,
-  draftsFromPlan,
-  formatDosage,
-  type DayDraft,
-  type DraftSlot,
-} from '../../lib/plan-draft'
+import { dirtyDayIndexes, draftsFromPlan, formatDosage, type DayDraft, type DraftSlot } from '../../lib/plan-draft'
 import { formatWorkoutCategory } from '../../lib/muscles'
 import { clientDisplayName } from '../../lib/person'
 import { lastCompletedDay } from '../../lib/roster'
 import { isProfileCompleted } from '../../lib/profile-completion'
 import type { TrainerExercise } from '../../types/exercise'
+import type { CopyDayMode } from '../../types/plan'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { Textarea } from '../ui/textarea'
 import {
   Chip,
   ExerciseThumb,
@@ -43,7 +38,9 @@ import {
 import { ClientProgress } from './ClientProgress'
 
 type StudioScreen = 'plan' | 'progress' | 'add' | 'edit' | 'weights' | 'questionnaire'
-type Picker = 'none' | 'copy-day' | 'copy-week'
+type Picker = 'none' | 'copy-day' | 'copy-week' | 'add-day'
+
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const
 
 const MUSCLE_CHIPS = [
   { id: 'all', label: 'Все' },
@@ -83,6 +80,11 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const [dayIndex, setDayIndex] = useState<number | null>(null)
   const [lineKey, setLineKey] = useState<string | null>(null)
   const [picker, setPicker] = useState<Picker>('none')
+  const [copyWeekTarget, setCopyWeekTarget] = useState(1)
+  const [copyDayWeek, setCopyDayWeek] = useState(1)
+  const [copyDow, setCopyDow] = useState(0)
+  const [copyMode, setCopyMode] = useState<CopyDayMode>('overwrite')
+  const [addTime, setAddTime] = useState('')
   const [search, setSearch] = useState('')
   const [muscle, setMuscle] = useState<(typeof MUSCLE_CHIPS)[number]['id']>('all')
   const [picked, setPicked] = useState<string[]>([])
@@ -130,7 +132,19 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const save = () => {
     if (!stored) return
     const payload = stored.draft.filter((day) => dirty.includes(day.dayIndex))
-    manual.saveMutation.mutate(payload)
+    manual.saveMutation.mutate({ baseline: stored.baseline, draft: payload })
+  }
+
+  const structureBusy =
+    manual.addDayMutation.isPending ||
+    manual.deleteDayMutation.isPending ||
+    manual.copyDayMutation.isPending ||
+    manual.copyWeekMutation.isPending
+
+  const requireCleanDraft = () => {
+    if (!isDirty) return true
+    toast.error('Сначала сохраните упражнения.')
+    return false
   }
 
   const assemble = () => {
@@ -161,8 +175,38 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   }
 
   const menuItems: OverflowItem[] = [
-    { id: 'copy-day', label: 'Копировать день', onSelect: () => setPicker('copy-day') },
-    { id: 'copy-week', label: 'Копировать неделю', onSelect: () => setPicker('copy-week') },
+    {
+      id: 'copy-day',
+      label: 'Копировать день',
+      onSelect: () => {
+        if (!requireCleanDraft() || !selectedDay) return
+        setCopyDayWeek(selectedDay.week)
+        setCopyDow(selectedDay.dayOfWeek === 6 ? 0 : selectedDay.dayOfWeek + 1)
+        setCopyMode('overwrite')
+        setPicker('copy-day')
+      },
+    },
+    {
+      id: 'copy-week',
+      label: 'Копировать неделю',
+      onSelect: () => {
+        if (!requireCleanDraft()) return
+        setCopyWeekTarget(Math.min(8, activeWeek + 1))
+        setCopyMode('overwrite')
+        setPicker('copy-week')
+      },
+    },
+    {
+      id: 'delete-day',
+      label: 'Удалить день',
+      hintTone: 'danger',
+      onSelect: () => {
+        if (!selectedDay || !requireCleanDraft()) return
+        const label = `${formatWeekdayShort(selectedDay.dayOfWeek)}, неделя ${selectedDay.week}`
+        if (!window.confirm(`Удалить ${label}? Упражнения этого дня пропадут.`)) return
+        manual.deleteDayMutation.mutate(selectedDay.dayIndex)
+      },
+    },
     {
       id: 'assemble',
       label: 'Собрать из каталога',
@@ -292,7 +336,17 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
 
   return (
     <div className="mx-auto w-full max-w-lg pb-28">
-      <ScreenHeader title={clientName} onBack={goBack} menu={<OverflowMenu items={readOnly ? menuItems.filter((item) => item.id !== 'copy-day' && item.id !== 'copy-week') : menuItems} />} />
+      <ScreenHeader
+        title={clientName}
+        onBack={goBack}
+        menu={
+          <OverflowMenu
+            items={
+              readOnly ? menuItems.filter((item) => item.id !== 'copy-day' && item.id !== 'copy-week' && item.id !== 'delete-day') : menuItems
+            }
+          />
+        }
+      />
       <div className="mt-4 flex items-center justify-between gap-3 text-[15px]">
         <span>{last ? `Последняя тренировка: ${formatWeekdayShort(last.day_of_week).toLowerCase()}, ${formatMonthDay(last.scheduled_for)}` : 'Тренировок пока нет'}</span>
         <button type="button" className="font-semibold underline" onClick={() => setScreen('progress')}>
@@ -341,7 +395,36 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
             {formatWeekdayShort(day.dayOfWeek)}
           </Chip>
         ))}
+        {!readOnly && editablePlan ? (
+          <button
+            type="button"
+            aria-label="Добавить день"
+            className="inline-flex h-12 min-w-12 items-center justify-center rounded-full border-2 border-dashed border-foreground px-4 text-[17px] font-semibold"
+            onClick={() => {
+              if (!requireCleanDraft()) return
+              setAddTime('')
+              setPicker('add-day')
+            }}
+          >
+            +
+          </button>
+        ) : null}
       </div>
+
+      {!readOnly && selectedDay ? (
+        <label className="mt-4 grid gap-2 text-[17px] font-semibold" htmlFor="plan-day-time">
+          Время
+          <Input
+            id="plan-day-time"
+            type="time"
+            value={selectedDay.scheduledTime ?? ''}
+            onChange={(event) => {
+              const value = event.target.value
+              updateDay(selectedDay.dayIndex, (day) => ({ ...day, scheduledTime: value || null }))
+            }}
+          />
+        </label>
+      ) : null}
 
       {!plan ? (
         <div className="px-1 py-10 text-center">
@@ -404,43 +487,80 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
         </StickyActionBar>
       ) : null}
 
-      {picker !== 'none' && selectedDay ? (
-        <Sheet title={picker === 'copy-day' ? 'Куда скопировать день' : 'Куда скопировать неделю'} onClose={() => setPicker('none')}>
-          <div className="grid gap-2">
-            {picker === 'copy-day'
-              ? draft
-                  .filter((day) => day.dayIndex !== selectedDay.dayIndex)
-                  .map((day) => (
-                    <Button
-                      key={day.dayId}
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setStored((current) =>
-                          current ? { ...current, draft: copyDayDraft(current.draft, selectedDay.dayIndex, day.dayIndex) } : current,
-                        )
-                        setPicker('none')
-                      }}
-                    >
-                      Неделя {day.week} · {formatWeekdayShort(day.dayOfWeek)}
-                    </Button>
-                  ))
-              : weeks
-                  .filter((item) => item !== activeWeek)
-                  .map((item) => (
-                    <Button
-                      key={item}
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        setStored((current) => (current ? { ...current, draft: copyWeekDraft(current.draft, activeWeek, item) } : current))
-                        setPicker('none')
-                      }}
-                    >
-                      Неделя {item}
-                    </Button>
-                  ))}
+      {picker === 'add-day' ? (
+        <Sheet title="Добавить день" onClose={() => setPicker('none')}>
+          <label className="grid gap-2 text-[17px] font-semibold" htmlFor="new-day-time">
+            Время
+            <Input id="new-day-time" type="time" value={addTime} onChange={(event) => setAddTime(event.target.value)} />
+          </label>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {WEEKDAYS.filter((day) => !weekDays.some((item) => item.dayOfWeek === day)).map((day) => (
+              <Chip
+                key={day}
+                disabled={structureBusy}
+                onClick={() => {
+                  manual.addDayMutation.mutate(
+                    { week: activeWeek, day_of_week: day, scheduled_time: addTime || null },
+                    { onSuccess: () => setPicker('none') },
+                  )
+                }}
+              >
+                {formatWeekdayShort(day)}
+              </Chip>
+            ))}
           </div>
+          {WEEKDAYS.every((day) => weekDays.some((item) => item.dayOfWeek === day)) ? (
+            <p className="mt-3 text-[17px]">В этой неделе уже есть все дни.</p>
+          ) : null}
+        </Sheet>
+      ) : null}
+
+      {picker === 'copy-day' && selectedDay ? (
+        <Sheet title="Куда скопировать день" onClose={() => setPicker('none')}>
+          <WeekStepper label="Неделя" value={copyDayWeek} onChange={setCopyDayWeek} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {WEEKDAYS.map((day) => (
+              <Chip key={day} active={copyDow === day} onClick={() => setCopyDow(day)}>
+                {formatWeekdayShort(day)}
+              </Chip>
+            ))}
+          </div>
+          <ModePicker mode={copyMode} onChange={setCopyMode} />
+          <Button
+            type="button"
+            size="lg"
+            className="mt-4 w-full"
+            disabled={structureBusy}
+            onClick={() => {
+              manual.copyDayMutation.mutate(
+                { dayIndex: selectedDay.dayIndex, payload: { week: copyDayWeek, day_of_week: copyDow, mode: copyMode } },
+                { onSuccess: () => setPicker('none') },
+              )
+            }}
+          >
+            {structureBusy ? 'Копируем…' : 'Скопировать'}
+          </Button>
+        </Sheet>
+      ) : null}
+
+      {picker === 'copy-week' ? (
+        <Sheet title="Куда скопировать неделю" onClose={() => setPicker('none')}>
+          <WeekStepper label="В неделю" value={copyWeekTarget} onChange={setCopyWeekTarget} />
+          <ModePicker mode={copyMode} onChange={setCopyMode} />
+          <Button
+            type="button"
+            size="lg"
+            className="mt-4 w-full"
+            disabled={structureBusy || copyWeekTarget === activeWeek}
+            onClick={() => {
+              manual.copyWeekMutation.mutate(
+                { week: activeWeek, payload: { target_week: copyWeekTarget, mode: copyMode } },
+                { onSuccess: () => setPicker('none') },
+              )
+            }}
+          >
+            {structureBusy ? 'Копируем…' : 'Скопировать'}
+          </Button>
         </Sheet>
       ) : null}
     </div>
@@ -457,7 +577,38 @@ function slotFromCatalog(exercise: TrainerExercise, suffix: string): DraftSlot {
     durationSeconds: exercise.default_duration_seconds,
     restSeconds: exercise.default_rest_seconds,
     weightKg: exercise.default_weight_kg,
+    note: '',
   }
+}
+
+function WeekStepper({ label, value, onChange }: { label: string; value: number; onChange: (next: number) => void }) {
+  return (
+    <div className="flex min-h-16 items-center justify-between gap-3">
+      <span className="text-[17px] font-semibold">{label}</span>
+      <span className="flex items-center gap-2">
+        <button type="button" className="h-12 w-12 rounded-2xl border-2 border-foreground text-[20px]" onClick={() => onChange(Math.max(1, value - 1))}>
+          −
+        </button>
+        <span className="w-8 text-center text-[17px] font-semibold">{value}</span>
+        <button type="button" className="h-12 w-12 rounded-2xl border-2 border-foreground text-[20px]" onClick={() => onChange(Math.min(8, value + 1))}>
+          +
+        </button>
+      </span>
+    </div>
+  )
+}
+
+function ModePicker({ mode, onChange }: { mode: CopyDayMode; onChange: (mode: CopyDayMode) => void }) {
+  return (
+    <div className="mt-3 flex gap-2">
+      <Chip active={mode === 'overwrite'} onClick={() => onChange('overwrite')}>
+        Заменить
+      </Chip>
+      <Chip active={mode === 'append'} onClick={() => onChange('append')}>
+        Добавить
+      </Chip>
+    </div>
+  )
 }
 
 function muscleBucket(exercise: TrainerExercise): string {
@@ -618,18 +769,32 @@ function EditSlotScreen({
         />
       </div>
       <button type="button" className="mt-2 flex min-h-12 w-full items-center justify-between text-[17px]" onClick={onToggleRest}>
-        <span>Ещё: отдых {slot.restSeconds ?? 0} с</span>
+        <span>
+          Ещё: отдых {slot.restSeconds ?? 0} с{slot.note.trim() ? ', заметка' : ''}
+        </span>
         <span>{restOpen ? '▴' : '▾'}</span>
       </button>
       {restOpen ? (
-        <Stepper
-          label="Отдых, с"
-          value={slot.restSeconds ?? 0}
-          min={0}
-          max={600}
-          step={15}
-          onChange={(restSeconds) => onChange({ ...slot, restSeconds })}
-        />
+        <div className="grid gap-3">
+          <Stepper
+            label="Отдых, с"
+            value={slot.restSeconds ?? 0}
+            min={0}
+            max={600}
+            step={15}
+            onChange={(restSeconds) => onChange({ ...slot, restSeconds })}
+          />
+          <label className="grid gap-2 text-[17px] font-semibold" htmlFor="slot-note">
+            Заметка
+            <Textarea
+              id="slot-note"
+              maxLength={500}
+              value={slot.note}
+              placeholder="Как выполнять"
+              onChange={(event) => onChange({ ...slot, note: event.target.value.slice(0, 500) })}
+            />
+          </label>
+        </div>
       ) : null}
       <Button type="button" variant="destructive" className="mt-6 w-full" onClick={onDelete}>
         Удалить из плана
