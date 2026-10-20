@@ -43,7 +43,9 @@ test('клиент начинает тренировку, отмечает по�
       response.ok(),
   )
   await page.getByRole('button', { name: 'Завершить тренировку' }).click()
-  await completed
+  const response = await completed
+  const payload = response.request().postDataJSON() as { started_at?: string }
+  expect(payload.started_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
   await expect(page.getByText('Тренировка отмечена выполненной')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Начать тренировку' })).toHaveCount(0)
 })

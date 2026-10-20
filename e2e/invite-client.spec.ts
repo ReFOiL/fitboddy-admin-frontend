@@ -9,8 +9,8 @@ test('приглашение по несуществующему логину п
 
   await page.getByRole('button', { name: /Пригласить клиента/ }).click()
   const dialog = page.getByRole('dialog', { name: 'Пригласить клиента' })
-  await dialog.getByLabel('Логин клиента').fill('net.kto')
+  await dialog.getByLabel('Логин').fill('net.kto')
   await dialog.getByRole('button', { name: 'Отправить приглашение' }).click()
-  await expect(dialog.getByRole('alert')).toHaveText('Клиент с таким логином не найден.')
+  await expect(dialog.getByText('Клиент с таким логином не найден.')).toBeVisible()
   await expect(dialog).toBeVisible()
 })

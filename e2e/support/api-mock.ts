@@ -3,6 +3,7 @@ import type { Request as PlaywrightRequest } from '@playwright/test'
 import type { AuthUser } from '../../src/types/auth'
 import type { TrainerExercise } from '../../src/types/exercise'
 import type { GenerationPolicy } from '../../src/types/generation-policy'
+import type { NotificationSettings } from '../../src/types/notifications'
 import type { PlanDay, PlanExercise, PlanSlotWrite, TodayWorkout, TrainingPlan } from '../../src/types/plan'
 import type { ProfileResponse } from '../../src/types/profile'
 import type { TrainerClientRelation } from '../../src/types/relation'
@@ -153,6 +154,7 @@ export class ApiMock {
   private readonly plans = new Map<string, TrainingPlan>()
   private readonly catalog: TrainerExercise[]
   private policy: GenerationPolicy
+  private notifications: NotificationSettings
   private revision = 1
 
   constructor() {
@@ -262,6 +264,12 @@ export class ApiMock {
     ]
 
     this.plans.set(IDS.anna, this.studioPlan())
+    this.notifications = {
+      timezone: 'Europe/Moscow',
+      timezone_is_default: true,
+      notifications_enabled: true,
+      telegram_linked: false,
+    }
     this.policy = {
       excluded_pairs: [],
       default_splits: {},
@@ -276,7 +284,7 @@ export class ApiMock {
     }
   }
 
-  /** У клиента ещё нет плана: студия предлагает добавить день. */
+  /** У клиента ещё нет плана: студия предлагает собрать его из каталога. */
   clearPlan(clientUserId: string): void {
     this.plans.delete(clientUserId)
   }
@@ -328,10 +336,25 @@ export class ApiMock {
     if (path === '/api/v1/plans/generate' && method === 'POST') return this.generate(readBody(request))
 
     const complete = /^\/api\/v1\/plans\/me\/days\/(\d+)\/complete$/.exec(path)
-    if (complete && method === 'POST') return this.completeDay(actor, Number(complete[1]))
+    if (complete && method === 'POST') return this.completeDay(actor, Number(complete[1]), readBody(request))
 
-    const byLogin = /^\/api\/v1\/marketplace\/clients\/by-login\/([^/]+)$/.exec(path)
-    if (byLogin && method === 'GET') return this.lookupLogin(decodeURIComponent(byLogin[1]))
+    if (path === '/api/v1/auth/clients/by-login' && method === 'GET') {
+      return this.lookupLogin(url.searchParams.get('login') ?? '')
+    }
+
+    if (path === '/api/v1/plans/me/notifications/settings' && method === 'GET') {
+      return this.json(200, structuredClone(this.notifications))
+    }
+    if (path === '/api/v1/plans/me/notifications/settings' && method === 'PUT') {
+      return this.updateNotifications(readBody(request))
+    }
+    if (path === '/api/v1/plans/me/notifications/telegram/link-code' && method === 'POST') {
+      return this.json(200, { code: 'Ab12Cd34', expires_at: '2026-10-20T18:30:00.000Z' })
+    }
+    if (path === '/api/v1/plans/me/notifications/telegram' && method === 'DELETE') {
+      this.notifications = { ...this.notifications, telegram_linked: false }
+      return this.json(200, {})
+    }
 
     const profileMatch = /^\/api\/v1\/profiles\/([^/]+)$/.exec(path)
     if (profileMatch && method === 'GET') {
@@ -393,12 +416,28 @@ export class ApiMock {
 
     const newDay = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/days$/.exec(path)
     if (newDay && method === 'POST') {
-      return this.createDay(decodeURIComponent(newDay[1]), readBody(request))
+      return this.addDay(decodeURIComponent(newDay[1]), readBody(request))
     }
 
-    const daySlots = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/days\/(\d+)$/.exec(path)
-    if (daySlots && method === 'PUT') {
-      return this.replaceSlots(decodeURIComponent(daySlots[1]), Number(daySlots[3]), readBody(request))
+    const copyWeek = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/weeks\/(\d+)\/copy$/.exec(path)
+    if (copyWeek && method === 'POST') {
+      return this.copyWeek(decodeURIComponent(copyWeek[1]), Number(copyWeek[3]), readBody(request))
+    }
+
+    const copyDay = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/days\/(\d+)\/copy$/.exec(path)
+    if (copyDay && method === 'POST') {
+      return this.copyDay(decodeURIComponent(copyDay[1]), Number(copyDay[3]), readBody(request))
+    }
+
+    const dayItem = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/days\/(\d+)$/.exec(path)
+    if (dayItem && method === 'PUT') {
+      return this.replaceSlots(decodeURIComponent(dayItem[1]), Number(dayItem[3]), readBody(request))
+    }
+    if (dayItem && method === 'PATCH') {
+      return this.patchDayTime(decodeURIComponent(dayItem[1]), Number(dayItem[3]), readBody(request))
+    }
+    if (dayItem && method === 'DELETE') {
+      return this.deleteDay(decodeURIComponent(dayItem[1]), Number(dayItem[3]))
     }
 
     const loads = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/loads$/.exec(path)
@@ -607,29 +646,139 @@ export class ApiMock {
     return created
   }
 
-  private createDay(clientUserId: string, body: unknown): MockResponse {
+  private scheduledFor(plan: TrainingPlan, week: number, dayOfWeek: number): string {
+    return addDays(plan.start_date.slice(0, 10), (week - 1) * 7 + dayOfWeek)
+  }
+
+  private nextDayIndex(plan: TrainingPlan): number {
+    return plan.days.reduce((max, day) => Math.max(max, day.day_index), 0) + 1
+  }
+
+  private addDay(clientUserId: string, body: unknown): MockResponse {
+    const plan = this.plans.get(clientUserId)
+    if (!plan) return this.json(404, { detail: 'not found' })
     const record = asRecord(body)
-    const plan = this.ensurePlan(clientUserId)
-    const dayIndex = Number(record.day_index)
-    const existing = plan.days.find((day) => day.day_index === dayIndex)
-    if (existing) {
-      existing.week = Number(record.week) || existing.week
-      existing.day_of_week = Number(record.day_of_week)
-      existing.scheduled_for = typeof record.scheduled_for === 'string' ? record.scheduled_for : existing.scheduled_for
-      this.touch(plan)
-      return this.json(200, structuredClone(existing))
+    const week = Number(record.week) || 1
+    const dayOfWeek = Number(record.day_of_week)
+    if (plan.days.some((day) => day.week === week && day.day_of_week === dayOfWeek)) {
+      return this.json(409, { detail: 'day exists' })
     }
-    const created = planDay({
-      day_id: `day-added-${dayIndex}`,
-      day_index: dayIndex,
-      week: Number(record.week) || 1,
-      day_of_week: Number(record.day_of_week) || 0,
-      scheduled_for: typeof record.scheduled_for === 'string' ? record.scheduled_for : utcToday(),
-      exercises: [],
+    const dayIndex = this.nextDayIndex(plan)
+    const time = typeof record.scheduled_time === 'string' && record.scheduled_time ? record.scheduled_time : null
+    plan.days.push({
+      ...planDay({
+        day_id: `day-added-${dayIndex}`,
+        day_index: dayIndex,
+        week,
+        day_of_week: dayOfWeek,
+        scheduled_for: this.scheduledFor(plan, week, dayOfWeek),
+        exercises: [],
+      }),
+      scheduled_time: time,
     })
-    plan.days.push(created)
     this.touch(plan)
-    return this.json(200, structuredClone(created))
+    return this.json(200, structuredClone(plan))
+  }
+
+  private deleteDay(clientUserId: string, dayIndex: number): MockResponse {
+    const plan = this.plans.get(clientUserId)
+    if (!plan) return this.json(404, { detail: 'not found' })
+    plan.days = plan.days.filter((day) => day.day_index !== dayIndex)
+    this.touch(plan)
+    return this.json(200, structuredClone(plan))
+  }
+
+  private patchDayTime(clientUserId: string, dayIndex: number, body: unknown): MockResponse {
+    const plan = this.plans.get(clientUserId)
+    const day = plan?.days.find((item) => item.day_index === dayIndex)
+    if (!plan || !day) return this.json(404, { detail: 'not found' })
+    const record = asRecord(body)
+    day.scheduled_time = typeof record.scheduled_time === 'string' && record.scheduled_time ? record.scheduled_time : null
+    this.touch(plan)
+    return this.json(200, structuredClone(day))
+  }
+
+  private copyDay(clientUserId: string, dayIndex: number, body: unknown): MockResponse {
+    const plan = this.plans.get(clientUserId)
+    const source = plan?.days.find((day) => day.day_index === dayIndex)
+    if (!plan || !source) return this.json(404, { detail: 'not found' })
+    const record = asRecord(body)
+    const mode = record.mode === 'append' ? 'append' : 'overwrite'
+    this.placeCopy(plan, source, Number(record.week) || source.week, Number(record.day_of_week), mode)
+    this.touch(plan)
+    return this.json(200, structuredClone(plan))
+  }
+
+  private copyWeek(clientUserId: string, week: number, body: unknown): MockResponse {
+    const plan = this.plans.get(clientUserId)
+    if (!plan) return this.json(404, { detail: 'not found' })
+    const record = asRecord(body)
+    const targetWeek = Number(record.target_week)
+    const mode = record.mode === 'append' ? 'append' : 'overwrite'
+    const sourceDays = plan.days.filter((day) => day.week === week)
+    for (const source of sourceDays) {
+      this.placeCopy(plan, source, targetWeek, source.day_of_week, mode)
+    }
+    this.touch(plan)
+    return this.json(200, structuredClone(plan))
+  }
+
+  private placeCopy(
+    plan: TrainingPlan,
+    source: PlanDay,
+    week: number,
+    dayOfWeek: number,
+    mode: 'overwrite' | 'append',
+  ): void {
+    const cloned = source.exercises.map((exercise, index) =>
+      planExercise({
+        line_id: `line-copy-${this.revision}-${week}-${dayOfWeek}-${index + 1}`,
+        exercise_id: exercise.exercise_id,
+        exercise_name: exercise.exercise_name,
+        category: exercise.category,
+        sets: exercise.sets,
+        reps: exercise.reps,
+        weight_kg: exercise.weight_kg,
+        rest_seconds: exercise.rest_seconds,
+        note: exercise.note,
+        sort_order: index + 1,
+      }),
+    )
+    const target = plan.days.find((day) => day.week === week && day.day_of_week === dayOfWeek)
+    if (!target) {
+      const dayIndex = this.nextDayIndex(plan)
+      plan.days.push({
+        ...planDay({
+          day_id: `day-copy-${dayIndex}`,
+          day_index: dayIndex,
+          week,
+          day_of_week: dayOfWeek,
+          scheduled_for: this.scheduledFor(plan, week, dayOfWeek),
+          exercises: cloned,
+        }),
+        scheduled_time: source.scheduled_time ?? null,
+      })
+      return
+    }
+    target.exercises = mode === 'append' ? [...target.exercises, ...cloned] : cloned
+    target.scheduled_time = source.scheduled_time ?? target.scheduled_time ?? null
+  }
+
+  private updateNotifications(body: unknown): MockResponse {
+    const record = asRecord(body)
+    if ('notifications_enabled' in record) {
+      this.notifications.notifications_enabled = Boolean(record.notifications_enabled)
+    }
+    if ('timezone' in record) {
+      if (record.timezone == null || record.timezone === '') {
+        this.notifications.timezone = 'Europe/Moscow'
+        this.notifications.timezone_is_default = true
+      } else if (typeof record.timezone === 'string') {
+        this.notifications.timezone = record.timezone
+        this.notifications.timezone_is_default = false
+      }
+    }
+    return this.json(200, structuredClone(this.notifications))
   }
 
   private replaceSlots(clientUserId: string, dayIndex: number, body: unknown): MockResponse {
@@ -704,13 +853,17 @@ export class ApiMock {
     return this.json(200, this.toToday(plan, day))
   }
 
-  private completeDay(actor: AuthUser | null, dayIndex: number): MockResponse {
+  private completeDay(actor: AuthUser | null, dayIndex: number, body: unknown): MockResponse {
     if (!actor || actor.role !== 'client') return this.json(404, { detail: 'not found' })
     const plan = this.plans.get(actor.user_id)
     const day = plan?.days.find((item) => item.day_index === dayIndex)
     if (!plan || !day) return this.json(404, { detail: 'not found' })
+    const record = asRecord(body)
+    const finishedAt = new Date().toISOString()
     day.is_completed = true
-    day.completed_at = new Date().toISOString()
+    day.completed_at = finishedAt
+    day.finished_at = finishedAt
+    day.started_at = typeof record.started_at === 'string' ? record.started_at : null
     this.touch(plan)
     return this.json(200, this.toToday(plan, day))
   }
@@ -726,8 +879,11 @@ export class ApiMock {
       week: day.week,
       day_of_week: day.day_of_week,
       volume_multiplier: day.volume_multiplier,
+      scheduled_time: day.scheduled_time ?? null,
       is_completed: Boolean(day.is_completed),
       completed_at: day.completed_at ?? null,
+      started_at: day.started_at ?? null,
+      finished_at: day.finished_at ?? null,
       exercises: day.exercises,
     }
   }
