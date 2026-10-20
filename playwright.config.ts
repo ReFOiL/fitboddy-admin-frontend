@@ -1,5 +1,7 @@
 import { defineConfig } from '@playwright/test'
 
+import { e2eDevServerCommand } from './e2e/support/notifications-flag'
+
 /**
  * Два проекта: телефон 390px и десктоп 1280px.
  * Часовой пояс UTC, чтобы «сегодня» в браузере совпадало с датой мока в Node.
@@ -21,8 +23,7 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   webServer: {
-    // Имя бота нужно экрану уведомлений: без него ссылка на Telegram не строится.
-    command: 'VITE_TELEGRAM_BOT_USERNAME=fitboddy_bot npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
+    command: e2eDevServerCommand(),
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
