@@ -247,8 +247,7 @@ export function ExercisesPage() {
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Dumbbell size={18} className="text-primary" />
-            Каталог упражнений тренера
+            Упражнения
           </CardTitle>
           <CardDescription>
             Базовые упражнения уже добавляются автоматически. Здесь создаются новые упражнения, а редактирование доступно на отдельной странице упражнения.
@@ -641,27 +640,22 @@ export function ExercisesPage() {
                 <span className="text-sm text-secondary-foreground">По текущим фильтрам упражнения не найдены.</span>
               ) : (
                 filteredCatalog.map((exercise) => (
-                  <div
-                    key={exercise.row_id}
-                    className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm"
-                  >
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">{exercise.exercise_name}</div>
-                      <div className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary">
-                        {exercise.is_active ? 'Активно' : 'В архиве'}
-                      </div>
-                    </div>
-                    <div className="mb-3 text-xs text-secondary-foreground">
-                      Категория: {formatCategory(exercise.workout_category)} · Инвентарь:{' '}
-                      {formatEquipment(exercise.equipment)} ·
-                      Сложность: {exercise.difficulty} · {formatExerciseCriteria(exercise)}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild type="button" size="sm" variant="default">
-                        <Link to={`/exercises/${encodeURIComponent(exercise.row_id)}`}>
-                          Подробнее
-                        </Link>
-                      </Button>
+                  <div key={exercise.row_id} className="border-b border-border py-3">
+                    <Link
+                      to={`/exercises/${encodeURIComponent(exercise.row_id)}`}
+                      className="flex min-h-16 items-center justify-between gap-3"
+                    >
+                      <span>
+                        <span className="block text-[17px] font-semibold">{exercise.exercise_name}</span>
+                        <span className="block text-[15px] text-secondary-foreground">
+                          {formatCategory(exercise.workout_category)} · {formatEquipment(exercise.equipment)} ·{' '}
+                          {formatExerciseCriteria(exercise)}
+                          {exercise.is_active ? '' : ' · архив'}
+                        </span>
+                      </span>
+                      <span aria-hidden>›</span>
+                    </Link>
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {exercise.is_active ? (
                         <Button
                           type="button"

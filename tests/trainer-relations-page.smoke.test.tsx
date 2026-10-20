@@ -1,7 +1,20 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import { TrainerRelationsPage } from '../src/pages/TrainerRelations'
+
+vi.mock('../src/hooks/use-auth', () => ({
+  useAuth: () => ({
+    user: { role: 'trainer', user_id: 'trainer-1' },
+  }),
+}))
+
+vi.mock('../src/hooks/use-trainer-roster', () => ({
+  useTrainerRoster: () => ({
+    rows: [],
+    clientsQuery: { isLoading: false, isError: false, refetch: vi.fn() },
+  }),
+}))
 
 vi.mock('../src/hooks/use-user-id-guard', () => ({
   useUserIdGuard: () => ({
@@ -23,7 +36,8 @@ vi.mock('../src/hooks/use-relations', () => ({
       isLoading: false,
       isError: false,
     },
-    upsertDiscoveryProfileMutation: { isPending: false },
+    upsertDiscoveryProfileMutation: { isPending: false, mutate: vi.fn() },
+    createRelationMutation: { isPending: false, mutate: vi.fn() },
     leaveRelationMutation: { isPending: false },
   }),
 }))
@@ -43,7 +57,8 @@ describe('TrainerRelationsPage smoke', () => {
       </MemoryRouter>,
     )
 
+    expect(screen.getByRole('heading', { name: /Клиенты/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '+ Пригласить клиента' }))
     expect(screen.getByText('Видимость профиля')).toBeInTheDocument()
-    expect(screen.getByText('Клиенты')).toBeInTheDocument()
   })
 })

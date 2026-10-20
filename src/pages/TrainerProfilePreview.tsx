@@ -55,7 +55,7 @@ export function TrainerProfilePreviewPage() {
       </Button>
 
       <Card className="overflow-hidden border-primary/20">
-        <CardHeader className="items-center bg-gradient-to-b from-primary/10 to-transparent text-center">
+        <CardHeader className="items-center text-center">
           {profile.avatar_url ? (
             <img
               src={profile.avatar_url}
@@ -63,7 +63,7 @@ export function TrainerProfilePreviewPage() {
               className="h-24 w-24 rounded-full object-cover ring-4 ring-background"
             />
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/15 text-primary ring-4 ring-background">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ededed] text-foreground">
               <UserRound size={42} aria-hidden />
             </div>
           )}

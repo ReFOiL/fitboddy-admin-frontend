@@ -1,7 +1,14 @@
 import { apiClient } from './client'
 import type { ClientExerciseLoad, UpsertClientLoadRequest } from '../types/exercise'
 import type { GenerationPolicy } from '../types/generation-policy'
-import type { GeneratePlanRequest, TodayWorkout, TrainingPlan } from '../types/plan'
+import type {
+  CreateEmptyPlanRequest,
+  GeneratePlanRequest,
+  PlanDay,
+  PlanSlotWrite,
+  TodayWorkout,
+  TrainingPlan,
+} from '../types/plan'
 
 export async function generatePlan(payload: GeneratePlanRequest): Promise<TrainingPlan> {
   const { data } = await apiClient.post<TrainingPlan>('/api/v1/plans/generate', payload)
@@ -65,6 +72,38 @@ export async function upsertClientPlatformLoad(
   const { data } = await apiClient.put<ClientExerciseLoad>(
     `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/platform/loads/${encodeURIComponent(exerciseRowId)}`,
     payload,
+  )
+  return data
+}
+
+export async function getTrainerClientPlan(clientUserId: string, trainerUserId: string): Promise<TrainingPlan> {
+  const { data } = await apiClient.get<TrainingPlan>(
+    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/active`,
+  )
+  return data
+}
+
+export async function createEmptyPlan(
+  clientUserId: string,
+  trainerUserId: string,
+  payload: CreateEmptyPlanRequest,
+): Promise<TrainingPlan> {
+  const { data } = await apiClient.post<TrainingPlan>(
+    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/active`,
+    payload,
+  )
+  return data
+}
+
+export async function replacePlanDaySlots(
+  clientUserId: string,
+  trainerUserId: string,
+  dayIndex: number,
+  slots: PlanSlotWrite[],
+): Promise<PlanDay> {
+  const { data } = await apiClient.put<PlanDay>(
+    `/api/v1/plans/clients/${encodeURIComponent(clientUserId)}/trainers/${encodeURIComponent(trainerUserId)}/days/${dayIndex}`,
+    { slots },
   )
   return data
 }

@@ -61,6 +61,23 @@ export type TodayWorkout = {
   exercises: PlanExercise[]
 }
 
+export type PlanSlotWrite = {
+  exercise_id: string
+  sets?: number | null
+  reps?: number | null
+  duration_seconds?: number | null
+  rest_seconds?: number | null
+  weight_kg?: number | null
+}
+
+export type CreateEmptyPlanRequest = {
+  goal?: string
+  level?: string
+  workouts_per_week?: number
+  start_date?: string
+  day_count?: number
+}
+
 export type TrainingPlan = {
   plan_id: string
   source: PlanSource

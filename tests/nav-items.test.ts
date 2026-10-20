@@ -1,42 +1,32 @@
 import { APP_PATHS, getNavItems } from '../src/config'
 
 describe('role-based nav items', () => {
-  it('keeps exactly four client mobile destinations in the required order', () => {
+  it('keeps four client destinations in the required order', () => {
     const items = getNavItems('client', 'mobile')
 
-    expect(items.map((item) => item.mobileLabel ?? item.label)).toEqual(['Главная', 'Чат', 'Тренер', 'Ещё'])
+    expect(items.map((item) => item.label)).toEqual(['Главная', 'План', 'Чат', 'Профиль'])
     expect(items.map((item) => item.path)).toEqual([
       APP_PATHS.home,
+      APP_PATHS.planGeneration,
       APP_PATHS.messages,
-      APP_PATHS.trainers,
-      APP_PATHS.more,
+      APP_PATHS.profile,
     ])
+    expect(getNavItems('client', 'desktop').map((item) => item.path)).toEqual(items.map((item) => item.path))
   })
 
-  it('keeps direct client plan and profile links on desktop', () => {
-    const paths = getNavItems('client', 'desktop').map((item) => item.path)
+  it('keeps four trainer destinations and leaves analytics out of the tab bar', () => {
+    const items = getNavItems('trainer', 'mobile')
 
-    expect(paths).toContain(APP_PATHS.planGeneration)
-    expect(paths).toContain(APP_PATHS.profile)
-    expect(paths).not.toContain(APP_PATHS.more)
-  })
-
-  it('preserves trainer destinations', () => {
-    const allPaths = new Set([
-      ...getNavItems('trainer', 'desktop').map((item) => item.path),
-      ...getNavItems('trainer', 'mobile').map((item) => item.path),
+    expect(items.map((item) => item.label)).toEqual(['Сегодня', 'Клиенты', 'Упражнения', 'Чат'])
+    expect(items.map((item) => item.path)).toEqual([
+      APP_PATHS.home,
+      APP_PATHS.clients,
+      APP_PATHS.exercises,
+      APP_PATHS.messages,
     ])
-
-    expect(allPaths).toEqual(
-      new Set([
-        APP_PATHS.home,
-        APP_PATHS.clients,
-        APP_PATHS.analytics,
-        APP_PATHS.exercises,
-        APP_PATHS.planRules,
-        APP_PATHS.messages,
-        APP_PATHS.profile,
-      ]),
-    )
+    expect(getNavItems('trainer', 'desktop').map((item) => item.path)).toEqual(items.map((item) => item.path))
+    expect(items.map((item) => item.path)).not.toContain(APP_PATHS.analytics)
+    expect(items.map((item) => item.path)).not.toContain(APP_PATHS.planRules)
+    expect(items.map((item) => item.path)).not.toContain(APP_PATHS.profile)
   })
 })

@@ -1,21 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f1115;
-  --foreground: #ffffff;
-  --card: #1a1f2b;
-  --card-foreground: #ffffff;
-  --primary: #3b82f6;
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --primary: #e8501a;
   --primary-foreground: #ffffff;
-  --secondary: #232938;
-  --secondary-foreground: #a7b0c2;
-  --surface: #1a1f2b;
-  --success: #34d399;
-  --warning: #fbbf24;
-  --info: #60a5fa;
-  --focus: #93c5fd;
-  --border: #2f3748;
-  --destructive: #f44336;
+  --secondary: #f4f4f4;
+  --secondary-foreground: #6b6b6b;
+  --surface: #ffffff;
+  --success: #111111;
+  --warning: #e8501a;
+  --info: #111111;
+  --focus: #e8501a;
+  --border: #e6e6e6;
+  --destructive: #d01212;
   --destructive-foreground: #ffffff;
 }
 
@@ -57,11 +57,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image:
-      radial-gradient(1200px 600px at 10% -20%, rgba(59, 130, 246, 0.2), transparent 60%),
-      radial-gradient(1000px 500px at 100% 0%, rgba(16, 185, 129, 0.15), transparent 55%);
-    background-attachment: fixed;
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  h1 {
+    letter-spacing: -0.02em;
   }
 }
 

@@ -3,6 +3,7 @@ import axios from 'axios'
 import { usePlans } from './use-plans'
 import { useProfile } from './use-profile'
 import { useClientRelations } from './use-relations'
+import { localTodayIso } from '../lib/dates'
 import { isProfileCompleted } from '../lib/profile-completion'
 
 type ClientUser = {
@@ -10,13 +11,7 @@ type ClientUser = {
   user_id?: string
 } | null | undefined
 
-export function localTodayIso(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+export { localTodayIso } from '../lib/dates'
 
 export function useClientPlanModel(user: ClientUser) {
   const isClient = user?.role === 'client'

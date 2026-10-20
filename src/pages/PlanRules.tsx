@@ -90,7 +90,7 @@ function SplitEditor({
           {categories.map((category, index) => (
             <li
               key={`${category}-${index}`}
-              className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-sm"
+              className="inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-foreground px-4 text-[17px]"
             >
               <span className="text-secondary-foreground">{index + 1}.</span>
               <span>{categoryLabel(category)}</span>
@@ -128,7 +128,7 @@ export function PlanRulesPage() {
   if (!trainerUserId) {
     return (
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="text-secondary-foreground">Нужно войти как тренер.</p>
       </section>
     )
@@ -137,7 +137,7 @@ export function PlanRulesPage() {
   if (policyQuery.isLoading) {
     return (
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="text-secondary-foreground">Загрузка…</p>
       </section>
     )
@@ -146,7 +146,7 @@ export function PlanRulesPage() {
   if (policyQuery.isError || !policyQuery.data) {
     return (
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="text-destructive">Не удалось загрузить. Попробуй ещё раз.</p>
         <button
           type="button"
@@ -229,7 +229,7 @@ function PlanRulesEditor({
   return (
     <section className="space-y-5 pb-24 md:pb-0">
       <header>
-        <h1 className="text-2xl font-semibold sm:text-3xl">Правила планов</h1>
+        <h1 className="text-[28px] font-bold">Настройки плана</h1>
         <p className="mt-1 max-w-3xl text-sm text-secondary-foreground sm:text-base">
           Здесь задаётся, как собираются планы для ваших клиентов: сколько тренировок в неделю, какие
           зоны тела в какие дни и какие упражнения нельзя ставить рядом.
@@ -501,7 +501,7 @@ function PlanRulesEditor({
         </ul>
       </article>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:static md:z-0 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 bg-background px-4 py-3 md:static md:z-0 md:p-0">
         <div className="flex items-center gap-3">
           <span className={isDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
             {isDirty ? 'Есть изменения' : 'Сохранено'}

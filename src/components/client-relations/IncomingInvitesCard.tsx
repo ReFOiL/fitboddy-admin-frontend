@@ -1,4 +1,4 @@
-import { Check, Sparkles, Users, X } from 'lucide-react'
+import { Check, Users, X } from 'lucide-react'
 
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
@@ -31,10 +31,7 @@ export function IncomingInvitesCard({
   return (
     <Card className="border-primary/20">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles size={18} className="text-primary" />
-          Входящие приглашения
-        </CardTitle>
+        <CardTitle className="text-[22px]">Входящие приглашения</CardTitle>
         <CardDescription>Тренеры, которые пригласили вас в сопровождение.</CardDescription>
       </CardHeader>
       <CardContent>

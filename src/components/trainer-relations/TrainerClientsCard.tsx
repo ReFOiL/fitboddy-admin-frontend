@@ -45,7 +45,7 @@ export function TrainerClientsCard({
 }: TrainerClientsCardProps) {
   return (
     <Card className="overflow-hidden border-primary/20">
-      <CardHeader className="border-b border-border/60 bg-gradient-to-b from-primary/10 to-transparent">
+      <CardHeader className="border-b border-border">
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">

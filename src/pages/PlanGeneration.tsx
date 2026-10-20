@@ -261,6 +261,7 @@ export function PlanGenerationPage() {
   /* ——— Home ——— */
   return (
     <div className="mx-auto w-full max-w-lg space-y-4 md:max-w-3xl">
+      <h1 className="text-[28px] font-bold">План</h1>
       {(clientActiveRelationQuery.isLoading || profileQuery.isLoading || activePlanQuery.isLoading) &&
       !hasActivePlan &&
       !hasNoActivePlan ? (
@@ -292,7 +293,7 @@ export function PlanGenerationPage() {
       ) : null}
 
       {questionnaireReady && !hasActivePlan && !activePlanQuery.isLoading ? (
-        <Card className="border-primary/30 bg-gradient-to-b from-primary/10 to-transparent">
+        <Card>
           <CardHeader>
             <CardTitle className="text-xl">Собери план</CardTitle>
             <CardDescription>
@@ -391,7 +392,7 @@ export function PlanGenerationPage() {
           />
 
           {showNextCycleCta ? (
-            <div className="rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+            <div className="rounded-2xl border-2 border-foreground px-4 py-3 text-[17px]">
               Цикл завершён{currentAdherence != null ? ` · выполнено ${currentAdherence}%` : ''}. Можно запустить
               следующий в настройках ниже.
             </div>

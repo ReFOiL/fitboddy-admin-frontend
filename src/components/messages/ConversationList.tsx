@@ -40,14 +40,14 @@ export function ConversationRow({
         to={APP_PATHS.messageThread.replace(':conversationId', conversation.conversation_id)}
         aria-selected={selected}
         className={cn(
-          'flex min-h-14 items-center gap-3 rounded-xl px-3 py-3.5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
-          selected ? 'bg-primary/15' : unread ? 'bg-primary/10 hover:bg-primary/15' : 'hover:bg-secondary/70',
+          'flex min-h-16 items-center gap-3 border-b border-border px-1 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+          selected ? 'bg-secondary' : 'bg-background',
         )}
       >
         <PeerAvatar title={peer.title} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <div className={cn('truncate', unread ? 'font-semibold' : 'font-medium')}>{peer.title}</div>
+            <div className="truncate text-[17px] font-semibold">{peer.title}</div>
             <time className="shrink-0 text-[11px] text-secondary-foreground">
               {formatChatListTime(conversation.last_message_at ?? conversation.last_message?.created_at ?? null)}
             </time>

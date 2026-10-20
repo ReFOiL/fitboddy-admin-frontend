@@ -1,55 +1,59 @@
-import { MessageSquare } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 import { APP_BRAND_NAME, APP_PATHS, type AppRole } from '../../config'
-import { cn } from '../../lib/utils'
-import { UnreadBadge } from '../shared'
-import { Button } from '../ui/button'
+import { messageCountLabel } from '../../lib/dates'
+import { AccountMenu } from './AccountMenu'
 import { DesktopNav } from './DesktopNav'
 
 type AppHeaderProps = {
   role: AppRole
-  email?: string
+  displayName: string
   unreadCount: number
   logoutPending: boolean
   onLogout: () => void
+  hiddenOnMobile?: boolean
+  published?: boolean
+  publicationPending?: boolean
+  onTogglePublication?: () => void
 }
 
-export function AppHeader({ role, email, unreadCount, logoutPending, onLogout }: AppHeaderProps) {
+export function AppHeader({
+  role,
+  displayName,
+  unreadCount,
+  logoutPending,
+  onLogout,
+  hiddenOnMobile = false,
+  published,
+  publicationPending,
+  onTogglePublication,
+}: AppHeaderProps) {
   const isTrainer = role === 'trainer'
 
   return (
-    <header className="sticky top-0 z-20 shrink-0 border-b border-border/80 bg-[rgba(15,17,21,0.92)] pt-[env(safe-area-inset-top)] backdrop-blur">
-      <div className="mx-auto flex h-12 w-full max-w-6xl items-center justify-between gap-3 px-4 md:h-16 md:px-6">
-        <div className="truncate text-sm font-semibold md:hidden">{APP_BRAND_NAME}</div>
-        <div className="hidden rounded-lg border border-border/80 bg-secondary/60 px-3 py-1 text-xs text-secondary-foreground md:block">
-          {APP_BRAND_NAME} Платформа
-        </div>
-
+    <header
+      className={`sticky top-0 z-20 shrink-0 border-b border-border bg-background ${hiddenOnMobile ? 'hidden md:block' : ''}`}
+    >
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 md:h-16 md:px-6">
+        <Link to={APP_PATHS.home} className="text-[17px] font-bold">
+          {APP_BRAND_NAME}
+        </Link>
         <DesktopNav role={role} unreadCount={unreadCount} />
-
-        <div className="flex items-center gap-2 md:gap-3">
-          {isTrainer ? (
-            <NavLink
-              to={APP_PATHS.messages}
-              className="relative rounded-lg p-2.5 text-secondary-foreground hover:bg-secondary/70 md:hidden"
-              aria-label={unreadCount > 0 ? `Сообщения, ${unreadCount} непрочитанных` : 'Сообщения'}
-            >
-              <MessageSquare size={20} />
-              <UnreadBadge count={unreadCount} className="absolute -right-0.5 -top-0.5" />
-            </NavLink>
+        <div className="ml-auto flex items-center gap-3">
+          {isTrainer && unreadCount > 0 ? (
+            <Link to={APP_PATHS.messages} className="text-[15px] underline md:hidden">
+              {messageCountLabel(unreadCount)}
+            </Link>
           ) : null}
-          <span className="hidden text-xs text-secondary-foreground sm:inline">{email ?? 'пользователь'}</span>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className={cn('md:h-10 md:px-4 md:text-sm', role === 'client' && 'hidden md:inline-flex')}
-            onClick={onLogout}
-            disabled={logoutPending}
-          >
-            Выйти
-          </Button>
+          <AccountMenu
+            role={role}
+            name={displayName}
+            logoutPending={logoutPending}
+            onLogout={onLogout}
+            published={published}
+            publicationPending={publicationPending}
+            onTogglePublication={onTogglePublication}
+          />
         </div>
       </div>
     </header>

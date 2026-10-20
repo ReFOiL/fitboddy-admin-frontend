@@ -24,6 +24,31 @@ export function saveSessionChecks(dayId: string, lineIds: Set<string>): void {
   }
 }
 
+export function setChecksKey(dayId: string, lineId: string): string {
+  return `fitboddy:set-checks:${dayId}:${lineId}`
+}
+
+export function loadSetChecks(dayId: string, lineId: string, total: number): boolean[] {
+  const checks = Array.from({ length: total }, () => false)
+  try {
+    const raw = sessionStorage.getItem(setChecksKey(dayId, lineId))
+    if (!raw) return checks
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return checks
+    return checks.map((_, index) => parsed[index] === true)
+  } catch {
+    return checks
+  }
+}
+
+export function saveSetChecks(dayId: string, lineId: string, checks: boolean[]): void {
+  try {
+    sessionStorage.setItem(setChecksKey(dayId, lineId), JSON.stringify(checks))
+  } catch {
+    // приватный режим
+  }
+}
+
 export function clearSessionChecks(dayId: string): void {
   try {
     sessionStorage.removeItem(sessionChecksKey(dayId))

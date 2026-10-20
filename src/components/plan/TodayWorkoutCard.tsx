@@ -90,7 +90,7 @@ export function TodayWorkoutCard({
             </div>
 
             {focusedDay.is_completed ? (
-              <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-medium text-primary">
+              <div className="flex min-h-12 items-center gap-2 text-[17px] font-semibold">
                 <CheckCircle2 size={18} />
                 Тренировка выполнена
               </div>

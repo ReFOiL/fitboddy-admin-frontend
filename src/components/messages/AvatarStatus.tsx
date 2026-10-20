@@ -13,7 +13,7 @@ export function PeerAvatar({
   return (
     <div
       className={cn(
-        'relative flex shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary',
+        'relative flex shrink-0 items-center justify-center rounded-full bg-[#ededed] text-[13px] font-semibold text-foreground',
         size === 'small' ? 'size-9' : 'size-10',
       )}
       aria-label={`${title}${status ? `, ${status}` : ''}`}
