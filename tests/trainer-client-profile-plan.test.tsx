@@ -113,13 +113,8 @@ describe('TrainerClientProfile plan composition', () => {
 
     renderProfile()
 
-    expect(screen.getByRole('button', { name: 'Составить план' })).toBeDisabled()
-    expect(screen.getByText(/Анкета клиента не заполнена/)).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'План собирается из вашего каталога и правил планов. После изменений в каталоге или правилах его нужно пересобрать.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Составить план' })).toHaveAttribute('href', '/clients/client-1/plan')
+    expect(screen.getByText('Просмотр плана. Состав дней меняется в редакторе.')).toBeInTheDocument()
   })
 
   it('называет действие «Составить план», когда анкета готова и плана нет', () => {
@@ -135,11 +130,11 @@ describe('TrainerClientProfile plan composition', () => {
 
     renderProfile()
 
-    expect(screen.getByRole('button', { name: 'Составить план' })).toBeEnabled()
+    expect(screen.getByRole('link', { name: 'Составить план' })).toHaveAttribute('href', '/clients/client-1/plan')
     expect(screen.queryByText(/Анкета клиента неполная/)).not.toBeInTheDocument()
   })
 
-  it('оставляет пересборку и объясняет, что план берётся из каталога', () => {
+  it('ведёт в редактор плана, когда план уже есть', () => {
     mocks.profileQuery.data = {
       user_id: 'client-1',
       age: 28,
@@ -162,8 +157,7 @@ describe('TrainerClientProfile plan composition', () => {
 
     renderProfile()
 
-    expect(screen.getByRole('button', { name: 'Пересобрать план' })).toBeEnabled()
-    expect(screen.getByText(/После изменений в каталоге или правилах его нужно пересобрать/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Редактировать план' })).toHaveAttribute('href', '/clients/client-1/plan')
     expect(document.getElementById('plan')).not.toBeNull()
   })
 })

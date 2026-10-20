@@ -141,6 +141,15 @@ describe('client Dashboard', () => {
     expect(screen.queryByText('Добро пожаловать')).not.toBeInTheDocument()
   })
 
+  it('показывает спокойное ожидание, пока тренер составляет программу', () => {
+    mocks.model = baseModel({ hasActiveTrainer: true, activeTrainerDisplay: 'coach' })
+    renderDashboard()
+
+    expect(screen.getByText('Тренер ещё составляет программу')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Тренироваться самостоятельно' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Создать план тренера' })).not.toBeInTheDocument()
+  })
+
   it('создаёт самостоятельный план и предлагает выбрать тренера', () => {
     mocks.model = baseModel()
     renderDashboard()

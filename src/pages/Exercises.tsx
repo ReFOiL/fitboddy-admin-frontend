@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { z } from 'zod'
 
 import { listMuscles } from '../api/exercises'
+import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
@@ -160,6 +161,7 @@ export function ExercisesPage() {
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
   const { profileQuery } = useProfile(trainerUserId)
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [showPlanHint, setShowPlanHint] = useState(false)
   const [filterMode, setFilterMode] = useState<CatalogFilterMode>('active')
   const [searchQuery, setSearchQuery] = useState('')
   const includeArchived = filterMode !== 'active'
@@ -255,6 +257,7 @@ export function ExercisesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {showPlanHint ? <ExercisePlanHint /> : null}
           {!isCreateFormOpen ? (
             <Button type="button" size="lg" className="min-w-56" onClick={() => setIsCreateFormOpen(true)}>
               Создать упражнение
@@ -268,6 +271,7 @@ export function ExercisesPage() {
                   onSuccess: () => {
                     form.reset(defaultValues)
                     setIsCreateFormOpen(false)
+                    setShowPlanHint(true)
                   },
                 })
               })}

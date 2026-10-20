@@ -28,6 +28,9 @@ const TrainerRelationsPage = lazy(async () => ({ default: (await import('./pages
 const TrainerClientProfilePage = lazy(async () => ({
   default: (await import('./pages/TrainerClientProfile')).TrainerClientProfilePage,
 }))
+const TrainerClientPlanPage = lazy(async () => ({
+  default: (await import('./pages/TrainerClientPlan')).TrainerClientPlanPage,
+}))
 const MessagesPage = lazy(async () => ({ default: (await import('./pages/Messages')).MessagesPage }))
 const MorePage = lazy(async () => ({ default: (await import('./pages/More')).MorePage }))
 
@@ -70,6 +73,14 @@ function App() {
               element={
                 <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
                   <TrainerClientProfilePage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.clientPlan.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <TrainerClientPlanPage />
                 </RoleRoute>
               }
             />
