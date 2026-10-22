@@ -19,7 +19,7 @@ export function MobileTabBar({ role, unreadCount, hidden = false }: MobileTabBar
     <nav
       aria-label="Мобильная навигация"
       className={cn(
-        'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden',
+        'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] md:hidden',
         hidden ? 'hidden' : 'block',
       )}
     >

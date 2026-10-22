@@ -107,7 +107,7 @@ export function ConversationList({
       <div className="shrink-0 border-b border-border/60 px-4 py-3 sm:px-5 sm:py-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="flex items-center gap-2 text-lg font-semibold"><MessageSquare size={18} className="text-primary" />Сообщения</h1>
+            <h1 className="flex items-center gap-2 text-lg font-semibold"><MessageSquare size={18} className="text-accent-ink" />Сообщения</h1>
             <p className="mt-1 text-sm text-secondary-foreground">{isTrainer ? 'Переписка с клиентами' : 'Переписка с тренером'}</p>
           </div>
           {startablePeers.length === 1 ? (

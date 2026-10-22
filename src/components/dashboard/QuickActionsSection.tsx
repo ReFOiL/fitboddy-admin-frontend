@@ -17,7 +17,7 @@ export function QuickActionsSection({ relationsPath, relationsSectionLabel, unre
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users size={18} className="text-primary" />
+            <Users size={18} className="text-accent-ink" />
             {relationsSectionLabel}
           </CardTitle>
           <CardDescription>Находите новых клиентов, подключайте их в один клик и ведите активную базу без технических шагов.</CardDescription>
@@ -37,7 +37,7 @@ export function QuickActionsSection({ relationsPath, relationsSectionLabel, unre
         <CardHeader>
           <CardTitle className="flex items-center justify-between gap-3">
             <span className="flex items-center gap-2">
-              <MessageSquare size={18} className="text-primary" />
+              <MessageSquare size={18} className="text-accent-ink" />
               Сообщения
             </span>
             {unreadCount > 0 ? (
@@ -68,7 +68,7 @@ export function QuickActionsSection({ relationsPath, relationsSectionLabel, unre
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ClipboardCheck size={18} className="text-primary" />
+            <ClipboardCheck size={18} className="text-accent-ink" />
             Профиль и цели
           </CardTitle>
           <CardDescription>Заполняйте цели, ограничения и инвентарь, чтобы рекомендации были безопасными и персонализированными.</CardDescription>

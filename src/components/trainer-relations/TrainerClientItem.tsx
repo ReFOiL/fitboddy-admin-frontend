@@ -20,12 +20,12 @@ export function TrainerClientItem({ relation, leaveDisabled, onLeave }: TrainerC
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <UserCheck size={16} className="shrink-0 text-primary" />
+            <UserCheck size={16} className="shrink-0 text-accent-ink" />
             <span className="truncate text-base font-semibold">{formatTrainerClientCardTitle(relation)}</span>
           </div>
           {subtitle ? <div className="text-xs text-secondary-foreground">{subtitle}</div> : null}
         </div>
-        <div className="inline-flex shrink-0 items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
+        <div className="inline-flex shrink-0 items-center rounded-full border border-success/40 bg-success/10 px-2 py-1 text-xs text-success">
           Активен
         </div>
       </div>

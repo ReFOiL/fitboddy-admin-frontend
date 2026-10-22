@@ -13,6 +13,7 @@ import {
   normalizeGenerationPolicy,
 } from '../lib/generation-policy'
 import { getUserErrorMessage } from '../lib/user-error-message'
+import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { StickySaveBar } from '../components/plan/StickySaveBar'
 import type { TrainerExercise } from '../types/exercise'
 import type { GenerationPolicy } from '../types/generation-policy'
@@ -70,7 +71,7 @@ function SplitEditor({
           <button
             key={category.value}
             type="button"
-            className="rounded-full border border-border bg-background px-3 py-1 text-sm hover:bg-secondary/70"
+            className="rounded-full border border-border bg-card px-3 py-1 text-sm hover:bg-secondary"
             onClick={() => onChange([...categories, category.value])}
           >
             + {category.label}
@@ -93,7 +94,7 @@ function SplitEditor({
           {categories.map((category, index) => (
             <li
               key={`${category}-${index}`}
-              className="inline-flex min-h-12 items-center gap-2 rounded-full border-2 border-foreground px-4 text-[17px]"
+              className="inline-flex min-h-12 items-center gap-2 rounded-full border border-border bg-card px-4 text-[17px]"
             >
               <span className="text-secondary-foreground">{index + 1}.</span>
               <span>{categoryLabel(category)}</span>
@@ -131,7 +132,10 @@ export function PlanRulesPage() {
   if (!trainerUserId) {
     return (
       <section className="space-y-3">
-        <h1 className="text-[28px] font-bold">Настройки плана</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-[28px] font-bold">Настройки плана</h1>
+          <ThemeToggle className="md:hidden" />
+        </div>
         <p className="text-secondary-foreground">Нужно войти как тренер.</p>
       </section>
     )
@@ -140,7 +144,10 @@ export function PlanRulesPage() {
   if (policyQuery.isLoading) {
     return (
       <section className="space-y-3">
-        <h1 className="text-[28px] font-bold">Настройки плана</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-[28px] font-bold">Настройки плана</h1>
+          <ThemeToggle className="md:hidden" />
+        </div>
         <p className="text-secondary-foreground">Загрузка…</p>
       </section>
     )
@@ -149,7 +156,10 @@ export function PlanRulesPage() {
   if (policyQuery.isError || !policyQuery.data) {
     return (
       <section className="space-y-3">
-        <h1 className="text-[28px] font-bold">Настройки плана</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-[28px] font-bold">Настройки плана</h1>
+          <ThemeToggle className="md:hidden" />
+        </div>
         <p className="text-destructive">Не удалось загрузить. Попробуй ещё раз.</p>
         <button
           type="button"
@@ -247,12 +257,15 @@ function PlanRulesEditor({
 
   return (
     <section className="space-y-5 pb-40 md:pb-0">
-      <header>
-        <h1 className="text-[28px] font-bold">Настройки плана</h1>
-        <p className="mt-1 max-w-3xl text-sm text-secondary-foreground sm:text-base">
-          Здесь задаётся, как собираются планы для ваших клиентов: сколько тренировок в неделю, какие
-          зоны тела в какие дни и какие упражнения нельзя ставить рядом.
-        </p>
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-[28px] font-bold">Настройки плана</h1>
+          <p className="mt-1 max-w-3xl text-sm text-secondary-foreground sm:text-base">
+            Здесь задаётся, как собираются планы для ваших клиентов: сколько тренировок в неделю, какие
+            зоны тела в какие дни и какие упражнения нельзя ставить рядом.
+          </p>
+        </div>
+        <ThemeToggle className="md:hidden" />
       </header>
 
       {errorText ? (

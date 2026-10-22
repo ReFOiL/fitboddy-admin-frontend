@@ -42,7 +42,7 @@ export function ClientProgress({
       {plan ? (
         <>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border-2 border-foreground p-4">
+            <div className="rounded-2xl border border-border bg-card p-4">
               <div className="text-[28px] font-bold leading-none">
                 {done} из {total}
               </div>
@@ -50,7 +50,7 @@ export function ClientProgress({
                 тренировок за {weeks} {weeksLabel(weeks)}
               </div>
             </div>
-            <div className="rounded-2xl border-2 border-foreground p-4">
+            <div className="rounded-2xl border border-border bg-card p-4">
               <div className="text-[28px] font-bold leading-none">{last ? formatMonthDay(last.scheduled_for) : '—'}</div>
               <div className="mt-2 text-[15px]">последняя тренировка</div>
             </div>
@@ -73,12 +73,12 @@ export function ClientProgress({
                         <div key={day.day_id}>
                           <div>{formatWeekdayShort(day.day_of_week)}</div>
                           <div
-                            className={`mt-1 flex h-12 items-center justify-center rounded-xl border-2 ${
+                            className={`mt-1 flex h-12 items-center justify-center rounded-xl border ${
                               missed
-                                ? 'border-destructive text-destructive'
+                                ? 'border-destructive bg-card text-destructive'
                                 : day.is_completed
-                                  ? 'border-foreground bg-foreground text-background'
-                                  : 'border-foreground'
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-border bg-card'
                             }`}
                           >
                             {day.is_completed ? '✓' : missed ? '×' : ''}

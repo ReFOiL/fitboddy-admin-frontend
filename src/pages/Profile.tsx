@@ -140,7 +140,7 @@ export function ProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserRound size={19} className="text-primary" aria-hidden />
+            <UserRound size={19} className="text-accent-ink" aria-hidden />
             Личные данные
           </CardTitle>
           <CardDescription>Имя, фото и информация, которая помогает узнать вас.</CardDescription>
@@ -255,7 +255,7 @@ export function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Dumbbell size={19} className="text-primary" aria-hidden />
+                <Dumbbell size={19} className="text-accent-ink" aria-hidden />
                 Параметры тренировок
               </CardTitle>
               <CardDescription>Эти настройки влияют на содержание и сложность плана.</CardDescription>
@@ -314,7 +314,7 @@ export function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <HeartPulse size={19} className="text-primary" aria-hidden />
+                <HeartPulse size={19} className="text-accent-ink" aria-hidden />
                 Здоровье и ограничения
               </CardTitle>
               <CardDescription>Укажите всё, что нужно учитывать для безопасных тренировок.</CardDescription>
@@ -376,7 +376,7 @@ export function ProfilePage() {
           >
             {isFormDirty ? 'Есть изменения' : 'Сохранено'}
           </span>
-          {!isFormDirty ? <CheckCircle2 size={17} className="text-primary" aria-hidden /> : null}
+          {!isFormDirty ? <CheckCircle2 size={17} className="text-accent-ink" aria-hidden /> : null}
           <Button
             type="submit"
             size="lg"

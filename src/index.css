@@ -1,22 +1,59 @@
 @import "tailwindcss";
 
+/*
+  Палитра слейт / пыльный синий.
+  Светлая тема — по умолчанию. Тёмная включается атрибутом data-theme="dark" на <html>.
+  Заливки и границы совпадают с макетом. Текст вторичного цвета и акцента чуть сдвинут,
+  чтобы обычный текст держал WCAG AA (4.5:1) на фоне страницы, карточки и мягкой заливки:
+  исходные #6E7883 и #5A7891 на #F2F4F6 дают примерно 4.1:1 и 4.2:1.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #111111;
+  color-scheme: light;
+  --background: #f2f4f6;
+  --foreground: #26303a;
   --card: #ffffff;
-  --card-foreground: #111111;
-  --primary: #e8501a;
+  --card-foreground: #26303a;
+  --primary: #5a7891;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f4;
-  --secondary-foreground: #6b6b6b;
+  --accent-ink: #4f6980;
+  --secondary: #e1e8ee;
+  --secondary-foreground: #606973;
   --surface: #ffffff;
-  --success: #111111;
-  --warning: #e8501a;
-  --info: #111111;
-  --focus: #e8501a;
-  --border: #e6e6e6;
-  --destructive: #d01212;
+  --border: #dde2e7;
+  --focus: #5a7891;
+  --success: #176b45;
+  --warning: #8a5a12;
+  --info: #4f6980;
+  --destructive: #b42318;
   --destructive-foreground: #ffffff;
+  --media: #141a21;
+  --media-foreground: #e3e8ee;
+  --overlay: rgb(24 29 36 / 45%);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --background: #181d24;
+  --foreground: #e3e8ee;
+  --card: #212833;
+  --card-foreground: #e3e8ee;
+  --primary: #8faac2;
+  --primary-foreground: #141a21;
+  --accent-ink: #8faac2;
+  --secondary: #26313d;
+  /* #8A96A3 на мягкой заливке #26313D ≈ 4.4:1 — чуть светлее, чтобы подписи проходили и на чипах. */
+  --secondary-foreground: #8d99a5;
+  --surface: #212833;
+  --border: #2f3845;
+  --focus: #8faac2;
+  --success: #8fcbaa;
+  --warning: #e6c27a;
+  --info: #8faac2;
+  --destructive: #f0b4ae;
+  --destructive-foreground: #141a21;
+  --media: #141a21;
+  --media-foreground: #e3e8ee;
+  --overlay: rgb(8 10 14 / 62%);
 }
 
 @theme inline {
@@ -26,6 +63,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent-ink: var(--accent-ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-surface: var(--surface);
@@ -36,6 +74,9 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-media: var(--media);
+  --color-media-foreground: var(--media-foreground);
+  --color-overlay: var(--overlay);
 }
 
 @layer base {
@@ -63,6 +104,48 @@
   h1 {
     letter-spacing: -0.02em;
   }
+
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 35%, transparent);
+    color: var(--foreground);
+  }
+}
+
+/* Пустое фото упражнения: диагональная штриховка, как на макете «Фото положения». */
+@layer components {
+  .photo-placeholder {
+    background-color: var(--secondary);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      color-mix(in srgb, var(--primary) 28%, var(--secondary)) 8px,
+      color-mix(in srgb, var(--primary) 28%, var(--secondary)) 16px
+    );
+    color: var(--secondary-foreground);
+  }
+}
+
+/* Тосты sonner читают свои переменные. Перекрываем их палитрой приложения. */
+html[data-theme] [data-sonner-toaster][data-sonner-theme='light'],
+html[data-theme] [data-sonner-toaster][data-sonner-theme='dark'] {
+  --normal-bg: var(--card);
+  --normal-bg-hover: var(--secondary);
+  --normal-border: var(--border);
+  --normal-border-hover: var(--border);
+  --normal-text: var(--foreground);
+  --success-bg: color-mix(in srgb, var(--success) 16%, var(--card));
+  --success-border: color-mix(in srgb, var(--success) 42%, var(--border));
+  --success-text: var(--success);
+  --info-bg: color-mix(in srgb, var(--info) 16%, var(--card));
+  --info-border: color-mix(in srgb, var(--info) 42%, var(--border));
+  --info-text: var(--info);
+  --warning-bg: color-mix(in srgb, var(--warning) 16%, var(--card));
+  --warning-border: color-mix(in srgb, var(--warning) 42%, var(--border));
+  --warning-text: var(--warning);
+  --error-bg: color-mix(in srgb, var(--destructive) 16%, var(--card));
+  --error-border: color-mix(in srgb, var(--destructive) 42%, var(--border));
+  --error-text: var(--destructive);
 }
 
 @media (prefers-reduced-motion: reduce) {

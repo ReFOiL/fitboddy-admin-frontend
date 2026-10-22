@@ -12,7 +12,7 @@ export function ExercisePlanHint() {
       <p>{EXERCISE_PLAN_REBUILD_HINT}</p>
       <Link
         to={APP_PATHS.clients}
-        className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-2 hover:underline"
+        className="mt-2 inline-flex min-h-11 items-center text-sm font-medium text-accent-ink underline-offset-2 hover:underline"
       >
         К клиентам
       </Link>

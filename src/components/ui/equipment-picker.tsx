@@ -41,7 +41,7 @@ export function EquipmentPicker({
         <div className="flex items-start justify-between gap-3">
           <div className="grid gap-0.5">
             <Label htmlFor={id} className="flex items-center gap-1.5">
-              <PencilLine size={14} className="text-primary" />
+              <PencilLine size={14} className="text-accent-ink" />
               Свой инвентарь
             </Label>
             <p className="text-xs text-secondary-foreground">Напиши название так, как поймёт клиент</p>

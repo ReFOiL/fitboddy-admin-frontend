@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import { personInitials } from '../../lib/person'
 import { cn } from '../../lib/utils'
+import { ThemeToggle } from '../layout/ThemeToggle'
 
 export function PageTitle({ children }: { children: ReactNode }) {
   return <h1 className="text-[28px] font-bold leading-tight">{children}</h1>
@@ -18,7 +19,7 @@ export function Avatar({ name, className }: { name: string; className?: string }
     <span
       aria-hidden
       className={cn(
-        'flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#ededed] text-[15px] font-semibold',
+        'flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-secondary text-[15px] font-semibold text-accent-ink',
         className,
       )}
     >
@@ -32,7 +33,7 @@ export function StatusPill({ tone, children }: { tone: 'danger' | 'neutral'; chi
     <span
       className={cn(
         'inline-flex h-8 items-center rounded-full border px-3 text-[13px] font-semibold',
-        tone === 'danger' ? 'border-destructive text-destructive' : 'border-foreground text-foreground',
+        tone === 'danger' ? 'border-destructive text-destructive' : 'border-border bg-secondary text-foreground',
       )}
     >
       {children}
@@ -91,8 +92,8 @@ export function Chip({ active = false, className, ...props }: ChipProps) {
     <button
       type="button"
       className={cn(
-        'inline-flex h-12 items-center rounded-full border-2 border-foreground px-4 text-[15px] font-semibold',
-        active ? 'bg-foreground text-background' : 'bg-background text-foreground',
+        'inline-flex h-12 items-center rounded-full border px-4 text-[15px] font-semibold',
+        active ? 'border-primary bg-card text-foreground' : 'border-transparent bg-secondary text-foreground',
         className,
       )}
       {...props}
@@ -122,11 +123,11 @@ export function Stepper({
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <span className="text-[17px] font-semibold">{label}</span>
-      <div className="grid h-14 w-[210px] grid-cols-3 overflow-hidden rounded-2xl border-2 border-foreground">
+      <div className="grid h-14 w-[210px] grid-cols-3 overflow-hidden rounded-2xl border border-border bg-card">
         <button type="button" className="flex items-center justify-center" aria-label={`Меньше: ${label}`} onClick={decrease}>
           <Minus size={18} />
         </button>
-        <span className="flex items-center justify-center border-x-2 border-foreground text-[17px] font-semibold">
+        <span className="flex items-center justify-center border-x border-border text-[17px] font-semibold">
           {formatValue ? formatValue(value) : value}
         </span>
         <button type="button" className="flex items-center justify-center" aria-label={`Больше: ${label}`} onClick={increase}>
@@ -145,7 +146,7 @@ function roundStep(value: number, step: number): number {
 
 export function StickyActionBar({ children }: { children: ReactNode }) {
   return (
-    <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 bg-background px-4 py-3 md:static md:px-0 md:py-0">
+    <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-card px-4 py-3 md:static md:border-0 md:bg-transparent md:px-0 md:py-0">
       <div className="mx-auto w-full max-w-lg md:max-w-none">{children}</div>
     </div>
   )
@@ -163,7 +164,7 @@ export function ScreenHeader({
   menu?: ReactNode
 }) {
   return (
-    <div className="flex min-h-14 items-center gap-2 border-b border-border">
+    <div className="grid min-h-14 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 border-b border-border">
       {onBack ? (
         <button type="button" onClick={onBack} aria-label={backLabel} className="flex h-12 w-12 items-center justify-center">
           <ChevronLeft size={22} />
@@ -171,8 +172,11 @@ export function ScreenHeader({
       ) : (
         <span className="w-12" />
       )}
-      <h1 className="min-w-0 flex-1 truncate text-center text-[17px] font-bold">{title}</h1>
-      <span className="flex w-12 justify-end">{menu}</span>
+      <h1 className="truncate text-center text-[17px] font-bold">{title}</h1>
+      <span className="flex items-center justify-end">
+        <ThemeToggle className="md:hidden" />
+        {menu ?? <span className="hidden w-12 md:block" />}
+      </span>
     </div>
   )
 }
@@ -215,7 +219,7 @@ export function OverflowMenu({ items, label = 'Ещё' }: { items: OverflowItem[
           <div
             role="menu"
             aria-labelledby={titleId}
-            className="absolute right-4 top-16 w-[min(100%-2rem,320px)] overflow-hidden rounded-2xl border border-foreground bg-background md:top-20"
+            className="absolute right-4 top-16 w-[min(100%-2rem,320px)] overflow-hidden rounded-2xl border border-border bg-card shadow-lg md:top-20"
             onClick={(event) => event.stopPropagation()}
           >
             <span id={titleId} className="sr-only">
@@ -257,12 +261,12 @@ export function Sheet({
   children: ReactNode
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center" role="presentation" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-overlay md:items-center" role="presentation" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-lg rounded-t-3xl bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-3xl"
+        className="w-full max-w-lg rounded-t-3xl border border-border bg-card p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -279,7 +283,7 @@ export function Sheet({
 
 export function DoneMark() {
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary text-white" aria-hidden>
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground" aria-hidden>
       <Check size={16} />
     </span>
   )
@@ -287,11 +291,11 @@ export function DoneMark() {
 
 export function ExerciseThumb({ imageUrl, hasVideo }: { imageUrl?: string | null; hasVideo?: boolean }) {
   return (
-    <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#e5e5e5]">
+    <span className="photo-placeholder relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg">
       {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : null}
       {hasVideo ? (
-        <span className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-black text-white">
-          <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-white" />
+        <span className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-media text-media-foreground">
+          <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-media-foreground" />
         </span>
       ) : null}
     </span>

@@ -20,7 +20,7 @@ export function TrainerVisibilityCard({
     <Card className="overflow-hidden border-primary/30">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Eye size={18} className="text-primary" />
+          <Eye size={18} className="text-accent-ink" />
           Видимость профиля
         </CardTitle>
         <CardDescription>Вы можете в любой момент публиковать профиль для поиска и скрывать его обратно.</CardDescription>

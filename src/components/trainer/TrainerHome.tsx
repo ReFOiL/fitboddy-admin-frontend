@@ -131,7 +131,7 @@ export function TrainerHome() {
         </section>
       </div>
 
-      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 bg-background px-4 py-3 md:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 border-t border-border bg-card px-4 py-3 md:hidden">
         <Button type="button" size="lg" className="w-full" onClick={() => setInviteOpen(true)}>
           + Пригласить клиента
         </Button>

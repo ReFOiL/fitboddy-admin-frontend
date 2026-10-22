@@ -51,7 +51,7 @@ export function ExercisePhotoSlots({
   return (
     <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4">
       <div className="flex items-center gap-2 text-sm font-medium">
-        <Image size={16} className="text-primary" />
+        <Image size={16} className="text-accent-ink" />
         Фото упражнения
       </div>
       <div className="grid gap-3 md:grid-cols-2">
@@ -151,7 +151,7 @@ function ExercisePhotoSlot({
 
       {isBusy ? (
         <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-          <Loader2 size={18} className="animate-spin text-primary" />
+          <Loader2 size={18} className="animate-spin text-accent-ink" />
           <div className="min-w-0 flex-1">
             <div className="font-medium">
               {isUploading ? formatUploadStatus(uploadProgress) : 'Удаляем фото...'}
