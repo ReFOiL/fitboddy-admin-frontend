@@ -29,15 +29,15 @@ export function WeekStrip({ days, focusedDayId, todayIso, onSelectDay }: WeekStr
             className={cn(
               'flex min-w-[3.25rem] flex-col items-center rounded-2xl border px-2.5 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
               isSelected
-                ? 'border-foreground bg-foreground text-background'
-                : 'border-foreground bg-background',
+                ? 'border-primary bg-card text-foreground'
+                : 'border-transparent bg-secondary text-secondary-foreground',
             )}
           >
             <span className="text-[11px] font-medium uppercase tracking-wide">
               {formatWeekdayShort(day.day_of_week)}
             </span>
             <span className="text-sm font-semibold">{formatPlanDate(day.scheduled_for)}</span>
-            {day.is_completed ? <Check size={12} className="mt-0.5 text-primary" /> : null}
+            {day.is_completed ? <Check size={12} className="mt-0.5 text-accent-ink" /> : null}
             {isToday && !day.is_completed ? (
               <span className="mt-0.5 text-[10px] font-semibold">сегодня</span>
             ) : null}

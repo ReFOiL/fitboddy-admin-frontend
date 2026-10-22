@@ -13,7 +13,7 @@ export function PeerAvatar({
   return (
     <div
       className={cn(
-        'relative flex shrink-0 items-center justify-center rounded-full bg-[#ededed] text-[13px] font-semibold text-foreground',
+        'relative flex shrink-0 items-center justify-center rounded-full bg-secondary text-[13px] font-semibold text-accent-ink',
         size === 'small' ? 'size-9' : 'size-10',
       )}
       aria-label={`${title}${status ? `, ${status}` : ''}`}
@@ -22,7 +22,7 @@ export function PeerAvatar({
       {status ? (
         <span
           aria-hidden="true"
-          className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-surface bg-emerald-400"
+          className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-background bg-success"
         />
       ) : null}
     </div>

@@ -58,8 +58,8 @@ export function StyledSelect({
           aria-describedby={ariaDescribedBy}
           aria-invalid={ariaInvalid}
           className={cn(
-            'h-11 w-full rounded-xl border border-border bg-background px-3 pr-10 text-left text-base text-foreground outline-none transition sm:h-10 sm:text-sm',
-            'hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-60',
+            'h-12 w-full rounded-2xl border border-border bg-card px-3 pr-10 text-left text-base text-foreground outline-none transition',
+            'hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60',
             className,
           )}
         >
@@ -76,7 +76,7 @@ export function StyledSelect({
             position="popper"
             sideOffset={8}
             className={cn(
-              'z-30 w-[var(--radix-select-trigger-width)] origin-[var(--radix-select-content-transform-origin)] overflow-hidden rounded-2xl border-2 border-foreground bg-background',
+              'z-30 w-[var(--radix-select-trigger-width)] origin-[var(--radix-select-content-transform-origin)] overflow-hidden rounded-2xl border border-border bg-card shadow-lg',
               'data-[state=open]:opacity-100 data-[state=open]:scale-100 data-[state=closed]:opacity-0 data-[state=closed]:scale-95',
               'transition duration-150 ease-out',
             )}
@@ -92,11 +92,11 @@ export function StyledSelect({
                   className={cn(
                     'relative flex min-h-11 cursor-default select-none items-center rounded-lg py-2 pl-3 pr-8 text-base outline-none transition sm:text-sm',
                     'text-secondary-foreground hover:bg-secondary focus:bg-secondary focus:text-foreground',
-                    'data-[state=checked]:bg-foreground data-[state=checked]:text-background',
+                    'data-[state=checked]:bg-secondary data-[state=checked]:text-foreground',
                   )}
                 >
                   <Select.ItemText>{option.label}</Select.ItemText>
-                  <Select.ItemIndicator className="absolute right-2 inline-flex items-center text-primary">
+                  <Select.ItemIndicator className="absolute right-2 inline-flex items-center text-accent-ink">
                     <Check size={14} />
                   </Select.ItemIndicator>
                 </Select.Item>

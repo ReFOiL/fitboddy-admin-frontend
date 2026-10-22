@@ -235,7 +235,7 @@ export function ExercisesPage() {
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Dumbbell size={18} className="text-primary" />
+            <Dumbbell size={18} className="text-accent-ink" />
             Каталог упражнений
           </CardTitle>
           <CardDescription>Этот раздел доступен только тренерам.</CardDescription>
@@ -587,7 +587,7 @@ export function ExercisesPage() {
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Archive size={18} className="text-primary" />
+            <Archive size={18} className="text-accent-ink" />
             Список упражнений
           </CardTitle>
           <CardDescription>Фильтруй каталог по статусу и быстро ищи упражнение по ключевым словам.</CardDescription>

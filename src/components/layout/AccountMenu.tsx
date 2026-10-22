@@ -52,7 +52,7 @@ export function AccountMenu({
         <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
           <div
             role="menu"
-            className="absolute right-4 top-14 w-64 overflow-hidden rounded-2xl border border-foreground bg-background"
+            className="absolute right-4 top-14 w-64 overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
             onClick={(event) => event.stopPropagation()}
           >
             <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.profile} onClick={() => setOpen(false)}>

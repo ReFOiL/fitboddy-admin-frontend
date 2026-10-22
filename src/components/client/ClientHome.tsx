@@ -147,8 +147,10 @@ export function ClientHome({ user }: { user: AuthUser }) {
                   type="button"
                   disabled={!planDay}
                   onClick={() => planDay && setSelectedDayId(planDay.day_id)}
-                  className={`flex h-16 w-12 shrink-0 flex-col items-center justify-center rounded-2xl border-2 text-[13px] font-semibold ${
-                    selected || isToday ? 'border-foreground bg-foreground text-background' : 'border-foreground bg-background'
+                  className={`flex h-16 w-12 shrink-0 flex-col items-center justify-center rounded-2xl border text-[13px] font-semibold disabled:opacity-40 ${
+                    selected || isToday
+                      ? 'border-primary bg-card text-foreground'
+                      : 'border-transparent bg-secondary text-secondary-foreground'
                   }`}
                 >
                   <span>{formatJsWeekdayShort(date)}</span>
@@ -159,7 +161,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
           </div>
 
           {cardDay ? (
-            <section className="mt-4 rounded-3xl border-2 border-foreground p-4">
+            <section className="mt-4 rounded-3xl border border-border bg-card p-4">
               <div className="text-[13px] font-bold uppercase">{daySelection.isToday ? 'Сегодня' : formatLowerWeekday(parseIsoDate(cardDay.scheduled_for) ?? todayDate)}</div>
               <h2 className="mt-1 text-[28px] font-bold">{workoutTitle(cardDay.exercises)}</h2>
               <p className="mt-1 text-[17px]">
@@ -182,7 +184,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
               ) : null}
             </section>
           ) : (
-            <section className="mt-4 rounded-3xl border-2 border-foreground p-4">
+            <section className="mt-4 rounded-3xl border border-border bg-card p-4">
               <p className="text-[17px] font-semibold">День отдыха</p>
               <Button asChild variant="secondary" className="mt-3 w-full">
                 <Link to={APP_PATHS.planGeneration}>Посмотреть расписание</Link>
@@ -193,13 +195,13 @@ export function ClientHome({ user }: { user: AuthUser }) {
           <section className="mt-6">
             <h2 className="text-[13px] font-bold uppercase">Прогресс</h2>
             <div className="mt-2 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border-2 border-foreground p-4">
+              <div className="rounded-2xl border border-border bg-card p-4">
                 <div className="text-[28px] font-bold leading-none">
                   {weekStats ? `${weekStats.done} из ${weekStats.total}` : '—'}
                 </div>
                 <div className="mt-2 text-[15px]">на этой неделе</div>
               </div>
-              <div className="rounded-2xl border-2 border-foreground p-4">
+              <div className="rounded-2xl border border-border bg-card p-4">
                 <div className="text-[28px] font-bold leading-none">{completedTotal}</div>
                 <div className="mt-2 text-[15px]">тренировок всего</div>
                 {lastClock || lastDuration ? (

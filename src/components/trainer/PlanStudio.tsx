@@ -374,7 +374,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
             return (
               <div key={day.dayId}>
                 <div>{formatWeekdayShort(day.dayOfWeek)}</div>
-                <div className={`mt-1 flex h-12 items-center justify-center rounded-xl border-2 ${missed ? 'border-destructive text-destructive' : day.isCompleted ? 'border-foreground bg-foreground text-background' : 'border-foreground'}`}>
+                <div className={`mt-1 flex h-12 items-center justify-center rounded-xl border ${missed ? 'border-destructive bg-card text-destructive' : day.isCompleted ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'}`}>
                   {day.isCompleted ? '✓' : missed ? '×' : ''}
                 </div>
               </div>
@@ -384,12 +384,12 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
       ) : null}
 
       {weeks.length > 1 ? (
-        <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-2xl border-2 border-foreground">
+        <div className="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
           {weeks.map((item) => (
             <button
               key={item}
               type="button"
-              className={`h-12 text-[17px] font-semibold ${item === activeWeek ? 'bg-foreground text-background' : ''}`}
+              className={`h-12 rounded-xl text-[17px] font-semibold ${item === activeWeek ? 'bg-card text-foreground shadow-sm' : 'text-secondary-foreground'}`}
               onClick={() => {
                 setWeek(item)
                 const first = draft.find((day) => day.week === item)
@@ -412,7 +412,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
           <button
             type="button"
             aria-label="Добавить день"
-            className="inline-flex h-12 min-w-12 items-center justify-center rounded-full border-2 border-dashed border-foreground px-4 text-[17px] font-semibold"
+            className="inline-flex h-12 min-w-12 items-center justify-center rounded-full border border-dashed border-primary/50 bg-secondary px-4 text-[17px] font-semibold text-foreground"
             onClick={() => {
               if (!requireCleanDraft()) return
               setAddTime('')
@@ -602,11 +602,11 @@ function WeekStepper({ label, value, onChange }: { label: string; value: number;
     <div className="flex min-h-16 items-center justify-between gap-3">
       <span className="text-[17px] font-semibold">{label}</span>
       <span className="flex items-center gap-2">
-        <button type="button" className="h-12 w-12 rounded-2xl border-2 border-foreground text-[20px]" onClick={() => onChange(Math.max(1, value - 1))}>
+        <button type="button" className="h-12 w-12 rounded-2xl border border-border bg-card text-[20px]" onClick={() => onChange(Math.max(1, value - 1))}>
           −
         </button>
         <span className="w-8 text-center text-[17px] font-semibold">{value}</span>
-        <button type="button" className="h-12 w-12 rounded-2xl border-2 border-foreground text-[20px]" onClick={() => onChange(Math.min(8, value + 1))}>
+        <button type="button" className="h-12 w-12 rounded-2xl border border-border bg-card text-[20px]" onClick={() => onChange(Math.min(8, value + 1))}>
           +
         </button>
       </span>
@@ -700,7 +700,7 @@ function AddExerciseScreen({
               subtitle={`${group} · ${formatEquipmentLabel(exercise.equipment).toLowerCase()}`}
               leading={<ExerciseThumb imageUrl={exercise.start_image_url} hasVideo={Boolean(exercise.video_url)} />}
               trailing={
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl border-2 border-foreground ${selected ? 'bg-foreground text-background' : ''}`}>
+                <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'}`}>
                   {selected ? '✓' : '+'}
                 </span>
               }
@@ -710,7 +710,7 @@ function AddExerciseScreen({
         })}
       </div>
       <StickyActionBar>
-        <Button type="button" size="lg" className="w-full bg-foreground text-background" onClick={onDone}>
+        <Button type="button" size="lg" className="w-full" onClick={onDone}>
           Готово · добавлено {picked.length}
         </Button>
       </StickyActionBar>
@@ -744,8 +744,8 @@ function EditSlotScreen({
       <h2 className="mt-4 text-[28px] font-bold">{slot.exerciseName}</h2>
       <div className="mt-4 grid grid-cols-3 gap-2">
         <ExerciseThumb imageUrl={media?.video_url ? null : media?.start_image_url} hasVideo={Boolean(media?.video_url)} />
-        <span className="flex h-24 items-end justify-center rounded-xl bg-[#e5e5e5] pb-2 text-[13px]">Старт</span>
-        <span className="flex h-24 items-end justify-center rounded-xl bg-[#e5e5e5] pb-2 text-[13px]">Финиш</span>
+        <span className="photo-placeholder flex h-24 items-end justify-center rounded-xl pb-2 text-[13px]">Старт</span>
+        <span className="photo-placeholder flex h-24 items-end justify-center rounded-xl pb-2 text-[13px]">Финиш</span>
       </div>
       {media ? (
         <a className="mt-2 inline-flex text-[15px] underline" href={`/exercises/${encodeURIComponent(media.row_id)}`}>

@@ -92,9 +92,9 @@ export function ClientExerciseDetailsPage() {
       {exerciseQuery.isError ? <p className="mt-4 text-[17px] text-destructive">Не удалось загрузить упражнение.</p> : null}
 
       {exercise?.video_url ? (
-        <video key={exercise.video_url} src={exercise.video_url} controls className="mt-4 aspect-video w-full rounded-2xl bg-black" />
+        <video key={exercise.video_url} src={exercise.video_url} controls className="mt-4 aspect-video w-full rounded-2xl bg-media" />
       ) : (
-        <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-2xl bg-black text-white">Видео</div>
+        <div className="mt-4 flex aspect-video w-full items-center justify-center rounded-2xl bg-media text-media-foreground">Видео</div>
       )}
 
       {exercise ? (
@@ -197,7 +197,7 @@ function SetList({
             saveSetChecks(dayId, lineId, next)
           }}
         >
-          <span className={`flex h-12 w-12 items-center justify-center rounded-xl border-2 ${done ? 'border-primary bg-primary text-white' : 'border-foreground'}`}>
+          <span className={`flex h-12 w-12 items-center justify-center rounded-xl border ${done ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'}`}>
             {done ? '✓' : ''}
           </span>
           <span className="flex-1 font-semibold">Подход {index + 1}</span>

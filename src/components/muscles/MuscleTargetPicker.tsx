@@ -113,7 +113,7 @@ export function MuscleTargetPicker({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border-2 border-foreground p-3">
+      <div className="rounded-2xl border border-border bg-card p-3">
         <MuscleAnatomyMap
           primaryRegions={primaryRegions}
           secondaryRegions={secondaryRegions}

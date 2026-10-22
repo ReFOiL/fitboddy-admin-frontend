@@ -237,7 +237,7 @@ export function PlanGenerationPage() {
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Rocket size={18} className="text-primary" />
+            <Rocket size={18} className="text-accent-ink" />
             Мой план
           </CardTitle>
           <CardDescription>Этот раздел доступен только клиентам.</CardDescription>
@@ -347,7 +347,7 @@ export function PlanGenerationPage() {
             <GenerateBlockNote reason={canGenerateSystemPlan ? null : systemGenerateReason} />
             <p className="text-center text-sm text-secondary-foreground">
               Или{' '}
-              <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
+              <Link className="text-accent-ink underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
                 выбери тренера
               </Link>
             </p>
@@ -398,7 +398,7 @@ export function PlanGenerationPage() {
           />
 
           {showNextCycleCta ? (
-            <div className="rounded-2xl border-2 border-foreground px-4 py-3 text-[17px]">
+            <div className="rounded-2xl border border-border bg-card px-4 py-3 text-[17px]">
               Цикл завершён{currentAdherence != null ? ` · выполнено ${currentAdherence}%` : ''}. Можно запустить
               следующий в настройках ниже.
             </div>
@@ -442,7 +442,7 @@ export function PlanGenerationPage() {
                     <GenerateBlockNote reason={canGenerateSystemPlan ? null : systemGenerateReason} />
                     <p className="text-xs text-secondary-foreground">
                       Нет тренера —{' '}
-                      <Link className="text-primary underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
+                      <Link className="text-accent-ink underline-offset-2 hover:underline" to={APP_PATHS.trainers}>
                         выбрать
                       </Link>
                     </p>

@@ -30,7 +30,7 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
         onClick={() => setIsOpen((value) => !value)}
         aria-expanded={isOpen}
       >
-        <CalendarDays size={18} className="text-primary" />
+        <CalendarDays size={18} className="text-accent-ink" />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">Расписание</span>
           <span className="mt-0.5 block text-xs text-secondary-foreground">
@@ -59,7 +59,7 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
                       {formatWeekdayShort(day.day_of_week)} · {formatPlanDate(day.scheduled_for)}
                     </span>
                     {day.is_completed ? (
-                      <CheckCircle2 size={14} className="text-primary" />
+                      <CheckCircle2 size={14} className="text-accent-ink" />
                     ) : (
                       <span className="text-xs text-secondary-foreground">{day.exercises.length} упр.</span>
                     )}
@@ -69,7 +69,7 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
                       <li key={exercise.line_id}>
                         <Link
                           to={exerciseDetailsTo(exercise, trainerUserId)}
-                          className="inline-flex min-h-11 items-center rounded-md hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                          className="inline-flex min-h-11 items-center rounded-md hover:text-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         >
                           {exercise.exercise_name}
                         </Link>

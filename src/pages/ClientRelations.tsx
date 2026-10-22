@@ -48,7 +48,7 @@ export function ClientRelationsPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2">
-                <UserCheck size={18} className="shrink-0 text-primary" />
+                <UserCheck size={18} className="shrink-0 text-accent-ink" />
                 <span>У вас уже есть активный тренер</span>
               </span>
               {unreadCount > 0 ? (

@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { getTrainerExercise, listMuscles } from '../api/exercises'
 import { queryKeys } from '../api/queryKeys'
 import { ExercisePhotoSlots } from '../components/exercises/ExercisePhotoSlots'
+import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
@@ -271,42 +272,55 @@ export function ExerciseDetailsPage() {
 
   if (!isTrainer) {
     return (
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Dumbbell size={18} className="text-primary" />
-            Профиль упражнения
-          </CardTitle>
-          <CardDescription>Этот раздел доступен только тренерам.</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="space-y-3">
+        <div className="flex justify-end md:hidden">
+          <ThemeToggle />
+        </div>
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Dumbbell size={18} className="text-accent-ink" />
+              Профиль упражнения
+            </CardTitle>
+            <CardDescription>Этот раздел доступен только тренерам.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
     )
   }
 
   if (!rowId) {
     return (
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle>Упражнение не выбрано</CardTitle>
-          <CardDescription>Откройте упражнение из каталога.</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="space-y-3">
+        <div className="flex justify-end md:hidden">
+          <ThemeToggle />
+        </div>
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle>Упражнение не выбрано</CardTitle>
+            <CardDescription>Откройте упражнение из каталога.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <Button asChild type="button" variant="secondary" size="sm">
-        <Link to="/exercises">
-          <ArrowLeft size={14} />
-          Назад к каталогу
-        </Link>
-      </Button>
+      <div className="flex items-center justify-between gap-3">
+        <Button asChild type="button" variant="secondary" size="sm">
+          <Link to="/exercises">
+            <ArrowLeft size={14} />
+            Назад к каталогу
+          </Link>
+        </Button>
+        <ThemeToggle className="md:hidden" />
+      </div>
 
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Dumbbell size={18} className="text-primary" />
+            <Dumbbell size={18} className="text-accent-ink" />
             {exercise?.exercise_name ?? 'Профиль упражнения'}
           </CardTitle>
           <CardDescription>Редактирование упражнения из каталога.</CardDescription>
@@ -665,7 +679,7 @@ export function ExerciseDetailsPage() {
           {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError && exercise ? (
             <div className="relative grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4">
               <div className="flex items-center gap-2 text-sm font-medium">
-                <Video size={16} className="text-primary" />
+                <Video size={16} className="text-accent-ink" />
                 Видео упражнения
               </div>
               <div className="grid gap-1.5">
@@ -686,7 +700,7 @@ export function ExerciseDetailsPage() {
               </div>
               {isVideoBusy ? (
                 <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
-                  <Loader2 size={18} className="animate-spin text-primary" />
+                  <Loader2 size={18} className="animate-spin text-accent-ink" />
                   <div>
                     <div className="font-medium">
                       {uploadVideoMutation.isPending ? 'Загружаем видео...' : 'Удаляем видео...'}

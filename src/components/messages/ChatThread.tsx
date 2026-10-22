@@ -7,6 +7,7 @@ import { isSameChatDate } from '../../lib/messages-formatters'
 import { isNearChatBottom } from '../../lib/messages-scroll'
 import type { ChatMessage } from '../../types/message'
 import { AsyncTextState, EmptyState, QueryState } from '../shared'
+import { ThemeToggle } from '../layout/ThemeToggle'
 import { Button } from '../ui/button'
 import { Skeleton } from '../ui/skeleton'
 import { PeerAvatar } from './AvatarStatus'
@@ -113,12 +114,13 @@ export function ChatThread({
           <ChevronLeft size={22} />
         </Link>
         <PeerAvatar title={peerTitle} />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="truncate font-semibold">{peerTitle}</div>
           <div className="truncate text-xs text-secondary-foreground" aria-live="polite">
             {canSend ? peerSubtitle : 'Связь завершена, можно читать историю'}
           </div>
         </div>
+        <ThemeToggle className="md:hidden" />
       </header>
 
       <div className="relative min-h-0 flex-1">

@@ -51,7 +51,7 @@ export function ChatBubble({
       <article
         className={cn(
           'max-w-[88%] rounded-2xl px-3 py-2 text-[17px] leading-relaxed sm:max-w-[82%]',
-          mine ? 'rounded-br-md bg-foreground text-background' : 'rounded-bl-md border border-border bg-background text-foreground',
+          mine ? 'rounded-br-md bg-primary text-primary-foreground' : 'rounded-bl-md border border-border bg-card text-foreground',
           deliveryState === 'failed' && 'ring-1 ring-destructive',
         )}
         aria-label={mine ? 'Ваше сообщение' : 'Входящее сообщение'}
@@ -60,7 +60,7 @@ export function ChatBubble({
         <div
           className={cn(
             'mt-1 flex items-center justify-end gap-1 text-[11px]',
-            mine ? 'text-primary-foreground/75' : 'text-secondary-foreground',
+            mine ? 'text-primary-foreground' : 'text-secondary-foreground',
           )}
         >
           <time dateTime={message.created_at}>{formatChatMessageTime(message.created_at)}</time>

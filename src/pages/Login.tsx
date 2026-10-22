@@ -5,6 +5,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
+import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { useAuth } from '../hooks/use-auth'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -94,7 +95,10 @@ export function LoginPage() {
   const passwordStrength = useMemo(() => getPasswordStrengthMeta(registerPassword), [registerPassword])
 
   return (
-    <main className="min-h-dvh bg-background px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:py-14">
+    <main className="min-h-dvh bg-background px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:py-14">
+      <div className="mx-auto mb-3 flex w-full max-w-6xl justify-end">
+        <ThemeToggle />
+      </div>
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <Card className="order-2 lg:order-1">
           <CardHeader>
@@ -104,14 +108,14 @@ export function LoginPage() {
           <CardContent className="grid gap-3 text-sm text-secondary-foreground">
             <div className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
               <div className="mb-1 flex items-center gap-2 text-foreground">
-                <Users size={16} className="text-primary" />
+                <Users size={16} className="text-accent-ink" />
                 Клиент и тренер на связи
               </div>
               Меньше ручной рутины, больше фокуса на результате.
             </div>
             <div className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
               <div className="mb-1 flex items-center gap-2 text-foreground">
-                <ShieldCheck size={16} className="text-primary" />
+                <ShieldCheck size={16} className="text-accent-ink" />
                 Безопасность и прозрачность
               </div>
               Доступ к данным только у связанных пользователей.

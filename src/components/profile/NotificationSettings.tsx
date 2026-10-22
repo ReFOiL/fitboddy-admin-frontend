@@ -154,14 +154,14 @@ export function NotificationSettings() {
               <span
                 aria-hidden
                 className={cn(
-                  'flex h-8 w-14 shrink-0 items-center rounded-full border-2 border-foreground px-1',
-                  settings.notifications_enabled ? 'bg-foreground' : 'bg-background',
+                  'flex h-8 w-14 shrink-0 items-center rounded-full border px-1',
+                  settings.notifications_enabled ? 'border-primary bg-primary' : 'border-border bg-secondary',
                 )}
               >
                 <span
                   className={cn(
                     'h-5 w-5 rounded-full',
-                    settings.notifications_enabled ? 'ml-auto bg-background' : 'bg-foreground',
+                    settings.notifications_enabled ? 'ml-auto bg-primary-foreground' : 'bg-foreground',
                   )}
                 />
               </span>
@@ -174,7 +174,7 @@ export function NotificationSettings() {
               </span>
               <select
                 id="notification-timezone"
-                className="mt-3 h-14 w-full rounded-2xl border-2 border-foreground bg-background px-4 text-[17px]"
+                className="mt-3 h-14 w-full rounded-2xl border border-border bg-card px-4 text-[17px]"
                 value={settings.timezone_is_default ? '' : settings.timezone}
                 disabled={busy}
                 onChange={(event) => changeTimezone(event.target.value)}

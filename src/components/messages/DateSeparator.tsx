@@ -19,7 +19,7 @@ export function NewMessagesSeparator() {
   return (
     <li className="flex items-center gap-3 py-2" role="separator" aria-label="Новые сообщения">
       <span className="h-px flex-1 bg-border" />
-      <span className="text-[11px] font-medium text-primary">Новые сообщения</span>
+      <span className="text-[11px] font-medium text-accent-ink">Новые сообщения</span>
       <span className="h-px flex-1 bg-border" />
     </li>
   )

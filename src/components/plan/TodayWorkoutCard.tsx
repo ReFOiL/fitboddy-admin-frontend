@@ -137,7 +137,7 @@ export function TodayWorkoutCard({
 
 function RestIcon() {
   return (
-    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-secondary/30 text-primary">
+    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-border/70 bg-secondary/30 text-accent-ink">
       <CalendarDays size={26} />
     </div>
   )

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 
+import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { ProfileFormField, ProfileSelectField } from '../components/profile'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -179,7 +180,10 @@ export function ProfileOnboardingPage() {
     return (
       <Card className="mx-auto w-full max-w-lg border-primary/30">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <div className="mb-2 flex justify-end md:hidden">
+            <ThemeToggle />
+          </div>
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-accent-ink">
             <Check size={24} />
           </div>
           <CardTitle>Профиль готов</CardTitle>
@@ -214,9 +218,12 @@ export function ProfileOnboardingPage() {
         </AlertBanner>
       ) : null}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium">Настройка профиля</span>
-          <span className="text-secondary-foreground">Шаг {step} из 3</span>
+          <span className="flex items-center gap-2">
+            <span className="text-secondary-foreground">Шаг {step} из 3</span>
+            <ThemeToggle className="md:hidden" />
+          </span>
         </div>
         <div
           className="h-2 overflow-hidden rounded-full bg-secondary"

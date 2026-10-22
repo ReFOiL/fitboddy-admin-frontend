@@ -34,7 +34,7 @@ export function StartablePeersList({
                 <span className="block truncate font-medium">{peer.title}</span>
                 <span className="block truncate text-xs text-secondary-foreground">{peer.subtitle ?? 'Начать переписку'}</span>
               </span>
-              <SquarePen size={14} aria-hidden="true" className="shrink-0 text-primary" />
+              <SquarePen size={14} aria-hidden="true" className="shrink-0 text-accent-ink" />
             </button>
           </li>
         ))}
@@ -77,7 +77,7 @@ export function StartChatPanel({
   }
   return (
     <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-      <Users size={22} className="text-primary" />
+      <Users size={22} className="text-accent-ink" />
       <div className="font-medium">Пока некому написать</div>
       <p className="max-w-xs text-sm text-secondary-foreground">{isTrainer ? 'Сначала подключите клиента — после этого чат появится здесь.' : 'Сначала выберите тренера — после этого чат появится здесь.'}</p>
       <Button asChild className="h-12 w-full max-w-xs"><Link to={relationsPath}>{isTrainer ? 'К клиентам' : 'К тренерам'}</Link></Button>
@@ -112,7 +112,7 @@ export function EmptyThreadPane({
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-      <MessageSquare size={28} className="text-primary" />
+      <MessageSquare size={28} className="text-accent-ink" />
       <div className="text-base font-medium">{singlePeer ? `Написать ${singlePeer.title}` : 'Выберите переписку'}</div>
       <div className="max-w-sm text-sm text-secondary-foreground">{description}</div>
       {singlePeer ? (

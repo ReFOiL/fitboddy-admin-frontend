@@ -1,6 +1,7 @@
 import { ArrowLeft, MapPin, UserRound } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 
+import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { QueryState } from '../components/shared'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
@@ -25,12 +26,15 @@ export function TrainerProfilePreviewPage() {
   if (profileQuery.isError || !profileQuery.data) {
     return (
       <div className="mx-auto max-w-xl space-y-4">
-        <Button asChild variant="secondary">
-          <Link to={APP_PATHS.trainers}>
-            <ArrowLeft size={16} />
-            К тренерам
-          </Link>
-        </Button>
+        <div className="flex items-center justify-between gap-3">
+          <Button asChild variant="secondary">
+            <Link to={APP_PATHS.trainers}>
+              <ArrowLeft size={16} />
+              К тренерам
+            </Link>
+          </Button>
+          <ThemeToggle className="md:hidden" />
+        </div>
         <QueryState
           isError
           errorTitle="Не удалось открыть профиль тренера"
@@ -47,12 +51,15 @@ export function TrainerProfilePreviewPage() {
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-4">
-      <Button asChild variant="secondary" className="h-11">
-        <Link to={APP_PATHS.trainers}>
-          <ArrowLeft size={16} />
-          К тренерам
-        </Link>
-      </Button>
+      <div className="flex items-center justify-between gap-3">
+        <Button asChild variant="secondary" className="h-11">
+          <Link to={APP_PATHS.trainers}>
+            <ArrowLeft size={16} />
+            К тренерам
+          </Link>
+        </Button>
+        <ThemeToggle className="md:hidden" />
+      </div>
 
       <Card className="overflow-hidden border-primary/20">
         <CardHeader className="items-center text-center">
@@ -63,7 +70,7 @@ export function TrainerProfilePreviewPage() {
               className="h-24 w-24 rounded-full object-cover ring-4 ring-background"
             />
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#ededed] text-foreground">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-secondary text-accent-ink">
               <UserRound size={42} aria-hidden />
             </div>
           )}
@@ -74,7 +81,7 @@ export function TrainerProfilePreviewPage() {
           <section>
             <h2 className="mb-1 text-sm font-medium">Город</h2>
             <p className="flex items-center gap-2 text-sm text-secondary-foreground">
-              <MapPin size={16} className="shrink-0 text-primary" aria-hidden />
+              <MapPin size={16} className="shrink-0 text-accent-ink" aria-hidden />
               {profile.city?.trim() || 'Не указан'}
             </p>
           </section>

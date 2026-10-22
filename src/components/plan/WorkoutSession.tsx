@@ -60,8 +60,8 @@ export function WorkoutSession({
               <button
                 type="button"
                 className={cn(
-                  'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2',
-                  done ? 'border-primary bg-primary text-white' : 'border-foreground bg-background',
+                  'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border',
+                  done ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card',
                 )}
                 aria-pressed={done}
                 aria-label={done ? 'Снять отметку' : 'Отметить выполненным'}
@@ -70,7 +70,7 @@ export function WorkoutSession({
                 {done ? <Check size={20} /> : null}
               </button>
               <Link to={detailsTo} className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="h-12 w-12 shrink-0 rounded-lg bg-[#e5e5e5]" />
+                <span className="photo-placeholder h-12 w-12 shrink-0 rounded-lg" />
                 <span className="min-w-0 flex-1">
                   <span className={cn('block truncate text-[17px] font-semibold', done && 'line-through')}>
                     {exercise.exercise_name}

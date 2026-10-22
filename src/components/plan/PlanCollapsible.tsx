@@ -30,7 +30,7 @@ export function PlanCollapsible({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
-        {icon ? <span className="text-primary">{icon}</span> : null}
+        {icon ? <span className="text-accent-ink">{icon}</span> : null}
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">{title}</span>
           {subtitle ? <span className="mt-0.5 block text-xs text-secondary-foreground">{subtitle}</span> : null}
