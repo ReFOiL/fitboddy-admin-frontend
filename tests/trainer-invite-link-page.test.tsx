@@ -47,14 +47,22 @@ describe('TrainerInviteLinkPage', () => {
     })
   })
 
-  it('показывает код и копирует абсолютную ссылку', async () => {
+  it('показывает код и копирует абсолютную ссылку с поля и с иконки', async () => {
     renderPage()
 
+    const inviteUrl = `${window.location.origin}/i/AB3K9Z`
     expect(await screen.findByText('AB3K9Z')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Скопировать ссылку' }))
+    expect(screen.queryByRole('button', { name: 'Скопировать ссылку' })).toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole('button', { name: inviteUrl }))
     await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/i/AB3K9Z`)
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(inviteUrl)
+    })
+    expect(screen.getByRole('button', { name: 'Скопировано' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировано' }))
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(2)
     })
   })
 

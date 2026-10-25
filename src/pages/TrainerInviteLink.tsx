@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { Check, Copy } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { InviteClientSheet } from '../components/trainer/InviteClientSheet'
 import { QueryState } from '../components/shared'
-import { Button } from '../components/ui/button'
 import { ConfirmSheet, OverflowMenu, ScreenHeader } from '../components/ui/kit'
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
@@ -20,13 +20,31 @@ export function TrainerInviteLinkPage() {
   const relations = useTrainerRelations({ trainerUserId })
   const [rotateOpen, setRotateOpen] = useState(false)
   const [loginInviteOpen, setLoginInviteOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef<number | null>(null)
   const link = inviteLinkQuery.data
   const inviteUrl = link ? absoluteInviteUrl(link.invite_path || `/i/${link.code}`) : ''
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
+    }
+  }, [])
+
+  const markCopied = () => {
+    setCopied(true)
+    if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
+    copiedTimer.current = window.setTimeout(() => {
+      setCopied(false)
+      copiedTimer.current = null
+    }, 2000)
+  }
 
   const copyLink = async () => {
     if (!inviteUrl) return
     try {
       await navigator.clipboard.writeText(inviteUrl)
+      markCopied()
       toast.success('Ссылка скопирована')
     } catch {
       toast.error('Не удалось скопировать. Выделите ссылку вручную.')
@@ -77,15 +95,27 @@ export function TrainerInviteLinkPage() {
       {link ? (
         <div className="px-1 py-8">
           <p className="text-center text-[17px] text-secondary-foreground">Постоянная ссылка для новых клиентов</p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <p className="flex h-14 items-center justify-center rounded-2xl border border-border bg-card px-4 font-mono text-[22px] font-bold tracking-[0.28em]">
-              {link.code}
-            </p>
-            <Button type="button" size="lg" className="h-14 flex-1" onClick={() => void copyLink()}>
-              Скопировать ссылку
-            </Button>
+          <p className="mt-6 flex h-14 items-center justify-center rounded-2xl border border-border bg-card px-4 font-mono text-[22px] font-bold tracking-[0.28em]">
+            {link.code}
+          </p>
+          <div className="mt-4 flex min-h-14 items-center rounded-2xl border border-border bg-card pl-4 pr-1.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-focus">
+            <button
+              type="button"
+              onClick={() => void copyLink()}
+              className="min-w-0 flex-1 break-all py-3 text-left text-[15px] leading-snug focus-visible:outline-none"
+            >
+              {inviteUrl}
+            </button>
+            <button
+              type="button"
+              aria-label={copied ? 'Скопировано' : 'Скопировать ссылку'}
+              onClick={() => void copyLink()}
+              className="flex h-11 shrink-0 items-center justify-center gap-1 rounded-xl px-2.5 text-accent-ink hover:bg-secondary focus-visible:outline-none"
+            >
+              {copied ? <Check size={18} aria-hidden /> : <Copy size={20} aria-hidden />}
+              {copied ? <span className="text-[13px] font-semibold">Скопировано</span> : null}
+            </button>
           </div>
-          <p className="mt-4 break-all text-center text-[15px] text-secondary-foreground">{inviteUrl}</p>
         </div>
       ) : null}
 

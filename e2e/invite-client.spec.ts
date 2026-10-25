@@ -10,6 +10,7 @@ test('приглашение по несуществующему логину п
   await page.getByRole('link', { name: 'Пригласить' }).click()
   await expect(page.getByRole('heading', { name: 'Приглашение' })).toBeVisible()
   await expect(page.getByText('AB3K9Z', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /\/i\/AB3K9Z/ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Скопировать ссылку' })).toBeVisible()
   await page.getByRole('button', { name: 'Ещё действия' }).click()
   await page.getByRole('menuitem', { name: 'Пригласить по логину' }).click()
