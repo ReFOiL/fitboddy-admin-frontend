@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 
 import { APP_BRAND_NAME, APP_PATHS, type AppRole } from '../../config'
 import { messageCountLabel } from '../../lib/dates'
+import { BrandLogo } from '../brand/BrandLogo'
 import { AccountMenu } from './AccountMenu'
 import { DesktopNav } from './DesktopNav'
 import { ThemeToggle } from './ThemeToggle'
@@ -36,8 +37,14 @@ export function AppHeader({
       className={`sticky top-0 z-20 shrink-0 border-b border-border bg-card ${hiddenOnMobile ? 'hidden md:block' : ''}`}
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 md:h-16 md:px-6">
-        <Link to={APP_PATHS.home} className="text-[17px] font-bold">
-          {APP_BRAND_NAME}
+        <Link
+          to={APP_PATHS.home}
+          aria-label={APP_BRAND_NAME}
+          className="inline-flex shrink-0 items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          {/* Узкая шапка: знак F. С md — слово целиком, светлое или тёмное по теме. */}
+          <BrandLogo compact alt="" className="h-8 md:hidden" />
+          <BrandLogo alt="" className="hidden h-9 md:block" />
         </Link>
         <DesktopNav role={role} unreadCount={unreadCount} />
         <div className="ml-auto flex items-center gap-3">

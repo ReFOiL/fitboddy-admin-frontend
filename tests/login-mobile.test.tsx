@@ -28,6 +28,7 @@ describe('LoginPage mobile-first', () => {
     expect(authCard).toHaveClass('order-1')
 
     expect(DEFAULT_REGISTRATION_ROLE).toBe('client')
+    expect(screen.getByRole('img', { name: 'Fitboddy' }).getAttribute('src')).toContain('logo-wordmark')
 
     const passwordToggles = screen.getAllByRole('button', { name: /пароль/i })
     expect(passwordToggles.every((button) => button.className.includes('size-11'))).toBe(true)
