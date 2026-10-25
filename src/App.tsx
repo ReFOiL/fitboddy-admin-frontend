@@ -28,6 +28,8 @@ const TrainerProfilePreviewPage = lazy(async () => ({
   default: (await import('./pages/TrainerProfilePreview')).TrainerProfilePreviewPage,
 }))
 const TrainerRelationsPage = lazy(async () => ({ default: (await import('./pages/TrainerRelations')).TrainerRelationsPage }))
+const TrainerInviteLinkPage = lazy(async () => ({ default: (await import('./pages/TrainerInviteLink')).TrainerInviteLinkPage }))
+const InviteLandingPage = lazy(async () => ({ default: (await import('./pages/InviteLanding')).InviteLandingPage }))
 const TrainerClientProfilePage = lazy(async () => ({
   default: (await import('./pages/TrainerClientProfile')).TrainerClientProfilePage,
 }))
@@ -56,6 +58,7 @@ function App() {
       <Suspense fallback={<div className="py-10 text-center text-sm text-secondary-foreground">Загрузка страницы...</div>}>
         <Routes>
           <Route path={APP_PATHS.login} element={<LoginPage />} />
+          <Route path={APP_PATHS.inviteLanding} element={<InviteLandingPage />} />
 
           <Route
             element={
@@ -71,6 +74,14 @@ function App() {
               element={
                 <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={isClient ? APP_PATHS.trainers : APP_PATHS.home}>
                   <TrainerRelationsPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.trainerInvite.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={isClient ? APP_PATHS.trainers : APP_PATHS.home}>
+                  <TrainerInviteLinkPage />
                 </RoleRoute>
               }
             />

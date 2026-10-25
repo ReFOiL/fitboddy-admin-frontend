@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AxiosError } from 'axios'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 
+import { savePendingInviteCode } from '../src/lib/invite'
 import {
   PROFILE_ONBOARDING_STORAGE_PREFIX,
   ProfileOnboardingPage,
@@ -61,10 +62,16 @@ const existingProfile = {
   medical_notes: null,
 }
 
+function LocationProbe() {
+  const { pathname } = useLocation()
+  return <div data-testid="location">{pathname}</div>
+}
+
 function renderPage() {
   return render(
     <MemoryRouter>
       <ProfileOnboardingPage />
+      <LocationProbe />
     </MemoryRouter>,
   )
 }
@@ -165,6 +172,7 @@ describe('ProfileOnboardingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
 
     await waitFor(() => expect(mocks.mutate).toHaveBeenCalledOnce())
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/$/)
     expect(mocks.mutate.mock.calls[0][0]).toMatchObject({
       full_name: 'Анна',
       unavailable_equipment: ['barbell'],
@@ -174,5 +182,30 @@ describe('ProfileOnboardingPage', () => {
       age: 27,
       gender: 'female',
     })
+  })
+
+  it('после анкеты открывает приглашение, если код сохранён', async () => {
+    savePendingInviteCode('AB3K9Z')
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        step: 3,
+        draft: {
+          full_name: 'Анна',
+          goal: 'weight_loss',
+          experience_level: 'beginner',
+          workout_location: 'home',
+          age: 27,
+          gender: 'female',
+        },
+      }),
+    )
+    mocks.mutate.mockImplementation((_payload, options) => options?.onSuccess?.())
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
+
+    expect(await screen.findByText('Подключаем к тренеру…')).toBeInTheDocument()
+    expect(screen.getByTestId('location')).toHaveTextContent('/i/AB3K9Z')
   })
 })

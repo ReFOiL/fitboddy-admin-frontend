@@ -21,6 +21,8 @@ export const queryKeys = {
     clientActiveRelation: (clientUserId: string) => ['relations', 'client-active-relation', clientUserId] as const,
     trainers: ['relations', 'trainers'] as const,
     incomingInvites: (clientUserId: string) => ['relations', 'incoming-invites', clientUserId] as const,
+    inviteLink: ['relations', 'invite-link'] as const,
+    publicInvite: (code: string) => ['relations', 'public-invite', code] as const,
   },
   exercises: {
     trainerCatalog: (trainerUserId: string, includeArchived: boolean) =>

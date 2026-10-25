@@ -3,7 +3,7 @@ import axios from 'axios'
 import { ArrowLeft, Check, Dumbbell, UserRound } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { ProfileFormField, ProfileSelectField } from '../components/profile'
@@ -16,6 +16,7 @@ import { AlertBanner, QueryState } from '../components/shared'
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
+import { inviteLandingPath, readPendingInviteCode } from '../lib/invite'
 import {
   buildUpsertProfileRequest,
   emptyProfileFormValues,
@@ -54,6 +55,7 @@ function saveStoredState(key: string, state: StoredOnboardingState) {
 }
 
 export function ProfileOnboardingPage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const userId = user?.user_id ?? ''
   const storageKey = `${PROFILE_ONBOARDING_STORAGE_PREFIX}${userId || 'anonymous'}`
@@ -67,6 +69,7 @@ export function ProfileOnboardingPage() {
     resolver: zodResolver(profileSchema),
     defaultValues: { ...emptyProfileFormValues, ...initialState.draft },
   })
+  const pendingInviteCode = readPendingInviteCode()
   const age = useWatch({ control: form.control, name: 'age' })
   const gender = useWatch({ control: form.control, name: 'gender' })
   const goal = useWatch({ control: form.control, name: 'goal' })
@@ -86,6 +89,11 @@ export function ProfileOnboardingPage() {
   useEffect(() => {
     saveStoredState(storageKey, { step, draft, completed })
   }, [completed, draft, step, storageKey])
+
+  useEffect(() => {
+    if (!completed || !pendingInviteCode) return
+    navigate(inviteLandingPath(pendingInviteCode), { replace: true })
+  }, [completed, navigate, pendingInviteCode])
 
   const validateCurrentStep = async (): Promise<boolean> => {
     if (step === 1) {
@@ -174,6 +182,10 @@ export function ProfileOnboardingPage() {
 
   if (profileQuery.isLoading && !profileQuery.data) {
     return <Skeleton className="mx-auto h-80 w-full max-w-lg rounded-2xl" />
+  }
+
+  if (completed && pendingInviteCode) {
+    return <p className="py-10 text-center text-[17px]">Подключаем к тренеру…</p>
   }
 
   if (completed) {

@@ -8,6 +8,8 @@ export const APP_PATHS = {
   login: '/login',
   home: '/home',
   clients: '/clients',
+  trainerInvite: '/clients/invite',
+  inviteLanding: '/i/:code',
   trainers: '/trainers',
   trainerProfile: '/trainers/:trainerUserId',
   clientProfile: '/clients/profile',
@@ -43,6 +45,10 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Вход',
     matches: (pathname) => pathname === APP_PATHS.login,
+  },
+  {
+    title: 'Приглашение',
+    matches: (pathname) => pathname === APP_PATHS.trainerInvite || Boolean(matchPath(APP_PATHS.inviteLanding, pathname)),
   },
   {
     title: 'Клиенты',

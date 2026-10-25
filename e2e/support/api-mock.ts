@@ -156,6 +156,7 @@ export class ApiMock {
   private policy: GenerationPolicy
   private notifications: NotificationSettings
   private revision = 1
+  private inviteCode = 'AB3K9Z'
 
   constructor() {
     const trainer = user({
@@ -362,6 +363,20 @@ export class ApiMock {
       return found ? this.json(200, found) : this.json(404, { detail: 'not found' })
     }
 
+    if (path === '/api/v1/marketplace/trainers/me/invite-link' && method === 'GET') {
+      return this.json(200, { code: this.inviteCode, invite_path: `/i/${this.inviteCode}` })
+    }
+    if (path === '/api/v1/marketplace/trainers/me/invite-link/rotate' && method === 'POST') {
+      this.inviteCode = 'ZX8K2M'
+      return this.json(200, { code: this.inviteCode, invite_path: `/i/${this.inviteCode}` })
+    }
+
+    const acceptInvite = /^\/api\/v1\/marketplace\/invite\/([^/]+)\/accept$/.exec(path)
+    if (acceptInvite && method === 'POST') return this.acceptInvite(actor, url.searchParams.get('force') === 'true')
+
+    const publicInvite = /^\/api\/v1\/marketplace\/invite\/([^/]+)$/.exec(path)
+    if (publicInvite && method === 'GET') return this.publicInvite(decodeURIComponent(publicInvite[1]))
+
     const clients = /^\/api\/v1\/marketplace\/trainers\/([^/]+)\/clients$/.exec(path)
     if (clients && method === 'GET') return this.clients(decodeURIComponent(clients[1]))
 
@@ -510,6 +525,37 @@ export class ApiMock {
   private activeRelation(clientUserId: string): MockResponse {
     if (clientUserId === IDS.anna) return this.json(200, this.relation())
     return this.json(404, { detail: 'not found' })
+  }
+
+  private publicInvite(rawCode: string): MockResponse {
+    const code = rawCode.trim().toUpperCase()
+    if (code !== this.inviteCode) return this.json(404, { detail: 'not found' })
+    return this.json(200, {
+      code,
+      trainer_user_id: IDS.trainer,
+      trainer_display_name: 'Марина Соколова',
+      trainer_login: 'marina.sokolova',
+    })
+  }
+
+  private acceptInvite(actor: AuthUser | null, force: boolean): MockResponse {
+    if (!actor) return this.json(401, { detail: 'unauthorized' })
+    if (actor.role !== 'client') return this.json(403, { detail: 'invite is for clients' })
+    if (actor.user_id === IDS.egor && !force) {
+      return this.json(409, {
+        detail: {
+          reason: 'already_linked',
+          message: 'client already linked to another trainer',
+          current_trainer_user_id: 'user-trainer-other',
+        },
+      })
+    }
+    return this.json(200, {
+      ...this.relation(),
+      client_user_id: actor.user_id,
+      client_login: actor.login,
+      source: 'invite_code',
+    })
   }
 
   private lookupLogin(login: string): MockResponse {

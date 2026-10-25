@@ -2,6 +2,13 @@ import axios from 'axios'
 
 import { getStoredAccessToken, useAuthStore } from '../stores/auth.store'
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipAuth?: boolean
+    skipAuthRedirect?: boolean
+  }
+}
+
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_PLATFORM_API_URL || '',
   timeout: 12_000,
@@ -11,6 +18,7 @@ export const apiClient = axios.create({
 })
 
 apiClient.interceptors.request.use((config) => {
+  if (config.skipAuth) return config
   const token = getStoredAccessToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -22,7 +30,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error?.response?.status as number | undefined
-    if (status === 401) {
+    if (status === 401 && !error?.config?.skipAuthRedirect) {
       useAuthStore.getState().clearSession()
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'

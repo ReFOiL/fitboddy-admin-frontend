@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import { TrainerRelationsPage } from '../src/pages/TrainerRelations'
@@ -58,7 +58,6 @@ describe('TrainerRelationsPage smoke', () => {
     )
 
     expect(screen.getByRole('heading', { name: /Клиенты/ })).toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button', { name: '+ Пригласить клиента' })[0])
-    expect(screen.getByText('Видимость профиля')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: 'Пригласить' })[0]).toHaveAttribute('href', '/clients/invite')
   })
 })

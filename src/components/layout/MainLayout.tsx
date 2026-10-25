@@ -6,6 +6,7 @@ import { useProfile } from '../../hooks/use-profile'
 import { useTrainerRelationActions, useTrainerRelations, useUserIdGuard } from '../../hooks'
 import { useMessagingSocket, useUnreadCount } from '../../hooks/use-messages'
 import { cn } from '../../lib/utils'
+import { PendingInviteRedirect } from '../invite/PendingInviteRedirect'
 import { AppHeader } from './AppHeader'
 import { MobileTabBar } from './MobileTabBar'
 
@@ -16,6 +17,7 @@ const STACK_PATTERNS = [
   APP_PATHS.planRules,
   APP_PATHS.profileOnboarding,
   APP_PATHS.trainerProfile,
+  APP_PATHS.trainerInvite,
   APP_PATHS.analytics,
 ]
 
@@ -69,6 +71,7 @@ export function MainLayout() {
           isTrainer ? () => togglePublication(!trainerPublicationStatusQuery.data?.is_published) : undefined
         }
       />
+      <PendingInviteRedirect />
       <main
         id="main-content"
         tabIndex={-1}

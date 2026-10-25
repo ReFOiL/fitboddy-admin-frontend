@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { APP_PATHS } from '../../config'
 import { useAuth } from '../../hooks/use-auth'
-import { useTrainerRelations } from '../../hooks/use-relations'
 import { useTrainerRoster } from '../../hooks/use-trainer-roster'
 import { formatHeadingDate, localTodayIso } from '../../lib/dates'
 import { clientDisplayName } from '../../lib/person'
@@ -12,7 +11,6 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Avatar, DoneMark, PageTitle, Row, SectionLabel, StatusPill } from '../ui/kit'
 import { QueryState } from '../shared'
-import { InviteClientSheet } from './InviteClientSheet'
 
 export function TrainerHome() {
   const navigate = useNavigate()
@@ -21,8 +19,6 @@ export function TrainerHome() {
   const todayIso = localTodayIso()
   const todayLabel = formatHeadingDate(new Date())
   const { rows, clientsQuery } = useTrainerRoster(trainerUserId)
-  const relations = useTrainerRelations({ trainerUserId })
-  const [inviteOpen, setInviteOpen] = useState(false)
   const [search, setSearch] = useState('')
 
   const training = rows.filter((row) => row.planState === 'ready' && todayPlanDay(row.plan, todayIso))
@@ -43,8 +39,8 @@ export function TrainerHome() {
     <div className="mx-auto w-full max-w-6xl pb-24 md:pb-0">
       <div className="mb-6 hidden items-start justify-between gap-4 md:flex">
         <PageTitle>{todayLabel}</PageTitle>
-        <Button type="button" size="lg" onClick={() => setInviteOpen(true)}>
-          + Пригласить клиента
+        <Button asChild size="lg">
+          <Link to={APP_PATHS.trainerInvite}>Пригласить</Link>
         </Button>
       </div>
       <div className="md:hidden">
@@ -132,31 +128,10 @@ export function TrainerHome() {
       </div>
 
       <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 border-t border-border bg-card px-4 py-3 md:hidden">
-        <Button type="button" size="lg" className="w-full" onClick={() => setInviteOpen(true)}>
-          + Пригласить клиента
+        <Button asChild size="lg" className="w-full">
+          <Link to={APP_PATHS.trainerInvite}>Пригласить</Link>
         </Button>
       </div>
-      {inviteOpen ? (
-        <InviteClientSheet
-          trainerUserId={trainerUserId}
-          pending={relations.createRelationMutation.isPending}
-          published={Boolean(relations.trainerPublicationStatusQuery.data?.is_published)}
-          publicationPending={relations.upsertDiscoveryProfileMutation.isPending}
-          onTogglePublication={() =>
-            relations.upsertDiscoveryProfileMutation.mutate({
-              userId: trainerUserId,
-              payload: { role: 'trainer', is_visible: !relations.trainerPublicationStatusQuery.data?.is_published },
-            })
-          }
-          onClose={() => setInviteOpen(false)}
-          onInvite={(clientUserId) =>
-            relations.createRelationMutation.mutate(
-              { trainer_user_id: trainerUserId, client_user_id: clientUserId, mode: 'invite' },
-              { onSuccess: () => setInviteOpen(false) },
-            )
-          }
-        />
-      ) : null}
     </div>
   )
 }

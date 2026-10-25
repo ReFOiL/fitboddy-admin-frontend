@@ -66,3 +66,15 @@ export type PaginatedResult<T> = {
   page_size: number
   total_pages: number
 }
+
+export type TrainerInviteLink = {
+  code: string
+  invite_path: string
+}
+
+export type PublicInvite = {
+  code: string
+  trainer_user_id: string
+  trainer_display_name: string | null
+  trainer_login: string | null
+}

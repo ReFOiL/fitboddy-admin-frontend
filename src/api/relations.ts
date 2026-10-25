@@ -4,8 +4,10 @@ import type {
   CreateRelationRequest,
   DiscoveryProfile,
   PaginatedResult,
+  PublicInvite,
   TrainerClientRelation,
   TrainerFunnelMetrics,
+  TrainerInviteLink,
   TrainerPublicationStatus,
   UpsertDiscoveryProfileRequest,
 } from '../types/relation'
@@ -108,6 +110,34 @@ export async function getTrainerPublicationStatus(trainerUserId: string): Promis
 export async function listTrainers(): Promise<DiscoveryProfile[]> {
   const { data } = await apiClient.get<DiscoveryProfile[]>('/api/v1/marketplace/trainers')
   return Array.isArray(data) ? data : []
+}
+
+export async function getMyInviteLink(): Promise<TrainerInviteLink> {
+  const { data } = await apiClient.get<TrainerInviteLink>('/api/v1/marketplace/trainers/me/invite-link')
+  return data
+}
+
+export async function rotateMyInviteLink(): Promise<TrainerInviteLink> {
+  const { data } = await apiClient.post<TrainerInviteLink>('/api/v1/marketplace/trainers/me/invite-link/rotate', {})
+  return data
+}
+
+// Публичная карточка тренера. Токен не шлём: протухший Bearer на шлюзе дал бы 401 и увёл бы гостя со страницы.
+export async function getPublicInvite(code: string): Promise<PublicInvite> {
+  const { data } = await apiClient.get<PublicInvite>(`/api/v1/marketplace/invite/${encodeURIComponent(code)}`, {
+    skipAuth: true,
+    skipAuthRedirect: true,
+  })
+  return data
+}
+
+export async function acceptInviteCode(code: string, force = false): Promise<TrainerClientRelation> {
+  const { data } = await apiClient.post<TrainerClientRelation>(
+    `/api/v1/marketplace/invite/${encodeURIComponent(code)}/accept`,
+    {},
+    force ? { params: { force: true } } : undefined,
+  )
+  return data
 }
 
 export async function upsertDiscoveryProfile(
