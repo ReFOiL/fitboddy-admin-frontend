@@ -1,11 +1,11 @@
-import { Eye, Link2, Search, Users } from 'lucide-react'
+import { Eye, Link2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Avatar } from '../ui/kit'
 import { Skeleton } from '../ui/skeleton'
 import { AlertBanner, EmptyState, QueryState } from '../shared'
-import { formatRelationIdentity } from '../../lib/relations-formatters'
 import type { DiscoveryProfile } from '../../types/relation'
 import { APP_PATHS } from '../../config'
 
@@ -40,10 +40,9 @@ export function TrainerSelectionCard({
     <Card className="border-primary/20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Search size={18} className="text-accent-ink" />
           Выберите тренера
         </CardTitle>
-        <CardDescription>Открытые тренеры доступны ниже. Подключение занимает один клик.</CardDescription>
+        <CardDescription>Открытые тренеры ниже. Подключение — одна кнопка.</CardDescription>
       </CardHeader>
       <CardContent>
         <QueryState
@@ -59,35 +58,32 @@ export function TrainerSelectionCard({
           emptyFallback={<EmptyState className="py-7" title="Доступных тренеров пока нет" />}
         >
           <div className="space-y-3">
-            {trainers.map((trainer) => (
-                <div key={trainer.user_id} className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm">
-                  <div className="mb-1 flex items-center gap-2">
-                    <Users size={16} className="text-accent-ink" />
-                    <span className="font-medium">Тренер</span>
+            {trainers.map((trainer) => {
+              const name = trainer.display_name?.trim() || 'Тренер'
+              return (
+                <div key={trainer.user_id} className="flex min-h-16 items-center gap-3 border-b border-border py-3">
+                  <Avatar name={name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[17px] font-semibold">{name}</div>
                   </div>
-                  <div className="mb-3 text-secondary-foreground">{formatRelationIdentity({ login: trainer.login, userId: trainer.user_id })}</div>
-                  <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-accent-ink">
-                    Профиль подтвержден
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:flex">
-                    <Button asChild size="sm" variant="secondary" className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto">
-                      <Link to={APP_PATHS.trainerProfile.replace(':trainerUserId', encodeURIComponent(trainer.user_id))}>
-                        <Eye size={14} />
-                        Профиль
-                      </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="h-11 w-full gap-1.5 sm:h-8 sm:w-auto"
-                      onClick={() => onConnect(trainer.user_id)}
-                      disabled={createPending || mustCompleteQuestionnaire || isActiveRelationLoading || isActiveRelationError || hasActiveTrainer}
-                    >
-                      <Link2 size={14} />
-                        {createPending ? 'Подключаем…' : hasActiveTrainer ? 'Уже подключён' : 'Подключиться'}
-                    </Button>
-                  </div>
+                  <Button asChild variant="secondary" className="h-12 shrink-0 px-4">
+                    <Link to={APP_PATHS.trainerProfile.replace(':trainerUserId', encodeURIComponent(trainer.user_id))}>
+                      <Eye size={16} />
+                      Профиль
+                    </Link>
+                  </Button>
+                  <Button
+                    type="button"
+                    className="h-12 shrink-0 px-4"
+                    onClick={() => onConnect(trainer.user_id)}
+                    disabled={createPending || mustCompleteQuestionnaire || isActiveRelationLoading || isActiveRelationError || hasActiveTrainer}
+                  >
+                    <Link2 size={16} />
+                    {createPending ? 'Подключаем…' : hasActiveTrainer ? 'Уже подключён' : 'Подключиться'}
+                  </Button>
                 </div>
-              ))}
+              )
+            })}
           </div>
         </QueryState>
         {!isActiveRelationLoading && !isActiveRelationError && hasActiveTrainer ? (

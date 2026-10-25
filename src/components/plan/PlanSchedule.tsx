@@ -10,10 +10,13 @@ type PlanScheduleProps = {
   days: PlanDay[]
   todayIso: string
   trainerUserId?: string | null
+  alwaysOpen?: boolean
+  focusedDayId?: string | null
 }
 
-export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function PlanSchedule({ days, todayIso, trainerUserId, alwaysOpen = false, focusedDayId = null }: PlanScheduleProps) {
+  const [isOpen, setIsOpen] = useState(alwaysOpen)
+  const open = alwaysOpen || isOpen
   const daysByWeek = days.reduce<Record<number, PlanDay[]>>((grouped, day) => {
     if (!grouped[day.week]) grouped[day.week] = []
     grouped[day.week].push(day)
@@ -24,11 +27,19 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
 
   return (
     <div className="rounded-2xl border border-border/70">
+      {alwaysOpen ? (
+        <div className="px-4 py-3">
+          <div className="text-sm font-semibold">Расписание</div>
+          <div className="mt-0.5 text-xs text-secondary-foreground">
+            {days.length} тренировок · {totalExercises} упражнений
+          </div>
+        </div>
+      ) : (
       <button
         type="button"
-        className="flex min-h-11 w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         onClick={() => setIsOpen((value) => !value)}
-        aria-expanded={isOpen}
+        aria-expanded={open}
       >
         <CalendarDays size={18} className="text-accent-ink" />
         <span className="min-w-0 flex-1">
@@ -37,9 +48,10 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
             {days.length} тренировок · {totalExercises} упражнений
           </span>
         </span>
-        {isOpen ? <X size={16} className="opacity-60" /> : <Dumbbell size={16} className="opacity-60" />}
+        {open ? <X size={16} className="opacity-60" /> : <Dumbbell size={16} className="opacity-60" />}
       </button>
-      {isOpen ? (
+      )}
+      {open ? (
         <div className="space-y-3 border-t border-border/60 px-4 py-4">
           {weekEntries.map(([week, weekDays]) => (
             <div key={week} className="space-y-2">
@@ -51,7 +63,11 @@ export function PlanSchedule({ days, todayIso, trainerUserId }: PlanScheduleProp
                   key={day.day_id}
                   className={cn(
                     'rounded-xl border px-3 py-2.5',
-                    day.scheduled_for === todayIso ? 'border-primary/40 bg-primary/5' : 'border-border/60',
+                    day.day_id === focusedDayId
+                      ? 'border-primary bg-primary/10'
+                      : day.scheduled_for.slice(0, 10) === todayIso
+                        ? 'border-primary/40 bg-card'
+                        : 'border-border/60',
                   )}
                 >
                   <div className="flex items-center justify-between gap-2 text-sm">

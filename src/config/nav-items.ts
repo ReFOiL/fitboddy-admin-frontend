@@ -75,7 +75,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Smile,
     roles: ['client'],
     surfaces: ['desktop', 'mobile'],
-    activePaths: [APP_PATHS.profileOnboarding, APP_PATHS.trainers, APP_PATHS.trainerProfile],
+    activePaths: [APP_PATHS.profileOnboarding, APP_PATHS.profileTraining, APP_PATHS.trainers, APP_PATHS.trainerProfile],
   },
 ]
 

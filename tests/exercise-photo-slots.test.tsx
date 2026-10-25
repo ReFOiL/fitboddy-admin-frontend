@@ -47,7 +47,7 @@ describe('ExercisePhotoSlots', () => {
       'src',
       `${API_BASE}/media/start.jpg`,
     )
-    expect(screen.getByText('Фото пока не загружено.')).toBeInTheDocument()
+    expect(screen.getByText('Финиш')).toBeInTheDocument()
     expect(screen.queryByLabelText('Загрузить фото')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Удалить фото' })).not.toBeInTheDocument()
   })
@@ -68,7 +68,7 @@ describe('ExercisePhotoSlots', () => {
     expect(screen.getByLabelText('Заменить фото')).toBeInTheDocument()
     expect(screen.getByLabelText('Загрузить фото')).toBeInTheDocument()
     expect(screen.getAllByText('Поддерживаются JPG, PNG и WEBP, до 15 МБ.')).toHaveLength(2)
-    expect(screen.getByText('Фото ещё не загружено.')).toBeInTheDocument()
+    expect(screen.getByText('Финиш')).toBeInTheDocument()
 
     const startFile = new File([new Uint8Array(8)], 'start.jpg', { type: 'image/jpeg' })
     fireEvent.change(screen.getByLabelText('Заменить фото'), { target: { files: [startFile] } })
@@ -173,7 +173,7 @@ describe('ExercisePhotoSlots', () => {
     )
 
     expect(screen.getByText('Загружаем фото...')).toBeInTheDocument()
-    expect(screen.getByText('Не закрывай страницу, пока файл не сохранится.')).toBeInTheDocument()
+    expect(screen.getByText('Не закрывайте страницу, пока файл не сохранится.')).toBeInTheDocument()
     expect(screen.getByLabelText('Заменить фото')).toBeDisabled()
   })
 })

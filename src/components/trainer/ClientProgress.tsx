@@ -4,7 +4,6 @@ import { formatWeekdayShort } from '../../lib/plan-formatters'
 import { firstName } from '../../lib/person'
 import { lastCompletedDay, weekProgress } from '../../lib/roster'
 import type { TrainingPlan } from '../../types/plan'
-import type { TrainerFunnelMetrics } from '../../types/relation'
 import { Button } from '../ui/button'
 import { ScreenHeader, SectionLabel, StickyActionBar } from '../ui/kit'
 
@@ -12,14 +11,12 @@ export function ClientProgress({
   name,
   plan,
   todayIso,
-  funnel,
   onBack,
   onWrite,
 }: {
   name: string
   plan: TrainingPlan | null
   todayIso: string
-  funnel?: TrainerFunnelMetrics
   onBack: () => void
   onWrite: () => void
 }) {
@@ -117,34 +114,11 @@ export function ClientProgress({
         <p className="py-8 text-[17px]">Плана ещё нет — прогресс появится после первой программы.</p>
       )}
 
-      {funnel ? (
-        <section className="mt-8">
-          <SectionLabel>Приглашения</SectionLabel>
-          <div className="mt-2 divide-y divide-border border-y border-border">
-            <Metric label="Отправлено" value={String(funnel.invites_sent)} />
-            <Metric label="Ждут ответа" value={String(funnel.invites_pending)} />
-            <Metric label="Принято" value={String(funnel.invites_accepted)} />
-            <Metric label="Отклонено" value={String(funnel.invites_declined)} />
-            <Metric label="Активных клиентов" value={String(funnel.active_clients)} />
-            <Metric label="Конверсия" value={`${funnel.invite_acceptance_rate}%`} />
-          </div>
-        </section>
-      ) : null}
-
       <StickyActionBar>
         <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onWrite}>
           Написать
         </Button>
       </StickyActionBar>
-    </div>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex min-h-14 items-center justify-between text-[17px]">
-      <span>{label}</span>
-      <span className="font-semibold">{value}</span>
     </div>
   )
 }

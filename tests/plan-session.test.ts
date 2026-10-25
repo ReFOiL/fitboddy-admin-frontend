@@ -3,7 +3,10 @@ import { act, renderHook } from '@testing-library/react'
 import { useWorkoutSession } from '../src/hooks/use-workout-session'
 import {
   clearSessionChecks,
+  formatRestClock,
+  loadActiveWorkoutDay,
   loadSessionChecks,
+  markLineChecked,
   saveSessionChecks,
   sessionChecksKey,
 } from '../src/lib/plan-session'
@@ -40,7 +43,18 @@ const workout: TodayWorkout = {
 }
 
 describe('plan session storage', () => {
-  beforeEach(() => sessionStorage.clear())
+  beforeEach(() => {
+    sessionStorage.clear()
+    localStorage.clear()
+  })
+
+  it('formats the rest clock and marks a line in the shared checklist', () => {
+    expect(formatRestClock(90)).toBe('1:30')
+    expect(formatRestClock(0)).toBe('0:00')
+    expect(formatRestClock(61)).toBe('1:01')
+    markLineChecked('day-1', 'line-1')
+    expect(loadSessionChecks('day-1').has('line-1')).toBe(true)
+  })
 
   it('saves, loads and clears checklist ids', () => {
     saveSessionChecks('day-1', new Set(['line-1', 'line-2']))
@@ -69,5 +83,25 @@ describe('plan session storage', () => {
     expect(result.current.isActive).toBe(false)
     expect(result.current.checkedCount).toBe(0)
     expect(loadSessionChecks('day-1').size).toBe(0)
+    expect(loadActiveWorkoutDay()).toBeNull()
+  })
+
+  it('restores an in-progress workout after the page unmounts', () => {
+    const first = renderHook(() => useWorkoutSession(workout))
+    act(() => first.result.current.start())
+    act(() => first.result.current.toggleChecked('line-1'))
+    first.unmount()
+
+    const second = renderHook(() => useWorkoutSession(workout))
+    expect(second.result.current.isActive).toBe(true)
+    expect(second.result.current.checkedCount).toBe(1)
+
+    act(() => second.result.current.collapse())
+    second.unmount()
+
+    const third = renderHook(() => useWorkoutSession(workout))
+    expect(third.result.current.isActive).toBe(false)
+    expect(loadSessionChecks('day-1').has('line-1')).toBe(true)
+    expect(loadActiveWorkoutDay()).toBeNull()
   })
 })

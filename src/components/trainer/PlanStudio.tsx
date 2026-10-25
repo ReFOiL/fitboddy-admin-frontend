@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { listTrainerExercises, queryKeys } from '../../api'
@@ -17,6 +17,7 @@ import { formatEquipmentLabel } from '../../lib/equipment'
 import { formatWeekday, formatWeekdayShort } from '../../lib/plan-formatters'
 import { dirtyDayIndexes, draftsFromPlan, formatDosage, type DayDraft, type DraftSlot } from '../../lib/plan-draft'
 import { formatWorkoutCategory } from '../../lib/muscles'
+import { muscleBucket } from '../../lib/muscle-bucket'
 import { clientDisplayName } from '../../lib/person'
 import { lastCompletedDay } from '../../lib/roster'
 import { isProfileCompleted } from '../../lib/profile-completion'
@@ -24,11 +25,13 @@ import { getTrainerPlanComposeBlockReason } from '../../lib/trainer-plan-compose
 import type { TrainerExercise } from '../../types/exercise'
 import type { CopyDayMode } from '../../types/plan'
 import { GenerateBlockNote } from '../plan/GenerateBlockNote'
+import { SlotPhotoPreview } from '../media/ExerciseMedia'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import {
   Chip,
+  ConfirmSheet,
   ExerciseThumb,
   OverflowMenu,
   Row,
@@ -52,6 +55,7 @@ const MUSCLE_CHIPS = [
   { id: 'legs', label: 'Ноги' },
   { id: 'shoulders', label: 'Плечи' },
   { id: 'arms', label: 'Руки' },
+  { id: 'core', label: 'Корпус' },
 ] as const
 
 export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: string; initialScreen: StudioScreen }) {
@@ -72,7 +76,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     hasProfile: Boolean(profileQuery.data),
     questionnaireReady: isProfileCompleted(profileQuery.data),
   })
-  const { trainerClientsQuery, leaveRelationMutation, trainerFunnelQuery } = useTrainerRelations({ trainerUserId })
+  const { trainerClientsQuery, leaveRelationMutation } = useTrainerRelations({ trainerUserId })
   const catalogQuery = useQuery({
     queryKey: queryKeys.exercises.trainerCatalog(trainerUserId, false),
     queryFn: async () => listTrainerExercises(trainerUserId, false),
@@ -101,6 +105,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const [muscle, setMuscle] = useState<(typeof MUSCLE_CHIPS)[number]['id']>('all')
   const [picked, setPicked] = useState<string[]>([])
   const [restOpen, setRestOpen] = useState(false)
+  const [confirm, setConfirm] = useState<'assemble' | 'delete-day' | 'leave' | null>(null)
 
   // Черновик сбрасывается, когда с сервера приходит другой план или новая версия.
   if (
@@ -159,14 +164,9 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     return false
   }
 
-  const assemble = () => {
+  const runAssemble = () => {
     const profile = profileQuery.data
-    if (composeBlockReason) {
-      window.alert(composeBlockReason)
-      return
-    }
     if (!profile) return
-    if (plan && !window.confirm('Собрать из каталога? Текущий план будет заменён.')) return
     generatePlanMutation.mutate(
       {
         source: 'trainer',
@@ -179,12 +179,26 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
       },
       {
         onSuccess: () => {
+          setConfirm(null)
           void queryClient.invalidateQueries({
             queryKey: queryKeys.plans.trainerClientPlan(clientUserId, trainerUserId),
           })
         },
       },
     )
+  }
+
+  const assemble = () => {
+    if (composeBlockReason) {
+      window.alert(composeBlockReason)
+      return
+    }
+    if (!profileQuery.data) return
+    if (plan) {
+      setConfirm('assemble')
+      return
+    }
+    runAssemble()
   }
 
   const menuItems: OverflowItem[] = [
@@ -212,32 +226,25 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     {
       id: 'delete-day',
       label: 'Удалить день',
-      hintTone: 'danger',
+      danger: true,
       onSelect: () => {
         if (!selectedDay || !requireCleanDraft()) return
-        const label = `${formatWeekdayShort(selectedDay.dayOfWeek)}, неделя ${selectedDay.week}`
-        if (!window.confirm(`Удалить ${label}? Упражнения этого дня пропадут.`)) return
-        manual.deleteDayMutation.mutate(selectedDay.dayIndex)
+        setConfirm('delete-day')
       },
     },
     {
       id: 'assemble',
       label: 'Собрать из каталога',
       hint: 'Заменит текущий план',
-      hintTone: 'danger',
       onSelect: assemble,
     },
-    { id: 'rules', label: 'Настройки плана', onSelect: () => navigate(APP_PATHS.planRules) },
-    { id: 'weights', label: 'Рабочие веса', onSelect: () => setScreen('weights') },
-    { id: 'profile', label: 'Анкета', onSelect: () => setScreen('questionnaire') },
     {
       id: 'leave',
       label: 'Завершить сопровождение',
-      hintTone: 'danger',
+      danger: true,
       onSelect: () => {
         if (!relation) return
-        if (!window.confirm('Завершить сопровождение этого клиента?')) return
-        leaveRelationMutation.mutate({ relationId: relation.relation_id }, { onSuccess: () => navigate(APP_PATHS.clients) })
+        setConfirm('leave')
       },
     },
   ]
@@ -263,7 +270,6 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
         name={clientName}
         plan={plan ?? null}
         todayIso={todayIso}
-        funnel={trainerFunnelQuery.data}
         onBack={() => setScreen('plan')}
         onWrite={() => navigate(`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(clientUserId)}`)}
       />
@@ -345,7 +351,6 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   }
 
   const last = plan ? lastCompletedDay(plan) : null
-  const weekMarks = weekDays
 
   return (
     <div className="mx-auto w-full max-w-lg pb-28">
@@ -367,21 +372,6 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
         </button>
       </div>
       {readOnly ? <p className="mt-3 text-[15px] text-secondary-foreground">Этот план нельзя править по слотам. Собрать новый можно из меню.</p> : null}
-      {weekMarks.length > 0 ? (
-        <div className="mt-4 grid grid-cols-3 gap-3 text-center text-[13px] font-semibold">
-          {weekMarks.map((day) => {
-            const missed = day.scheduledFor < todayIso && !day.isCompleted
-            return (
-              <div key={day.dayId}>
-                <div>{formatWeekdayShort(day.dayOfWeek)}</div>
-                <div className={`mt-1 flex h-12 items-center justify-center rounded-xl border ${missed ? 'border-destructive bg-card text-destructive' : day.isCompleted ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'}`}>
-                  {day.isCompleted ? '✓' : missed ? '×' : ''}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : null}
 
       {weeks.length > 1 ? (
         <div className="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
@@ -456,7 +446,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
             <Row
               key={slot.key}
               title={slot.exerciseName}
-              subtitle={formatDosage(slot)}
+              subtitle={formatDosage(slot, { includeRest: false })}
               leading={<ExerciseThumb imageUrl={exercise?.start_image_url} hasVideo={Boolean(exercise?.video_url)} />}
               onClick={
                 readOnly
@@ -470,6 +460,18 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
             />
           )
         })}
+      </div>
+
+      <div className="mt-4 divide-y divide-border border-y border-border">
+        <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('weights')}>
+          Рабочие веса
+        </button>
+        <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('questionnaire')}>
+          Анкета
+        </button>
+        <Link to={APP_PATHS.planRules} className="flex min-h-12 items-center text-[17px]">
+          Настройки плана
+        </Link>
       </div>
 
       {!readOnly && selectedDay ? (
@@ -491,7 +493,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
       {!readOnly && selectedDay ? (
         <StickyActionBar>
           <Button type="button" size="lg" className="w-full" disabled={!isDirty || manual.saveMutation.isPending} onClick={save}>
-            {manual.saveMutation.isPending ? 'Сохраняем…' : 'Сохранить'}
+            {manual.saveMutation.isPending ? 'Сохраняем…' : isDirty ? 'Есть изменения' : 'Нет изменений'}
           </Button>
         </StickyActionBar>
       ) : null}
@@ -579,6 +581,47 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
           </Button>
         </Sheet>
       ) : null}
+
+      {confirm === 'assemble' ? (
+        <ConfirmSheet
+          title="Собрать из каталога"
+          body="Собрать из каталога? Текущий план будет заменён."
+          confirmLabel="Собрать"
+          pending={generatePlanMutation.isPending}
+          tone="danger"
+          onClose={() => setConfirm(null)}
+          onConfirm={runAssemble}
+        />
+      ) : null}
+      {confirm === 'delete-day' && selectedDay ? (
+        <ConfirmSheet
+          title="Удалить день"
+          body={`Удалить ${formatWeekdayShort(selectedDay.dayOfWeek)}, неделя ${selectedDay.week}? Упражнения этого дня пропадут.`}
+          confirmLabel="Удалить"
+          pending={manual.deleteDayMutation.isPending}
+          tone="danger"
+          onClose={() => setConfirm(null)}
+          onConfirm={() =>
+            manual.deleteDayMutation.mutate(selectedDay.dayIndex, { onSuccess: () => setConfirm(null) })
+          }
+        />
+      ) : null}
+      {confirm === 'leave' && relation ? (
+        <ConfirmSheet
+          title="Завершить сопровождение"
+          body="Завершить сопровождение этого клиента?"
+          confirmLabel="Завершить"
+          pending={leaveRelationMutation.isPending}
+          tone="danger"
+          onClose={() => setConfirm(null)}
+          onConfirm={() =>
+            leaveRelationMutation.mutate(
+              { relationId: relation.relation_id },
+              { onSuccess: () => navigate(APP_PATHS.clients) },
+            )
+          }
+        />
+      ) : null}
     </div>
   )
 }
@@ -627,24 +670,13 @@ function ModePicker({ mode, onChange }: { mode: CopyDayMode; onChange: (mode: Co
   )
 }
 
-function muscleBucket(exercise: TrainerExercise): string {
-  const muscles = exercise.primary_muscles.join(' ')
-  if (/chest|pector/.test(muscles)) return 'chest'
-  if (/lat|trap|rhomb|lower_back|teres/.test(muscles)) return 'back'
-  if (/quad|hamstring|glute|calv|adductor|abductor/.test(muscles)) return 'legs'
-  if (/delt/.test(muscles)) return 'shoulders'
-  if (/bicep|tricep|forearm|brach/.test(muscles)) return 'arms'
-  if (exercise.workout_category === 'lower') return 'legs'
-  if (exercise.workout_category === 'core') return 'arms'
-  return 'chest'
-}
-
 const GROUP_LABEL: Record<string, string> = {
   chest: 'Грудь',
   back: 'Спина',
   legs: 'Ноги',
   shoulders: 'Плечи',
   arms: 'Руки',
+  core: 'Корпус',
 }
 
 function AddExerciseScreen({
@@ -742,18 +774,13 @@ function EditSlotScreen({
     <div className="mx-auto w-full max-w-lg pb-28">
       <ScreenHeader title={dayLabel} onBack={onBack} />
       <h2 className="mt-4 text-[28px] font-bold">{slot.exerciseName}</h2>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <ExerciseThumb imageUrl={media?.video_url ? null : media?.start_image_url} hasVideo={Boolean(media?.video_url)} />
-        <span className="photo-placeholder flex h-24 items-end justify-center rounded-xl pb-2 text-[13px]">Старт</span>
-        <span className="photo-placeholder flex h-24 items-end justify-center rounded-xl pb-2 text-[13px]">Финиш</span>
+      <div className="mt-4">
+        <SlotPhotoPreview startUrl={media?.start_image_url} endUrl={media?.end_image_url} />
       </div>
       {media ? (
         <a className="mt-2 inline-flex text-[15px] underline" href={`/exercises/${encodeURIComponent(media.row_id)}`}>
           Изменить фото и видео
         </a>
-      ) : null}
-      {media?.start_image_url ? (
-        <img src={media.start_image_url} alt="Старт" className="mt-3 hidden" />
       ) : null}
       <div className="mt-4 divide-y divide-border">
         <Stepper label="Подходы" value={slot.sets} min={1} max={10} onChange={(sets) => onChange({ ...slot, sets })} />
@@ -817,7 +844,7 @@ function EditSlotScreen({
       </Button>
       <StickyActionBar>
         <Button type="button" size="lg" className="w-full" onClick={onBack}>
-          Готово
+          К плану
         </Button>
       </StickyActionBar>
     </div>
@@ -860,8 +887,12 @@ function WeightsScreen({
             className="h-12 px-3"
             disabled={upsertLoadMutation.isPending}
             onClick={() => {
-              const value = Number((draft[exercise.row_id] ?? '').replace(',', '.'))
-              if (!Number.isFinite(value) || value < 0) return
+              const raw = (draft[exercise.row_id] ?? '').trim().replace(',', '.')
+              const value = Number(raw)
+              if (!raw || !Number.isFinite(value) || value <= 0) {
+                toast.error('Укажите вес больше нуля.')
+                return
+              }
               upsertLoadMutation.mutate({ exerciseRowId: exercise.row_id, payload: { working_weight_kg: value } })
             }}
           >

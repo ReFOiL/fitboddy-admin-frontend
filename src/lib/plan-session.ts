@@ -90,3 +90,46 @@ export function clearSessionChecks(dayId: string): void {
     // ignore
   }
 }
+
+const ACTIVE_WORKOUT_KEY = 'fitboddy:workout-active-day'
+
+/** День, который клиент сейчас выполняет. Живёт дольше памяти страницы, чтобы вкладки его не стирали. */
+export function loadActiveWorkoutDay(): string | null {
+  try {
+    const value = sessionStorage.getItem(ACTIVE_WORKOUT_KEY)
+    return value && value.trim() ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function saveActiveWorkoutDay(dayId: string): void {
+  try {
+    sessionStorage.setItem(ACTIVE_WORKOUT_KEY, dayId)
+  } catch {
+    // приватный режим
+  }
+}
+
+export function clearActiveWorkoutDay(): void {
+  try {
+    sessionStorage.removeItem(ACTIVE_WORKOUT_KEY)
+  } catch {
+    // приватный режим
+  }
+}
+
+export function markLineChecked(dayId: string, lineId: string): Set<string> {
+  const next = loadSessionChecks(dayId)
+  next.add(lineId)
+  saveSessionChecks(dayId, next)
+  return next
+}
+
+/** Таймер отдыха на экране подхода: 90 → «1:30». */
+export function formatRestClock(totalSeconds: number): string {
+  const safe = Number.isFinite(totalSeconds) ? Math.max(0, Math.floor(totalSeconds)) : 0
+  const minutes = Math.floor(safe / 60)
+  const seconds = safe % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}

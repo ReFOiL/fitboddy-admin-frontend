@@ -60,7 +60,7 @@ export function TodayWorkoutCard({
             <div>
               <div className="text-lg font-semibold">День отдыха</div>
               <p className="mt-1 text-sm text-secondary-foreground">
-                Сегодня в плане нет тренировки. Выбери день в полоске выше или открой расписание.
+                Сегодня в плане нет тренировки. Выберите день в полоске выше или откройте расписание.
               </p>
             </div>
             {restAction}

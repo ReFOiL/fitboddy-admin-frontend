@@ -22,6 +22,7 @@ export const APP_PATHS = {
   messageThread: '/messages/:conversationId',
   more: '/more',
   profile: '/profile',
+  profileTraining: '/profile/training',
   profileOnboarding: '/profile/onboarding',
   dashboardAlias: '/dashboard',
   relationsAlias: '/relations',
@@ -62,6 +63,10 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Ещё',
     matches: (pathname) => pathname === APP_PATHS.more,
+  },
+  {
+    title: 'Веса и инвентарь',
+    matches: (pathname) => pathname === APP_PATHS.profileTraining,
   },
   {
     title: 'Настройка профиля',

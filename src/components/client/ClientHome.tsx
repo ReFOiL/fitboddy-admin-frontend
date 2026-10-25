@@ -87,9 +87,6 @@ export function ClientHome({ user }: { user: AuthUser }) {
         trainerName={model.activeTrainerDisplay}
         onCollapse={workoutSession.collapse}
         onToggleChecked={workoutSession.toggleChecked}
-        onReplaceExercise={(lineId) =>
-          model.replaceExerciseMutation.mutate({ dayIndex: model.todayWorkout!.day_index, lineId })
-        }
         onFinish={finishWorkout}
       />
     )
@@ -118,7 +115,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
 
       {model.hasNoProfile || (model.profile && !model.questionnaireReady) ? (
         <div className="mt-6 border-y border-border py-4">
-          <p className="text-[17px] font-semibold">Заполни анкету</p>
+          <p className="text-[17px] font-semibold">Заполните анкету</p>
           <p className="mt-1 text-[15px] text-secondary-foreground">Так тренер сможет составить программу.</p>
           <GenerateBlockNote reason={systemGenerateReason} />
           <Button asChild size="lg" className="mt-4 w-full">
@@ -148,9 +145,11 @@ export function ClientHome({ user }: { user: AuthUser }) {
                   disabled={!planDay}
                   onClick={() => planDay && setSelectedDayId(planDay.day_id)}
                   className={`flex h-16 w-12 shrink-0 flex-col items-center justify-center rounded-2xl border text-[13px] font-semibold disabled:opacity-40 ${
-                    selected || isToday
-                      ? 'border-primary bg-card text-foreground'
-                      : 'border-transparent bg-secondary text-secondary-foreground'
+                    selected
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : isToday
+                        ? 'border-primary bg-card text-foreground'
+                        : 'border-transparent bg-secondary text-secondary-foreground'
                   }`}
                 >
                   <span>{formatJsWeekdayShort(date)}</span>
@@ -237,7 +236,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
           </div>
         ) : (
           <div className="mt-8">
-            <h2 className="text-[28px] font-bold">Начни тренироваться</h2>
+            <h2 className="text-[28px] font-bold">Начните тренироваться</h2>
             <Button
               type="button"
               size="lg"
@@ -253,7 +252,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
             <p className="mt-4 text-center text-[17px]">
               Или{' '}
               <Link className="underline" to={APP_PATHS.trainers}>
-                выбрать тренера
+                выберите тренера
               </Link>
             </p>
           </div>
@@ -266,7 +265,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
           <div className="min-w-0 flex-1">
             <div className="truncate text-[17px] font-semibold">{model.activeTrainerDisplay || 'Тренер'}</div>
             <div className="text-[15px] text-secondary-foreground">
-              {preview && preview !== 'Нет сообщений' ? preview : 'Твой тренер'}
+              {preview && preview !== 'Нет сообщений' ? preview : 'Ваш тренер'}
             </div>
           </div>
           <Button asChild variant="secondary" className="h-12 px-4">

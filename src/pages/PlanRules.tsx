@@ -22,7 +22,7 @@ const CATEGORIES = [
   { value: 'full_body', label: 'Всё тело' },
   { value: 'upper', label: 'Верх' },
   { value: 'lower', label: 'Низ' },
-  { value: 'core', label: 'Кор' },
+  { value: 'core', label: 'Корпус' },
 ] as const
 
 const LEVELS = [
@@ -71,7 +71,7 @@ function SplitEditor({
           <button
             key={category.value}
             type="button"
-            className="rounded-full border border-border bg-card px-3 py-1 text-sm hover:bg-secondary"
+            className="inline-flex h-12 items-center rounded-full border border-border bg-card px-4 text-[15px] font-semibold"
             onClick={() => onChange([...categories, category.value])}
           >
             + {category.label}
@@ -80,7 +80,7 @@ function SplitEditor({
         {categories.length > 0 ? (
           <button
             type="button"
-            className="rounded-full border border-border px-3 py-1 text-sm text-secondary-foreground hover:bg-secondary/70"
+            className="inline-flex h-12 items-center rounded-full border border-border px-4 text-[15px] font-semibold text-secondary-foreground"
             onClick={() => onChange([])}
           >
             Очистить
@@ -160,7 +160,7 @@ export function PlanRulesPage() {
           <h1 className="text-[28px] font-bold">Настройки плана</h1>
           <ThemeToggle className="md:hidden" />
         </div>
-        <p className="text-destructive">Не удалось загрузить. Попробуй ещё раз.</p>
+        <p className="text-destructive">Не удалось загрузить. Попробуйте ещё раз.</p>
         <button
           type="button"
           className="rounded-lg border border-border px-4 py-2"
@@ -229,7 +229,7 @@ function PlanRulesEditor({
     },
     onError: (error) => {
       setMessage(null)
-      setErrorText(getUserErrorMessage(error, 'Не удалось сохранить. Попробуй ещё раз.'))
+      setErrorText(getUserErrorMessage(error, 'Не удалось сохранить. Попробуйте ещё раз.'))
     },
   })
 
@@ -282,8 +282,7 @@ function PlanRulesEditor({
         <div>
           <h2 className="text-lg font-medium sm:text-xl">Сколько тренировок в неделю</h2>
           <p className="mt-1 text-sm text-secondary-foreground">
-            Базовое число дней. Потом генератор может чуть увеличить или уменьшить его по adherence
-            прошлого цикла.
+            Сколько тренировок в неделю вы ставите клиентам. Число можно чуть сдвинуть, если прошлый цикл оказался слишком тяжёлым или слишком лёгким.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -317,8 +316,7 @@ function PlanRulesEditor({
         <div>
           <h2 className="text-lg font-medium sm:text-xl">Сколько упражнений в тренировке</h2>
           <p className="mt-1 text-sm text-secondary-foreground">
-            Диапазон min–max: генератор выбирает число внутри него для каждой сессии. Для первого плана
-            можно задать отдельные рамки по уровню и для цели «восстановление».
+            Сколько упражнений ставить в одну тренировку: от и до. Для первого плана можно задать отдельные рамки.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -406,7 +404,7 @@ function PlanRulesEditor({
               key={goal.value}
               type="button"
               className={[
-                'rounded-full px-3 py-1.5 text-sm transition',
+                'inline-flex h-12 items-center rounded-full px-4 text-[15px] font-semibold transition',
                 selectedGoal === goal.value
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border bg-background hover:bg-secondary/70',
@@ -445,10 +443,9 @@ function PlanRulesEditor({
 
       <article className="space-y-4 rounded-2xl border border-border bg-secondary/40 p-4 sm:p-5">
         <div>
-          <h2 className="text-lg font-medium sm:text-xl">Не ставить в один день</h2>
+          <h2 className="text-lg font-medium sm:text-xl">Что не ставить вместе</h2>
           <p className="mt-1 text-sm text-secondary-foreground">
-            Выбери два упражнения из своего каталога, которые нельзя давать вместе в одной
-            тренировке.
+            Выберите два упражнения, которые не должны оказаться в одной тренировке.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -488,7 +485,7 @@ function PlanRulesEditor({
           </select>
           <button
             type="button"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 py-2"
+            className="inline-flex h-12 items-center justify-center rounded-xl border border-border px-4"
             onClick={() => {
               if (!pairLeft || !pairRight || pairLeft === pairRight) return
               setDraft((current) => {
@@ -526,7 +523,7 @@ function PlanRulesEditor({
                 </span>
                 <button
                   type="button"
-                  className="text-destructive"
+                  className="inline-flex h-12 items-center px-3 text-[15px] font-semibold text-destructive"
                   onClick={() =>
                     setDraft((current) => ({
                       ...current,

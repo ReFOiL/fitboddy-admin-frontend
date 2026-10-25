@@ -20,6 +20,9 @@ const ProfilePage = lazy(async () => ({ default: (await import('./pages/Profile'
 const ProfileOnboardingPage = lazy(async () => ({
   default: (await import('./pages/ProfileOnboarding')).ProfileOnboardingPage,
 }))
+const ClientTrainingSettingsPage = lazy(async () => ({
+  default: (await import('./pages/ClientTrainingSettings')).ClientTrainingSettingsPage,
+}))
 const ClientRelationsPage = lazy(async () => ({ default: (await import('./pages/ClientRelations')).ClientRelationsPage }))
 const TrainerProfilePreviewPage = lazy(async () => ({
   default: (await import('./pages/TrainerProfilePreview')).TrainerProfilePreviewPage,
@@ -152,6 +155,14 @@ function App() {
               }
             />
             <Route path={APP_PATHS.profile.slice(1)} element={<ProfilePage />} />
+            <Route
+              path={APP_PATHS.profileTraining.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
+                  <ClientTrainingSettingsPage />
+                </RoleRoute>
+              }
+            />
             <Route
               path={APP_PATHS.profileOnboarding.slice(1)}
               element={

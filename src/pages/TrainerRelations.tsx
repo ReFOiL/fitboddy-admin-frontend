@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { InviteClientSheet } from '../components/trainer/InviteClientSheet'
 import { QueryState } from '../components/shared'
-import { Avatar, Chip, PageTitle, Row, StatusPill } from '../components/ui/kit'
+import { Button } from '../components/ui/button'
+import { Avatar, Chip, PageTitle, StatusPill } from '../components/ui/kit'
 import { Input } from '../components/ui/input'
-import { APP_PATHS } from '../config'
+import { APP_PATHS, clientPlanPath } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import { localTodayIso } from '../lib/dates'
 import { useTrainerRelations } from '../hooks/use-relations'
@@ -42,7 +43,12 @@ export function TrainerRelationsPage() {
   }, [filter, rows, search, todayIso])
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-24">
+    <div className="mx-auto w-full max-w-3xl pb-28">
+      <div className="mb-4 hidden md:flex md:justify-end">
+        <Button type="button" size="lg" className="h-12" onClick={() => setInviteOpen(true)}>
+          + Пригласить клиента
+        </Button>
+      </div>
       <PageTitle>Клиенты · {rows.length}</PageTitle>
       <div className="mt-4">
         <Input
@@ -72,38 +78,49 @@ export function TrainerRelationsPage() {
           const name = clientDisplayName(row.relation)
           const missed = Boolean(attentionSubtitle({ ...row, todayIso, createdAt: row.relation.created_at }) && row.planState === 'ready')
           return (
-            <Row
-              key={row.relation.relation_id}
-              title={name}
-              subtitle={clientListSubtitle({
-                planState: row.planState,
-                plan: row.plan,
-                todayIso,
-                createdAt: row.relation.created_at,
-              })}
-              leading={<Avatar name={name} />}
-              trailing={
-                row.planState === 'missing' ? (
+            <div key={row.relation.relation_id} className="flex min-h-16 items-center gap-3 border-b border-border py-2">
+              <button
+                type="button"
+                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 text-left"
+                onClick={() => {
+                  const params = new URLSearchParams({ clientUserId: row.relation.client_user_id })
+                  if (row.planState === 'missing') params.set('screen', 'plan')
+                  else if (missed) params.set('screen', 'progress')
+                  navigate(`${APP_PATHS.clientProfile}?${params.toString()}`)
+                }}
+              >
+                <Avatar name={name} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[17px] font-semibold">{name}</span>
+                  <span className="mt-0.5 block truncate text-[15px] text-secondary-foreground">
+                    {clientListSubtitle({
+                      planState: row.planState,
+                      plan: row.plan,
+                      todayIso,
+                      createdAt: row.relation.created_at,
+                    })}
+                  </span>
+                </span>
+                {row.planState === 'missing' ? (
                   <StatusPill tone="neutral">Нет плана</StatusPill>
                 ) : missed ? (
                   <StatusPill tone="danger">Пропуски</StatusPill>
-                ) : null
-              }
-              onClick={() => {
-                const params = new URLSearchParams({ clientUserId: row.relation.client_user_id })
-                if (row.planState === 'missing') params.set('screen', 'plan')
-                else if (missed) params.set('screen', 'progress')
-                navigate(`${APP_PATHS.clientProfile}?${params.toString()}`)
-              }}
-            />
+                ) : null}
+              </button>
+              <Button asChild className="h-12 shrink-0 px-4">
+                <Link to={clientPlanPath(row.relation.client_user_id)}>План</Link>
+              </Button>
+            </div>
           )
         })}
         {!clientsQuery.isLoading && visible.length === 0 ? <p className="px-1 py-6 text-[17px]">Никого не нашли</p> : null}
       </div>
 
-      <button type="button" className="mt-6 text-[17px] font-semibold underline" onClick={() => setInviteOpen(true)}>
-        + Пригласить клиента
-      </button>
+      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 border-t border-border bg-card px-4 py-3 md:hidden">
+        <Button type="button" size="lg" className="h-12 w-full" onClick={() => setInviteOpen(true)}>
+          + Пригласить клиента
+        </Button>
+      </div>
 
       {inviteOpen ? (
         <InviteClientSheet
