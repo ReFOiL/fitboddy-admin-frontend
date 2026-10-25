@@ -5,6 +5,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
+import { BrandLogo } from '../components/brand/BrandLogo'
 import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { useAuth } from '../hooks/use-auth'
 import { Button } from '../components/ui/button'
@@ -96,7 +97,8 @@ export function LoginPage() {
 
   return (
     <main className="min-h-dvh bg-background px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:py-14">
-      <div className="mx-auto mb-3 flex w-full max-w-6xl justify-end">
+      <div className="mx-auto mb-4 flex w-full max-w-6xl items-center justify-between gap-3">
+        <BrandLogo className="h-10 sm:h-12" />
         <ThemeToggle />
       </div>
       <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
