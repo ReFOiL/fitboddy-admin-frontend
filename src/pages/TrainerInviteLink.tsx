@@ -52,7 +52,7 @@ export function TrainerInviteLinkPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg">
+    <div className="mx-auto w-full max-w-lg md:mt-8 md:rounded-2xl md:border md:border-border md:bg-card">
       <ScreenHeader
         title="Приглашение"
         backLabel="К клиентам"
@@ -93,12 +93,12 @@ export function TrainerInviteLinkPage() {
       ) : null}
 
       {link ? (
-        <div className="px-1 py-8">
+        <div className="px-1 py-8 md:px-5 md:pb-8 md:pt-6">
           <p className="text-center text-[17px] text-secondary-foreground">Постоянная ссылка для новых клиентов</p>
-          <p className="mt-6 flex h-14 items-center justify-center rounded-2xl border border-border bg-card px-4 font-mono text-[22px] font-bold tracking-[0.28em]">
+          <p className="mt-6 flex h-14 items-center justify-center rounded-2xl border border-border bg-card px-4 font-mono text-[22px] font-bold tracking-[0.28em] md:bg-background">
             {link.code}
           </p>
-          <div className="mt-4 flex min-h-14 items-center rounded-2xl border border-border bg-card pl-4 pr-1.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-focus">
+          <div className="mt-4 flex min-h-14 items-center rounded-2xl border border-border bg-card pl-4 pr-1.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-focus md:bg-background">
             <button
               type="button"
               onClick={() => void copyLink()}

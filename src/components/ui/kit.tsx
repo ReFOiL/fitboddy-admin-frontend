@@ -206,24 +206,24 @@ export function OverflowMenu({ items, label = 'Ещё' }: { items: OverflowItem[
   }, [open])
 
   return (
-    <>
+    <div className={cn('relative', open && 'z-50')}>
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
-        className="flex h-12 w-12 items-center justify-center text-[22px] leading-none"
-        onClick={() => setOpen(true)}
+        className="relative z-50 flex h-12 w-12 items-center justify-center text-[22px] leading-none"
+        onClick={() => setOpen((current) => !current)}
       >
         ⋯
       </button>
       {open ? (
-        <div className="fixed inset-0 z-40" role="presentation" onClick={() => setOpen(false)}>
+        <>
+          <div className="fixed inset-0 z-40" role="presentation" onClick={() => setOpen(false)} />
           <div
             role="menu"
             aria-labelledby={titleId}
-            className="absolute right-4 top-16 w-[min(100%-2rem,320px)] overflow-hidden rounded-2xl border border-border bg-card shadow-lg md:top-20"
-            onClick={(event) => event.stopPropagation()}
+            className="absolute right-0 top-full z-50 mt-1 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
           >
             <span id={titleId} className="sr-only">
               {label}
@@ -235,9 +235,9 @@ export function OverflowMenu({ items, label = 'Ещё' }: { items: OverflowItem[
               </div>
             ) : null}
           </div>
-        </div>
+        </>
       ) : null}
-    </>
+    </div>
   )
 }
 
