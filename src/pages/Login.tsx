@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff, ShieldCheck, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { z } from 'zod'
 
 import { BrandLogo } from '../components/brand/BrandLogo'
@@ -16,6 +16,7 @@ import { StyledSelect } from '../components/ui/styled-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { AlertBanner } from '../components/shared'
 import { APP_PATHS } from '../config'
+import { pathAfterAuth } from '../lib/invite'
 
 const loginSchema = z.object({
   email_or_login: z
@@ -67,6 +68,8 @@ function getPasswordStrengthMeta(password: string): { label: string; colorClass:
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState(searchParams.get('tab') === 'register' ? 'register' : 'login')
   const { loginMutation, registerMutation } = useAuth()
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
@@ -131,7 +134,7 @@ export function LoginPage() {
             <CardDescription>Войди в существующий аккаунт или создай новый за минуту.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs value={tab} onValueChange={setTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Вход</TabsTrigger>
                 <TabsTrigger value="register">Регистрация</TabsTrigger>
@@ -152,7 +155,7 @@ export function LoginPage() {
                         password: values.password,
                       },
                       {
-                        onSuccess: () => navigate('/home', { replace: true }),
+                        onSuccess: (payload) => navigate(pathAfterAuth(payload.user.role, APP_PATHS.home), { replace: true }),
                       },
                     )
                   })}
@@ -226,7 +229,10 @@ export function LoginPage() {
                       {
                         onSuccess: () =>
                           navigate(
-                            values.role === 'client' ? APP_PATHS.profileOnboarding : APP_PATHS.home,
+                            pathAfterAuth(
+                              values.role,
+                              values.role === 'client' ? APP_PATHS.profileOnboarding : APP_PATHS.home,
+                            ),
                             { replace: true },
                           ),
                       },

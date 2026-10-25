@@ -7,6 +7,8 @@ describe('app-routes', () => {
     expect(resolveDocumentTitle(APP_PATHS.more, 'client')).toBe('Fitboddy — Ещё')
     expect(resolveDocumentTitle(APP_PATHS.profileOnboarding, 'client')).toBe('Fitboddy — Настройка профиля')
     expect(resolveDocumentTitle('/clients/client-1/plan', 'trainer')).toBe('Fitboddy — План клиента')
+    expect(resolveDocumentTitle(APP_PATHS.trainerInvite, 'trainer')).toBe('Fitboddy — Приглашение')
+    expect(resolveDocumentTitle('/i/AB3K9Z', null)).toBe('Fitboddy — Приглашение')
     expect(resolveDocumentTitle('/unknown', null)).toBe('Fitboddy')
   })
 
