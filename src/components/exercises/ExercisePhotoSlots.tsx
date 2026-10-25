@@ -2,6 +2,8 @@ import { Image, Loader2, Trash2 } from 'lucide-react'
 import { useRef } from 'react'
 import { toast } from 'sonner'
 
+import { MissingPhoto } from '../media/ExerciseMedia'
+
 import {
   EXERCISE_PHOTO_ACCEPT,
   EXERCISE_PHOTO_HINT,
@@ -157,7 +159,7 @@ function ExercisePhotoSlot({
               {isUploading ? formatUploadStatus(uploadProgress) : 'Удаляем фото...'}
             </div>
             <div className="text-xs text-secondary-foreground">
-              {isUploading ? 'Не закрывай страницу, пока файл не сохранится.' : 'Подожди немного.'}
+              {isUploading ? 'Не закрывайте страницу, пока файл не сохранится.' : 'Подождите немного.'}
             </div>
             {isUploading && uploadProgress != null ? (
               <div
@@ -202,9 +204,10 @@ function ExercisePhotoSlot({
           ) : null}
         </div>
       ) : !isBusy ? (
-        <span className="text-sm text-secondary-foreground">
-          {editable ? 'Фото ещё не загружено.' : 'Фото пока не загружено.'}
-        </span>
+        <MissingPhoto
+          label={position === 'start' ? 'Старт' : 'Финиш'}
+          className="aspect-[4/3] w-full rounded-xl"
+        />
       ) : null}
     </div>
   )

@@ -86,7 +86,8 @@ describe('ClientRelationsPage smoke', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('У вас уже есть активный тренер')).toBeInTheDocument()
+    expect(screen.getByText('Ваш тренер')).toBeInTheDocument()
+    expect(screen.getByText('Тренер')).toBeInTheDocument()
     expect(screen.queryByText('Входящие приглашения')).not.toBeInTheDocument()
     expect(screen.queryByText('Выберите тренера')).not.toBeInTheDocument()
   })

@@ -2,9 +2,11 @@ import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import { useEffect, useId, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
+import { CATALOG_THUMB_SRC, VIDEO_PLACEHOLDER_SRC } from '../../lib/media-placeholders'
 import { personInitials } from '../../lib/person'
 import { cn } from '../../lib/utils'
 import { ThemeToggle } from '../layout/ThemeToggle'
+import { Button } from './button'
 
 export function PageTitle({ children }: { children: ReactNode }) {
   return <h1 className="text-[28px] font-bold leading-tight">{children}</h1>
@@ -186,6 +188,7 @@ export type OverflowItem = {
   label: string
   hint?: string
   hintTone?: 'danger' | 'muted'
+  danger?: boolean
   onSelect: () => void
 }
 
@@ -225,25 +228,12 @@ export function OverflowMenu({ items, label = 'Ещё' }: { items: OverflowItem[
             <span id={titleId} className="sr-only">
               {label}
             </span>
-            {items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitem"
-                className="flex min-h-14 w-full flex-col items-start justify-center border-b border-border px-4 py-2 text-left last:border-b-0"
-                onClick={() => {
-                  setOpen(false)
-                  item.onSelect()
-                }}
-              >
-                <span className="text-[17px] font-semibold">{item.label}</span>
-                {item.hint ? (
-                  <span className={cn('text-[13px]', item.hintTone === 'danger' ? 'text-destructive' : 'text-secondary-foreground')}>
-                    {item.hint}
-                  </span>
-                ) : null}
-              </button>
-            ))}
+            <OverflowMenuItems items={items.filter((item) => !item.danger)} onPick={() => setOpen(false)} />
+            {items.some((item) => item.danger) ? (
+              <div className="border-t border-destructive/40 bg-destructive/5">
+                <OverflowMenuItems items={items.filter((item) => item.danger)} danger onPick={() => setOpen(false)} />
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -290,14 +280,90 @@ export function DoneMark() {
 }
 
 export function ExerciseThumb({ imageUrl, hasVideo }: { imageUrl?: string | null; hasVideo?: boolean }) {
+  const src = imageUrl?.trim() ? imageUrl : hasVideo ? VIDEO_PLACEHOLDER_SRC : CATALOG_THUMB_SRC
+  const showPlay = Boolean(hasVideo && imageUrl?.trim())
   return (
-    <span className="photo-placeholder relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg">
-      {imageUrl ? <img src={imageUrl} alt="" className="h-full w-full object-cover" /> : null}
-      {hasVideo ? (
-        <span className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-media text-media-foreground">
-          <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-media-foreground" />
+    <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary">
+      <img src={src} alt="" className="h-full w-full object-cover" />
+      {showPlay ? (
+        <span className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-background/80 text-foreground">
+          <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground" />
         </span>
       ) : null}
     </span>
+  )
+}
+
+function OverflowMenuItems({
+  items,
+  danger = false,
+  onPick,
+}: {
+  items: OverflowItem[]
+  danger?: boolean
+  onPick: () => void
+}) {
+  return (
+    <>
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          role="menuitem"
+          className="flex min-h-14 w-full flex-col items-start justify-center border-b border-border px-4 py-2 text-left last:border-b-0"
+          onClick={() => {
+            onPick()
+            item.onSelect()
+          }}
+        >
+          <span className={cn('text-[17px] font-semibold', danger && 'text-destructive')}>{item.label}</span>
+          {item.hint ? (
+            <span className={cn('text-[13px]', item.hintTone === 'danger' || danger ? 'text-destructive' : 'text-secondary-foreground')}>
+              {item.hint}
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </>
+  )
+}
+
+export function ConfirmSheet({
+  title,
+  body,
+  confirmLabel,
+  cancelLabel = 'Оставить',
+  pending = false,
+  tone = 'default',
+  onConfirm,
+  onClose,
+}: {
+  title: string
+  body: string
+  confirmLabel: string
+  cancelLabel?: string
+  pending?: boolean
+  tone?: 'default' | 'danger'
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  return (
+    <Sheet title={title} onClose={onClose}>
+      <p className="text-[17px]">{body}</p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button type="button" variant="secondary" className="h-12" onClick={onClose} disabled={pending}>
+          {cancelLabel}
+        </Button>
+        <Button
+          type="button"
+          variant={tone === 'danger' ? 'destructive' : 'default'}
+          className="h-12"
+          onClick={onConfirm}
+          disabled={pending}
+        >
+          {pending ? 'Подождите…' : confirmLabel}
+        </Button>
+      </div>
+    </Sheet>
   )
 }

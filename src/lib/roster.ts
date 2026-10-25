@@ -58,8 +58,6 @@ export function clientListSubtitle(input: {
     const progress = weekProgress(plan, today.week)
     return `Сегодня · ${progress.done} из ${progress.total} на неделе`
   }
-  const lastMissed = missedPlanDays(plan, todayIso).sort((left, right) => right.scheduled_for.localeCompare(left.scheduled_for))[0]
-  if (lastMissed) return `Последняя: ${formatMonthDay(lastMissed.scheduled_for)}`
   const last = lastCompletedDay(plan)
   if (last) return `Последняя: ${formatMonthDay(last.scheduled_for)}`
   return 'План есть'

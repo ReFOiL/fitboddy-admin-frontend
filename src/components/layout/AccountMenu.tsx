@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import { APP_PATHS, type AppRole } from '../../config'
 import { firstName } from '../../lib/person'
+import { ThemeToggle } from './ThemeToggle'
 
 type AccountMenuProps = {
   role: AppRole
@@ -58,13 +59,18 @@ export function AccountMenu({
             <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.profile} onClick={() => setOpen(false)}>
               Профиль
             </Link>
+            <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border px-4">
+              <span className="text-[17px]">Тёмная тема</span>
+              <ThemeToggle />
+            </div>
             {role === 'trainer' ? (
               <>
                 <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.analytics} onClick={() => setOpen(false)}>
                   Аналитика
                 </Link>
-                <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.planRules} onClick={() => setOpen(false)}>
-                  Настройки плана
+                <Link role="menuitem" className="flex min-h-12 flex-col justify-center border-b border-border px-4" to={APP_PATHS.planRules} onClick={() => setOpen(false)}>
+                  <span className="text-[17px]">Настройки плана</span>
+                  <span className="text-[13px] text-secondary-foreground">Для новых планов</span>
                 </Link>
                 <button
                   type="button"

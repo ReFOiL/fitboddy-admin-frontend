@@ -119,16 +119,19 @@ export function slotsToWrite(slots: DraftSlot[]): SlotWrite[] {
   }))
 }
 
-export function formatDosage(slot: {
-  sets?: number | null
-  reps?: number | null
-  durationSeconds?: number | null
-  duration_seconds?: number | null
-  weightKg?: number | null
-  weight_kg?: number | null
-  restSeconds?: number | null
-  rest_seconds?: number | null
-}): string {
+export function formatDosage(
+  slot: {
+    sets?: number | null
+    reps?: number | null
+    durationSeconds?: number | null
+    duration_seconds?: number | null
+    weightKg?: number | null
+    weight_kg?: number | null
+    restSeconds?: number | null
+    rest_seconds?: number | null
+  },
+  options?: { includeRest?: boolean },
+): string {
   const sets = slot.sets
   const reps = slot.reps
   const duration = slot.durationSeconds ?? slot.duration_seconds
@@ -141,7 +144,7 @@ export function formatDosage(slot: {
   else if (reps && reps > 0) parts.push(`${reps}`)
   else if (sets && sets > 0) parts.push(`${sets} подх.`)
   if (weight != null && weight > 0) parts.push(`${weight} кг`)
-  if (rest != null && rest > 0) {
+  if (options?.includeRest !== false && rest != null && rest > 0) {
     const restLabel = rest % 60 === 0 ? `${rest / 60} мин` : `${rest} с`
     parts.push(`отдых ${restLabel}`)
   }

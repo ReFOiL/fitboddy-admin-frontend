@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react'
 
-import { clearSessionChecks, clearWorkoutStart, loadSessionChecks, markWorkoutStarted, saveSessionChecks } from '../lib/plan-session'
+import {
+  clearActiveWorkoutDay,
+  clearSessionChecks,
+  clearWorkoutStart,
+  loadActiveWorkoutDay,
+  loadSessionChecks,
+  markWorkoutStarted,
+  saveActiveWorkoutDay,
+  saveSessionChecks,
+} from '../lib/plan-session'
 import type { TodayWorkout } from '../types/plan'
 
 type SessionDraft = {
@@ -9,9 +18,18 @@ type SessionDraft = {
 }
 
 export function useWorkoutSession(workout: TodayWorkout | undefined) {
-  const [isActive, setIsActive] = useState(false)
   const [draft, setDraft] = useState<SessionDraft | null>(null)
   const dayId = workout?.day_id
+  // Ручной старт/сворачивание на этом экране. null — читаем флаг из sessionStorage,
+  // чтобы смена вкладки не стирала начатую тренировку.
+  const [trackedDayId, setTrackedDayId] = useState(dayId)
+  const [manualActive, setManualActive] = useState<boolean | null>(null)
+  if (dayId !== trackedDayId) {
+    setTrackedDayId(dayId)
+    setManualActive(null)
+  }
+  const storedActive = Boolean(dayId && loadActiveWorkoutDay() === dayId)
+  const active = manualActive ?? storedActive
 
   const checkedLineIds = useMemo(() => {
     if (!dayId) return new Set<string>()
@@ -33,8 +51,9 @@ export function useWorkoutSession(workout: TodayWorkout | undefined) {
       clearSessionChecks(dayId)
       clearWorkoutStart(dayId)
     }
+    clearActiveWorkoutDay()
     setDraft(null)
-    setIsActive(false)
+    setManualActive(false)
   }
 
   const checkedCount = workout
@@ -42,12 +61,18 @@ export function useWorkoutSession(workout: TodayWorkout | undefined) {
     : 0
 
   return {
-    isActive: Boolean(isActive && workout && !workout.is_completed),
+    isActive: Boolean(active && workout && !workout.is_completed),
     start: () => {
-      if (dayId) markWorkoutStarted(dayId)
-      setIsActive(true)
+      if (dayId) {
+        markWorkoutStarted(dayId)
+        saveActiveWorkoutDay(dayId)
+      }
+      setManualActive(true)
     },
-    collapse: () => setIsActive(false),
+    collapse: () => {
+      clearActiveWorkoutDay()
+      setManualActive(false)
+    },
     finish,
     checkedLineIds,
     checkedCount,

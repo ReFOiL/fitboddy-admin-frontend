@@ -1,16 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, Dumbbell, Search, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Dumbbell, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { listMuscles } from '../api/exercises'
 import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
+import { MissingPhoto } from '../components/media/ExerciseMedia'
+import { ExerciseThumb } from '../components/ui/kit'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
+import { validateExercisePhotoFile } from '../lib/exercise-photos'
 import type { LoadScheme, UpsertTrainerExerciseRequest } from '../types/exercise'
 import { formatEquipmentLabel, normalizeEquipmentName } from '../lib/equipment'
 import {
@@ -35,9 +39,9 @@ const exerciseSchema = z
     description: z.string().max(4000, 'Максимум 4000 символов').optional(),
     equipment: z
       .string()
-      .min(2, 'Укажи инвентарь')
+      .min(2, 'Укажите инвентарь')
       .refine((value) => value.trim().toLowerCase() === 'none' || normalizeEquipmentName(value) !== null, {
-        message: 'Укажи название инвентаря (2–64 символа)',
+        message: 'Укажите название инвентаря (2–64 символа)',
       }),
     is_cardio: z.boolean(),
     is_hold: z.boolean(),
@@ -55,10 +59,10 @@ const exerciseSchema = z
   .superRefine((values, ctx) => {
     if (values.is_hold) {
       if (values.default_duration_seconds == null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_duration_seconds'], message: 'Укажи длительность' })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_duration_seconds'], message: 'Укажите длительность' })
       }
     } else if (values.default_reps == null) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_reps'], message: 'Укажи повторения' })
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_reps'], message: 'Укажите повторения' })
     }
     if (values.load_scheme === 'custom') {
       const steps = parseSchemeStepsInput(values.scheme_steps_input ?? '')
@@ -66,7 +70,7 @@ const exerciseSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['scheme_steps_input'],
-          message: 'Укажи коэффициенты через запятую, например 0.7, 0.85, 1',
+          message: 'Укажите коэффициенты через запятую, например 0.7, 0.85, 1',
         })
       }
     }
@@ -162,6 +166,11 @@ export function ExercisesPage() {
   const { profileQuery } = useProfile(trainerUserId)
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
   const [showPlanHint, setShowPlanHint] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [startPhoto, setStartPhoto] = useState<File | null>(null)
+  const [endPhoto, setEndPhoto] = useState<File | null>(null)
+  const [startPreview, setStartPreview] = useState<string | null>(null)
+  const [endPreview, setEndPreview] = useState<string | null>(null)
   const [filterMode, setFilterMode] = useState<CatalogFilterMode>('active')
   const [searchQuery, setSearchQuery] = useState('')
   const includeArchived = filterMode !== 'active'
@@ -171,6 +180,7 @@ export function ExercisesPage() {
     updateExerciseMutation,
     archiveExerciseMutation,
     restoreExerciseMutation,
+    uploadPhotoMutation,
   } = useExercises({
     trainerUserId,
     includeArchived,
@@ -228,7 +238,8 @@ export function ExercisesPage() {
     addExerciseMutation.isPending ||
     updateExerciseMutation.isPending ||
     archiveExerciseMutation.isPending ||
-    restoreExerciseMutation.isPending
+    restoreExerciseMutation.isPending ||
+    uploadPhotoMutation.isPending
 
   if (!isTrainer) {
     return (
@@ -252,7 +263,7 @@ export function ExercisesPage() {
             Упражнения
           </CardTitle>
           <CardDescription>
-            Базовые упражнения уже добавляются автоматически. Здесь создаются новые упражнения, а редактирование доступно на отдельной странице упражнения.
+            Системная база упражнений пока не подтягивается сама. Здесь вы создаёте свои, а правите их на странице упражнения.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -267,10 +278,28 @@ export function ExercisesPage() {
               onSubmit={form.handleSubmit((values) => {
                 const payload = mapFormToPayload(values)
                 addExerciseMutation.mutate(payload, {
-                  onSuccess: () => {
-                    form.reset(defaultValues)
-                    setIsCreateFormOpen(false)
-                    setShowPlanHint(true)
+                  onSuccess: (created) => {
+                    const uploads: Array<Promise<unknown>> = []
+                    if (startPhoto) {
+                      uploads.push(
+                        uploadPhotoMutation.mutateAsync({ rowId: created.row_id, position: 'start', file: startPhoto }),
+                      )
+                    }
+                    if (endPhoto) {
+                      uploads.push(uploadPhotoMutation.mutateAsync({ rowId: created.row_id, position: 'end', file: endPhoto }))
+                    }
+                    void Promise.all(uploads).finally(() => {
+                      form.reset(defaultValues)
+                      setStartPhoto(null)
+                      setEndPhoto(null)
+                      if (startPreview) URL.revokeObjectURL(startPreview)
+                      if (endPreview) URL.revokeObjectURL(endPreview)
+                      setStartPreview(null)
+                      setEndPreview(null)
+                      setMoreOpen(false)
+                      setIsCreateFormOpen(false)
+                      setShowPlanHint(true)
+                    })
                   },
                 })
               })}
@@ -283,7 +312,32 @@ export function ExercisesPage() {
                 ) : null}
               </div>
 
-              <div className="grid gap-1.5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <CreatePhotoPicker
+                  label="Старт"
+                  inputId="create_photo_start"
+                  preview={startPreview}
+                  disabled={formDisabled}
+                  onFile={(file) => {
+                    if (startPreview) URL.revokeObjectURL(startPreview)
+                    setStartPhoto(file)
+                    setStartPreview(file ? URL.createObjectURL(file) : null)
+                  }}
+                />
+                <CreatePhotoPicker
+                  label="Финиш"
+                  inputId="create_photo_end"
+                  preview={endPreview}
+                  disabled={formDisabled}
+                  onFile={(file) => {
+                    if (endPreview) URL.revokeObjectURL(endPreview)
+                    setEndPhoto(file)
+                    setEndPreview(file ? URL.createObjectURL(file) : null)
+                  }}
+                />
+              </div>
+
+              <div className={moreOpen ? 'grid gap-1.5' : 'hidden'}>
                 <Label htmlFor="description">Описание</Label>
                 <textarea
                   id="description"
@@ -297,7 +351,7 @@ export function ExercisesPage() {
                 ) : null}
               </div>
 
-              <div className="grid gap-2 rounded-xl border border-border/70 bg-background/40 p-3">
+              <div className={`grid gap-2 rounded-xl border border-border/70 bg-background/40 p-3 ${moreOpen ? '' : 'hidden'}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Label>Группы мышц</Label>
                   <span className="text-xs text-secondary-foreground">
@@ -320,6 +374,7 @@ export function ExercisesPage() {
                 )}
               </div>
 
+              <div className={moreOpen ? '' : 'hidden'}>
               <EquipmentPicker
                 id="equipment"
                 disabled={formDisabled}
@@ -332,8 +387,9 @@ export function ExercisesPage() {
                   })
                 }}
               />
+              </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className={`grid gap-4 md:grid-cols-2 ${moreOpen ? '' : 'hidden'}`}>
                 <div className="grid gap-1.5">
                   <Label htmlFor="difficulty">Сложность (1-5)</Label>
                   <DifficultyPicker
@@ -368,7 +424,7 @@ export function ExercisesPage() {
                 </div>
               </div>
 
-              <div className="grid gap-1.5">
+              <div className={`grid gap-1.5 ${moreOpen ? '' : 'hidden'}`}>
                 <Label htmlFor="is_hold">Дозировка</Label>
                 <StyledSelect
                   id="is_hold"
@@ -467,7 +523,7 @@ export function ExercisesPage() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-1.5">
+                <div className={`grid gap-1.5 ${moreOpen ? '' : 'hidden'}`}>
                   <Label htmlFor="default_rest_seconds">Отдых (сек)</Label>
                   <Input
                     id="default_rest_seconds"
@@ -512,7 +568,7 @@ export function ExercisesPage() {
                 </div>
               </div>
 
-              <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/15 p-3">
+              <div className={`grid gap-3 rounded-xl border border-border/70 bg-secondary/15 p-3 ${moreOpen ? '' : 'hidden'}`}>
                   <div className="grid gap-1.5">
                     <Label>Схема подходов</Label>
                     <StyledSelect
@@ -563,6 +619,16 @@ export function ExercisesPage() {
                   </div>
                 </div>
 
+              <button
+                type="button"
+                className="flex min-h-12 w-full items-center justify-between text-left text-[17px] font-semibold"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((current) => !current)}
+              >
+                <span>Ещё</span>
+                <span>{moreOpen ? '▴' : '▾'}</span>
+              </button>
+
               <div className="flex flex-wrap gap-2">
                 <Button type="submit" size="lg" className="min-w-56" disabled={formDisabled}>
                   Сохранить упражнение
@@ -572,6 +638,13 @@ export function ExercisesPage() {
                   variant="secondary"
                   onClick={() => {
                     form.reset(defaultValues)
+                    if (startPreview) URL.revokeObjectURL(startPreview)
+                    if (endPreview) URL.revokeObjectURL(endPreview)
+                    setStartPhoto(null)
+                    setEndPhoto(null)
+                    setStartPreview(null)
+                    setEndPreview(null)
+                    setMoreOpen(false)
                     setIsCreateFormOpen(false)
                   }}
                   disabled={formDisabled}
@@ -649,7 +722,8 @@ export function ExercisesPage() {
                       to={`/exercises/${encodeURIComponent(exercise.row_id)}`}
                       className="flex min-h-16 items-center justify-between gap-3"
                     >
-                      <span>
+                      <ExerciseThumb imageUrl={exercise.start_image_url} hasVideo={Boolean(exercise.video_url)} />
+                      <span className="min-w-0 flex-1">
                         <span className="block text-[17px] font-semibold">{exercise.exercise_name}</span>
                         <span className="block text-[15px] text-secondary-foreground">
                           {formatCategory(exercise.workout_category)} · {formatEquipment(exercise.equipment)} ·{' '}
@@ -659,33 +733,21 @@ export function ExercisesPage() {
                       </span>
                       <span aria-hidden>›</span>
                     </Link>
+                    {!exercise.is_active ? (
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {exercise.is_active ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          className="gap-2"
-                          onClick={() => archiveExerciseMutation.mutate(exercise.row_id)}
-                          disabled={formDisabled}
-                        >
-                          <Trash2 size={14} />
-                          В архив
-                        </Button>
-                      ) : (
                         <Button
                           type="button"
                           size="sm"
                           variant="secondary"
-                          className="gap-2"
+                          className="h-12 gap-2"
                           onClick={() => restoreExerciseMutation.mutate(exercise.row_id)}
                           disabled={formDisabled}
                         >
                           <ArchiveRestore size={14} />
                           Восстановить
                         </Button>
-                      )}
                     </div>
+                    ) : null}
                   </div>
                 ))
               )}
@@ -693,6 +755,49 @@ export function ExercisesPage() {
           ) : null}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function CreatePhotoPicker({
+  label,
+  inputId,
+  preview,
+  disabled,
+  onFile,
+}: {
+  label: 'Старт' | 'Финиш'
+  inputId: string
+  preview: string | null
+  disabled: boolean
+  onFile: (file: File | null) => void
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={inputId}>Фото · {label}</Label>
+      {preview ? (
+        <img src={preview} alt="" className="aspect-[4/3] w-full rounded-2xl object-cover" />
+      ) : (
+        <MissingPhoto label={label} className="aspect-[4/3] w-full rounded-2xl" />
+      )}
+      <Input
+        id={inputId}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+        disabled={disabled}
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null
+          if (file) {
+            const error = validateExercisePhotoFile(file)
+            if (error) {
+              toast.error(error)
+              event.currentTarget.value = ''
+              return
+            }
+          }
+          onFile(file)
+        }}
+      />
     </div>
   )
 }

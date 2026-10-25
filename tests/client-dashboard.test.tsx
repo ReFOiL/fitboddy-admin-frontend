@@ -171,7 +171,7 @@ describe('client Dashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Тренироваться самостоятельно' }))
     expect(mocks.runGenerate).toHaveBeenCalledWith('system')
-    expect(screen.getByRole('link', { name: 'выбрать тренера' })).toHaveAttribute('href', '/trainers')
+    expect(screen.getByRole('link', { name: 'выберите тренера' })).toHaveAttribute('href', '/trainers')
   })
 
   it('запускает session mode из тренировки на сегодня', () => {

@@ -58,7 +58,7 @@ describe('TrainerRelationsPage smoke', () => {
     )
 
     expect(screen.getByRole('heading', { name: /Клиенты/ })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '+ Пригласить клиента' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '+ Пригласить клиента' })[0])
     expect(screen.getByText('Видимость профиля')).toBeInTheDocument()
   })
 })

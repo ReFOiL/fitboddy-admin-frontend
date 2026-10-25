@@ -91,7 +91,7 @@ export function ProfileOnboardingPage() {
     if (step === 1) {
       const valid = await form.trigger('full_name')
       if (!form.getValues('full_name')?.trim()) {
-        form.setError('full_name', { type: 'manual', message: 'Укажи имя' })
+        form.setError('full_name', { type: 'manual', message: 'Укажите имя' })
         return false
       }
       return valid
@@ -104,9 +104,9 @@ export function ProfileOnboardingPage() {
       }
       const values = form.getValues()
       const required: Array<['goal' | 'experience_level' | 'workout_location', string | null, string]> = [
-        ['goal', values.goal, 'Выбери цель'],
-        ['experience_level', values.experience_level, 'Выбери уровень'],
-        ['workout_location', values.workout_location, 'Выбери место тренировок'],
+        ['goal', values.goal, 'Выберите цель'],
+        ['experience_level', values.experience_level, 'Выберите уровень'],
+        ['workout_location', values.workout_location, 'Выберите место тренировок'],
       ]
       for (const [field, value, message] of required) {
         if (!value) {
@@ -115,15 +115,15 @@ export function ProfileOnboardingPage() {
         }
       }
       if (!isKnownProfileOption(values.goal, metaQuery.data.goals)) {
-        form.setError('goal', { type: 'manual', message: 'Выбери цель из списка' })
+        form.setError('goal', { type: 'manual', message: 'Выберите цель из списка' })
         return false
       }
       if (!isKnownProfileOption(values.experience_level, metaQuery.data.levels)) {
-        form.setError('experience_level', { type: 'manual', message: 'Выбери уровень из списка' })
+        form.setError('experience_level', { type: 'manual', message: 'Выберите уровень из списка' })
         return false
       }
       if (!isKnownProfileOption(values.workout_location, metaQuery.data.workout_locations)) {
-        form.setError('workout_location', { type: 'manual', message: 'Выбери место из списка' })
+        form.setError('workout_location', { type: 'manual', message: 'Выберите место из списка' })
         return false
       }
       return true
@@ -131,15 +131,15 @@ export function ProfileOnboardingPage() {
 
     const valid = await form.trigger(['age', 'gender', 'limitations', 'medical_notes'])
     if (form.getValues('age') == null) {
-      form.setError('age', { type: 'manual', message: 'Укажи возраст' })
+      form.setError('age', { type: 'manual', message: 'Укажите возраст' })
       return false
     }
     if (!form.getValues('gender')) {
-      form.setError('gender', { type: 'manual', message: 'Выбери пол' })
+      form.setError('gender', { type: 'manual', message: 'Выберите пол' })
       return false
     }
     if (metaQuery.data && !isKnownProfileOption(form.getValues('gender'), metaQuery.data.genders)) {
-      form.setError('gender', { type: 'manual', message: 'Выбери пол из списка' })
+      form.setError('gender', { type: 'manual', message: 'Выберите пол из списка' })
       return false
     }
     return valid
@@ -187,11 +187,11 @@ export function ProfileOnboardingPage() {
             <Check size={24} />
           </div>
           <CardTitle>Профиль готов</CardTitle>
-          <CardDescription>Выбери, как хочешь начать тренироваться.</CardDescription>
+          <CardDescription>Выберите, как хотите начать тренироваться.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
           <Button asChild size="lg" className="h-12 w-full">
-            <Link to={APP_PATHS.planGeneration}>Создать план</Link>
+            <Link to={APP_PATHS.home}>Создать план</Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="h-12 w-full">
             <Link to={APP_PATHS.trainers}>Выбрать тренера</Link>
@@ -286,7 +286,7 @@ export function ProfileOnboardingPage() {
                   label="Цель"
                   value={goal}
                   options={metaQuery.data?.goals ?? []}
-                  placeholder="Выбери цель..."
+                  placeholder="Выберите цель..."
                   disabled={metaQuery.isLoading}
                   onChange={(value) => form.setValue('goal', value, { shouldValidate: true })}
                   error={form.formState.errors.goal?.message}
@@ -296,7 +296,7 @@ export function ProfileOnboardingPage() {
                   label="Уровень вашей подготовки"
                   value={level}
                   options={metaQuery.data?.levels ?? []}
-                  placeholder="Выбери уровень..."
+                  placeholder="Выберите уровень..."
                   disabled={metaQuery.isLoading}
                   onChange={(value) => form.setValue('experience_level', value, { shouldValidate: true })}
                   error={form.formState.errors.experience_level?.message}
@@ -306,7 +306,7 @@ export function ProfileOnboardingPage() {
                   label="Место тренировок"
                   value={location}
                   options={metaQuery.data?.workout_locations ?? []}
-                  placeholder="Выбери место..."
+                  placeholder="Выберите место..."
                   disabled={metaQuery.isLoading}
                   onChange={(value) => form.setValue('workout_location', value, { shouldValidate: true })}
                   error={form.formState.errors.workout_location?.message}
@@ -337,7 +337,7 @@ export function ProfileOnboardingPage() {
                     label="Пол"
                     value={gender}
                     options={metaQuery.data?.genders ?? []}
-                    placeholder="Выбери пол..."
+                    placeholder="Выберите пол..."
                     disabled={metaQuery.isLoading}
                     onChange={(value) => form.setValue('gender', value, { shouldValidate: true })}
                     error={form.formState.errors.gender?.message}

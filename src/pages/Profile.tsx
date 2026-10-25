@@ -3,8 +3,10 @@ import axios from 'axios'
 import { CheckCircle2, Dumbbell, HeartPulse, UserRound } from 'lucide-react'
 import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 
 import { NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
+import { APP_PATHS } from '../config'
 import { notificationsEnabled } from '../config/features'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
@@ -77,7 +79,7 @@ export function ProfilePage() {
         ['gender', values.gender, 'Для профиля клиента пол обязателен'],
         ['goal', values.goal, 'Для профиля клиента цель обязательна'],
         ['experience_level', values.experience_level, 'Для профиля клиента уровень обязателен'],
-        ['workout_location', values.workout_location, 'Укажи место тренировок'],
+        ['workout_location', values.workout_location, 'Укажите место тренировок'],
       ]
       const missingField = requiredFields.find(([, value]) => value == null || value === '')
       if (missingField) {
@@ -87,10 +89,10 @@ export function ProfilePage() {
     }
 
     const optionChecks: Array<[keyof ProfileFormValues, string | null, Array<{ value: string }>, string]> = [
-      ['gender', values.gender, genderOptions, 'Выбери пол из списка'],
-      ['goal', values.goal, goalOptions, 'Выбери цель из списка'],
-      ['experience_level', values.experience_level, levelOptions, 'Выбери уровень из списка'],
-      ['workout_location', values.workout_location, locationOptions, 'Выбери место тренировок из списка'],
+      ['gender', values.gender, genderOptions, 'Выберите пол из списка'],
+      ['goal', values.goal, goalOptions, 'Выберите цель из списка'],
+      ['experience_level', values.experience_level, levelOptions, 'Выберите уровень из списка'],
+      ['workout_location', values.workout_location, locationOptions, 'Выберите место тренировок из списка'],
     ]
     const invalidOption = optionChecks.find(([, value, options]) => !isKnownProfileOption(value, options))
     if (invalidOption) {
@@ -111,7 +113,11 @@ export function ProfilePage() {
     <form className="space-y-5 pb-40 md:pb-0" onSubmit={submitProfile} noValidate>
       <header>
         <h1 className="text-[28px] font-bold">Профиль</h1>
-        {targetUserId ? <p className="mt-2 text-[15px] text-secondary-foreground">ID: {targetUserId}</p> : null}
+        {user?.role === 'client' ? (
+          <Button asChild variant="secondary" className="mt-4 h-12 w-full sm:w-auto">
+            <Link to={APP_PATHS.profileTraining}>Веса и инвентарь</Link>
+          </Button>
+        ) : null}
       </header>
 
       {isNotFound ? (

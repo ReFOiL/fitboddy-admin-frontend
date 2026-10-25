@@ -6,6 +6,7 @@ import { formatWeekday } from '../../lib/plan-formatters'
 import { cn } from '../../lib/utils'
 import type { PlanExercise, TodayWorkout } from '../../types/plan'
 import { Button } from '../ui/button'
+import { ExerciseThumb } from '../ui/kit'
 
 type WorkoutSessionProps = {
   workout: TodayWorkout
@@ -17,7 +18,6 @@ type WorkoutSessionProps = {
   trainerName?: string
   onCollapse: () => void
   onToggleChecked: (lineId: string) => void
-  onReplaceExercise: (lineId: string) => void
   onFinish: () => void
 }
 
@@ -31,7 +31,6 @@ export function WorkoutSession({
   trainerName,
   onCollapse,
   onToggleChecked,
-  onReplaceExercise,
   onFinish,
 }: WorkoutSessionProps) {
   const allChecked = exerciseTotal > 0 && checkedCount === exerciseTotal
@@ -70,23 +69,17 @@ export function WorkoutSession({
                 {done ? <Check size={20} /> : null}
               </button>
               <Link to={detailsTo} className="flex min-w-0 flex-1 items-center gap-3">
-                <span className="photo-placeholder h-12 w-12 shrink-0 rounded-lg" />
+                <ExerciseThumb />
                 <span className="min-w-0 flex-1">
                   <span className={cn('block truncate text-[17px] font-semibold', done && 'line-through')}>
                     {exercise.exercise_name}
                   </span>
-                  <span className="block truncate text-[15px] text-secondary-foreground">{formatDosage(exercise)}</span>
+                  <span className="block truncate text-[15px] text-secondary-foreground">
+                    {formatDosage(exercise, { includeRest: false })}
+                  </span>
                 </span>
                 <ChevronRight size={18} aria-hidden />
               </Link>
-              <button
-                type="button"
-                className="h-12 shrink-0 px-2 text-[15px] underline"
-                disabled={busy}
-                onClick={() => onReplaceExercise(exercise.line_id)}
-              >
-                Заменить
-              </button>
             </div>
           )
         })}
@@ -128,6 +121,7 @@ function exerciseDetailsTo(exercise: PlanExercise, workout: TodayWorkout, index 
   params.set('line', exercise.line_id)
   params.set('day', workout.day_id)
   params.set('dayIndex', String(workout.day_index))
+  params.set('lines', workout.exercises.map((item) => item.line_id).join(','))
   const query = params.toString()
   return `/plan/exercises/${encodeURIComponent(exercise.exercise_id)}${query ? `?${query}` : ''}`
 }

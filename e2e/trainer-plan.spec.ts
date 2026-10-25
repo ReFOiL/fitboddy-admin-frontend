@@ -1,7 +1,6 @@
 import type { Page } from '@playwright/test'
 
 import { IDS, TOKENS } from './support/api-mock'
-import { clickWithDialog } from './support/dialog'
 import { signIn } from './support/session'
 import { expect, test } from './support/test'
 
@@ -40,12 +39,13 @@ test('тренер собирает план: день, упражнение, д
   await expect(stepperValue(page, 'Вес, кг')).toHaveText('42.5')
   await page.getByRole('button', { name: /Ещё: отдых/ }).click()
   await page.getByLabel('Заметка').fill('Лопатки свести, не отрывать таз')
-  await page.getByRole('button', { name: 'Готово', exact: true }).click()
+  await page.getByRole('button', { name: 'К плану' }).click()
 
   const row = page.getByRole('button', { name: /Тяга верхнего блока/ })
   await expect(row).toContainText('4×9')
   await expect(row).toContainText('42.5 кг')
-  await page.getByRole('button', { name: 'Сохранить' }).click()
+  await expect(row).not.toContainText('отдых')
+  await page.getByRole('button', { name: 'Есть изменения' }).click()
   await expect(page.getByText('План сохранён')).toBeVisible()
 
   await page.reload()
@@ -107,21 +107,18 @@ test('сборка из каталога спрашивает подтвержд
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Ещё' }).click()
-  const dismissedMessage = await clickWithDialog(
-    page,
-    () => page.getByRole('menuitem', { name: /Собрать из каталога/ }).click(),
-    'dismiss',
-  )
-  expect(dismissedMessage).toContain('Текущий план будет заменён')
+  await page.getByRole('menuitem', { name: /Собрать из каталога/ }).click()
+  const dismissed = page.getByRole('dialog', { name: 'Собрать из каталога' })
+  await expect(dismissed).toContainText('Текущий план будет заменён')
+  await dismissed.getByRole('button', { name: 'Оставить' }).click()
+  await expect(dismissed).toBeHidden()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Ещё' }).click()
-  const acceptedMessage = await clickWithDialog(
-    page,
-    () => page.getByRole('menuitem', { name: /Собрать из каталога/ }).click(),
-    'accept',
-  )
-  expect(acceptedMessage).toContain('Текущий план будет заменён')
+  await page.getByRole('menuitem', { name: /Собрать из каталога/ }).click()
+  const accepted = page.getByRole('dialog', { name: 'Собрать из каталога' })
+  await expect(accepted).toContainText('Текущий план будет заменён')
+  await accepted.getByRole('button', { name: 'Собрать' }).click()
   await expect(page.getByRole('button', { name: /Отжимания на брусьях/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toHaveCount(0)
 })
@@ -131,9 +128,9 @@ test('на 390px кнопка сохранения выше таб-бара', as
   await openAnna(page)
   await page.getByRole('button', { name: /Жим лёжа/ }).click()
   await page.getByRole('button', { name: 'Больше: Подходы' }).click()
-  await page.getByRole('button', { name: 'Готово', exact: true }).click()
+  await page.getByRole('button', { name: 'К плану' }).click()
 
-  const save = page.getByRole('button', { name: 'Сохранить' })
+  const save = page.getByRole('button', { name: 'Есть изменения' })
   const tabs = page.getByRole('navigation', { name: 'Мобильная навигация' })
   await expect(save).toBeVisible()
   await expect(save).toBeEnabled()

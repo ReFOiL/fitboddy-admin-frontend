@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
-import { Eye, MessageSquare, UserCheck, UserMinus } from 'lucide-react'
+import { Eye, MessageSquare, UserMinus } from 'lucide-react'
 
 import { useProfile } from '../hooks/use-profile'
 import { useClientRelationActions, useClientRelations, useConversations, useUnreadCount, useUserIdGuard } from '../hooks'
 import { ClientProfileRequiredCard, IncomingInvitesCard, TrainerSelectionCard } from '../components/client-relations'
 import { Button } from '../components/ui/button'
+import { Avatar } from '../components/ui/kit'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { APP_PATHS } from '../config'
 import { formatLastMessagePreview } from '../lib/messages-formatters'
@@ -32,6 +33,8 @@ export function ClientRelationsPage() {
   const lastPreview = trainerConversation
     ? formatLastMessagePreview(trainerConversation.last_message, user?.user_id)
     : null
+  const trainerDirectory = trainers.find((item) => item.user_id === activeRelation?.trainer_user_id)
+  const trainerName = trainerDirectory?.display_name?.trim() || 'Тренер'
   const { acceptInvite, declineInvite, connectTrainer } = useClientRelationActions({
     withUserId,
     acceptRelationMutation,
@@ -47,9 +50,12 @@ export function ClientRelationsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
-              <span className="flex min-w-0 items-center gap-2">
-                <UserCheck size={18} className="shrink-0 text-accent-ink" />
-                <span>У вас уже есть активный тренер</span>
+              <span className="flex min-w-0 items-center gap-3">
+                <Avatar name={trainerName} />
+                <span className="min-w-0">
+                  <span className="block truncate text-[17px]">{trainerName}</span>
+                  <span className="block text-[13px] font-normal text-secondary-foreground">Ваш тренер</span>
+                </span>
               </span>
               {unreadCount > 0 ? (
                 <span className="inline-flex min-w-5 shrink-0 justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
@@ -58,8 +64,6 @@ export function ClientRelationsPage() {
               ) : null}
             </CardTitle>
             <CardDescription>
-              {activeRelation.trainer_login?.trim() || 'Ваш тренер'}
-              {' · '}
               {unreadCount > 0
                 ? lastPreview && lastPreview !== 'Нет сообщений'
                   ? lastPreview
@@ -68,7 +72,7 @@ export function ClientRelationsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-2 sm:flex">
-            <Button asChild variant="secondary" className="h-12 w-full gap-2 sm:h-10 sm:w-auto">
+            <Button asChild variant="secondary" className="h-12 w-full gap-2">
               <Link
                 to={APP_PATHS.trainerProfile.replace(
                   ':trainerUserId',
@@ -79,7 +83,7 @@ export function ClientRelationsPage() {
                 Профиль
               </Link>
             </Button>
-            <Button asChild className="h-12 w-full gap-2 sm:h-10 sm:w-auto">
+            <Button asChild className="h-12 w-full gap-2">
               <Link to={`${APP_PATHS.messages}?peerUserId=${encodeURIComponent(activeRelation.trainer_user_id)}`}>
                 <MessageSquare size={16} />
                 {unreadCount > 0 ? 'Открыть сообщения' : 'Написать тренеру'}
@@ -88,7 +92,7 @@ export function ClientRelationsPage() {
             <Button
               type="button"
               variant="destructive"
-              className="col-span-2 h-12 w-full gap-2 sm:col-span-1 sm:h-10 sm:w-auto"
+              className="col-span-2 h-12 w-full gap-2"
               disabled={leaveRelationMutation.isPending}
               onClick={() => {
                 if (

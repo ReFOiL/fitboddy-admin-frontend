@@ -25,6 +25,8 @@ import {
 } from '../lib/load-schemes'
 import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
 import { deriveWorkoutCategory, formatWorkoutCategory } from '../lib/muscles'
+import { ConfirmSheet } from '../components/ui/kit'
+import { MissingVideo } from '../components/media/ExerciseMedia'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { DifficultyPicker } from '../components/ui/difficulty-picker'
@@ -40,9 +42,9 @@ const exerciseSchema = z
     description: z.string().max(4000, 'Максимум 4000 символов').optional(),
     equipment: z
       .string()
-      .min(2, 'Укажи инвентарь')
+      .min(2, 'Укажите инвентарь')
       .refine((value) => value.trim().toLowerCase() === 'none' || normalizeEquipmentName(value) !== null, {
-        message: 'Укажи название инвентаря (2–64 символа)',
+        message: 'Укажите название инвентаря (2–64 символа)',
       }),
     is_cardio: z.boolean(),
     is_hold: z.boolean(),
@@ -60,10 +62,10 @@ const exerciseSchema = z
   .superRefine((values, ctx) => {
     if (values.is_hold) {
       if (values.default_duration_seconds == null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_duration_seconds'], message: 'Укажи длительность' })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_duration_seconds'], message: 'Укажите длительность' })
       }
     } else if (values.default_reps == null) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_reps'], message: 'Укажи повторения' })
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_reps'], message: 'Укажите повторения' })
     }
     if (values.load_scheme === 'custom') {
       const steps = parseSchemeStepsInput(values.scheme_steps_input ?? '')
@@ -71,7 +73,7 @@ const exerciseSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['scheme_steps_input'],
-          message: 'Укажи коэффициенты через запятую, например 0.7, 0.85, 1',
+          message: 'Укажите коэффициенты через запятую, например 0.7, 0.85, 1',
         })
       }
     }
@@ -167,6 +169,7 @@ export function ExerciseDetailsPage() {
     includeArchived: true,
   })
   const [showPlanHint, setShowPlanHint] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
   const exercisePhotoQuery = useQuery({
     queryKey: queryKeys.exercises.trainerExercise(trainerUserId, rowId ?? ''),
     queryFn: () => getTrainerExercise(trainerUserId, rowId ?? ''),
@@ -385,7 +388,7 @@ export function ExerciseDetailsPage() {
                   </span>
                 </div>
                 <p className="text-xs text-secondary-foreground">
-                  Кликни по силуэту или выбери из списка — основные и вспомогательные мышцы. Категория
+                  Нажмите на силуэт или выберите из списка — основные и вспомогательные мышцы. Категория
                   считается автоматически по основным.
                 </p>
                 {musclesQuery.isLoading ? (
@@ -654,7 +657,7 @@ export function ExerciseDetailsPage() {
                     type="button"
                     variant="destructive"
                     className="gap-2"
-                    onClick={() => archiveExerciseMutation.mutate(exercise.row_id)}
+                    onClick={() => setArchiveOpen(true)}
                     disabled={archiveExerciseMutation.isPending}
                   >
                     <Trash2 size={14} />
@@ -707,8 +710,8 @@ export function ExerciseDetailsPage() {
                     </div>
                     <div className="text-xs text-secondary-foreground">
                       {uploadVideoMutation.isPending
-                        ? 'Большие файлы могут загружаться до нескольких минут. Не закрывай страницу.'
-                        : 'Подожди немного.'}
+                        ? 'Большие файлы могут загружаться до нескольких минут. Не закрывайте страницу.'
+                        : 'Подождите немного.'}
                     </div>
                   </div>
                 </div>
@@ -733,7 +736,10 @@ export function ExerciseDetailsPage() {
                   </Button>
                 </div>
               ) : !isVideoBusy ? (
-                <span className="text-sm text-secondary-foreground">Видео ещё не загружено.</span>
+                <div className="grid gap-2">
+                  <MissingVideo className="aspect-video w-full rounded-xl" />
+                  <span className="text-sm text-secondary-foreground">Видео ещё не загружено.</span>
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -758,6 +764,19 @@ export function ExerciseDetailsPage() {
           ) : null}
         </CardContent>
       </Card>
+      {archiveOpen && exercise?.is_active ? (
+        <ConfirmSheet
+          title="В архив"
+          body="Архивировать упражнение? Оно не попадёт в новые планы."
+          confirmLabel="В архив"
+          tone="danger"
+          pending={archiveExerciseMutation.isPending}
+          onClose={() => setArchiveOpen(false)}
+          onConfirm={() =>
+            archiveExerciseMutation.mutate(exercise.row_id, { onSuccess: () => setArchiveOpen(false) })
+          }
+        />
+      ) : null}
     </div>
   )
 }
