@@ -42,6 +42,12 @@ vi.mock('../src/hooks/use-exercises', () => ({
 const previewFixture: CatalogSyncPreview = {
   summary: { new_count: 2, media_update_count: 1, unchanged_count: 4 },
   unchanged_count: 4,
+  unchanged: [
+    { id: 'row', trainer_exercise_id: 'tr-row', exercise_name: 'Тяга в наклоне' },
+    { id: 'lunge', trainer_exercise_id: 'tr-lunge', exercise_name: 'Выпады' },
+    { id: 'plank', trainer_exercise_id: 'tr-plank', exercise_name: 'Планка' },
+    { id: 'pullup', trainer_exercise_id: 'tr-pullup', exercise_name: 'Подтягивания' },
+  ],
   add: [
     {
       id: 'squat',
@@ -109,12 +115,35 @@ describe('CatalogSyncDialog', () => {
     expect(screen.getByRole('checkbox', { name: 'Становая тяга' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Отметить все в разделе «Обновить»' })).toBeDisabled()
     expect(screen.getByText('Квадрицепсы')).toBeInTheDocument()
-    expect(screen.queryByText('В системе')).not.toBeInTheDocument()
+    expect(screen.getByText('В системе')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Жим лёжа' })).toBeDisabled()
+    expect(screen.getByRole('checkbox', { name: 'Жим лёжа' })).not.toBeChecked()
     expect(screen.getByRole('switch', { name: 'Также подтянуть медиа из системы' })).toHaveAttribute('aria-checked', 'false')
 
     fireEvent.click(screen.getByRole('button', { name: /Пропустить · 4/ }))
     expect(screen.getByText('Эти упражнения уже совпадают с системной базой и не изменятся.')).toBeInTheDocument()
+    expect(screen.getByText('Тяга в наклоне')).toBeInTheDocument()
+    expect(screen.getByText('Подтягивания')).toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /Пропустить/ })).not.toBeInTheDocument()
+  })
+
+  it('refetches the preview every time the dialog opens', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 60_000 }, mutations: { retry: false } },
+    })
+    const tree = () => (
+      <QueryClientProvider client={queryClient}>
+        <CatalogSyncDialog trainerUserId="trainer-1" onClose={vi.fn()} />
+      </QueryClientProvider>
+    )
+    const first = render(tree())
+    await screen.findByRole('checkbox', { name: 'Становая тяга' })
+    first.unmount()
+    render(tree())
+    await screen.findByRole('checkbox', { name: 'Становая тяга' })
+    await waitFor(() => {
+      expect(previewTrainerCatalogSync).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('uses an indeterminate select-all and restores the section in one click', async () => {

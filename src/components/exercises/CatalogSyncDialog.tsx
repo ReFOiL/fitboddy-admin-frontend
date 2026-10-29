@@ -23,6 +23,7 @@ import {
   type CatalogSyncAddItem,
   type CatalogSyncPreview,
   type CatalogSyncSelection,
+  type CatalogSyncSkipItem,
   type CatalogSyncUpdateItem,
   type MediaSlot,
 } from '../../lib/catalog-sync'
@@ -51,6 +52,10 @@ export function CatalogSyncDialog({ trainerUserId, onClose }: CatalogSyncDialogP
     queryKey: queryKeys.exercises.catalogSyncPreview(trainerUserId),
     queryFn: () => previewTrainerCatalogSync(trainerUserId),
     retry: false,
+    // Предпросмотр всегда свежий: после apply или правок каталога старый ответ неверен.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
   })
   const applyMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof toCatalogSyncApplyRequest>) =>
@@ -60,6 +65,7 @@ export function CatalogSyncDialog({ trainerUserId, onClose }: CatalogSyncDialogP
       const exercisePrefix = queryKeys.exercises.trainerExercise(trainerUserId, '').slice(0, -1)
       void queryClient.invalidateQueries({ queryKey: catalogPrefix })
       void queryClient.invalidateQueries({ queryKey: exercisePrefix })
+      queryClient.removeQueries({ queryKey: queryKeys.exercises.catalogSyncPreview(trainerUserId) })
     },
   })
 
@@ -325,44 +331,33 @@ function SyncPreview({
           selected={selection.includeMedia ? preview.update.filter((item) => selection.updateIds.includes(item.id)).length : 0}
           defaultOpen
         >
-          {selection.includeMedia ? (
-            <>
-              <SelectAllRow
-                label="Отметить все в разделе «Обновить»"
-                allIds={preview.update.map((item) => item.id)}
-                selectedIds={selection.updateIds}
-                disabled={disabled}
-                onToggle={onToggleAllUpdate}
-              />
-              {preview.update.map((item) => (
-                <UpdateCard
-                  key={item.id}
-                  item={item}
-                  selected={selection.updateIds.includes(item.id)}
-                  disabled={disabled}
-                  onToggle={() => onToggleUpdate(item.id)}
-                />
-              ))}
-            </>
-          ) : (
-            <>
-              <p className="text-[15px] text-secondary-foreground">
-                Включите подтягивание медиа, чтобы выбрать эти обновления.
-              </p>
-              <SelectAllRow
-                label="Отметить все в разделе «Обновить»"
-                allIds={preview.update.map((item) => item.id)}
-                selectedIds={[]}
-                disabled
-                onToggle={onToggleAllUpdate}
-              />
-            </>
+          {/* Карточки видны всегда; без «подтягивания медиа» они только недоступны для выбора. */}
+          {selection.includeMedia ? null : (
+            <p className="text-[15px] text-secondary-foreground">
+              Включите подтягивание медиа, чтобы выбрать эти обновления.
+            </p>
           )}
+          <SelectAllRow
+            label="Отметить все в разделе «Обновить»"
+            allIds={preview.update.map((item) => item.id)}
+            selectedIds={selection.includeMedia ? selection.updateIds : []}
+            disabled={disabled || !selection.includeMedia}
+            onToggle={onToggleAllUpdate}
+          />
+          {preview.update.map((item) => (
+            <UpdateCard
+              key={item.id}
+              item={item}
+              selected={selection.includeMedia && selection.updateIds.includes(item.id)}
+              disabled={disabled || !selection.includeMedia}
+              onToggle={() => onToggleUpdate(item.id)}
+            />
+          ))}
         </WorkingSection>
       ) : null}
 
       {preview.unchanged_count > 0 ? (
-        <SkipSection count={preview.unchanged_count} number={sectionNumber('skip')} />
+        <SkipSection items={preview.unchanged} count={preview.unchanged_count} number={sectionNumber('skip')} />
       ) : null}
     </div>
   )
@@ -412,7 +407,7 @@ function WorkingSection({
   )
 }
 
-function SkipSection({ count, number }: { count: number; number: number }) {
+function SkipSection({ items, count, number }: { items: CatalogSyncSkipItem[]; count: number; number: number }) {
   const [open, setOpen] = useState(false)
   return (
     <section className="md:rounded-3xl md:border md:border-border md:bg-background md:p-4">
@@ -429,6 +424,15 @@ function SkipSection({ count, number }: { count: number; number: number }) {
         <p className="pb-2 text-[15px] text-secondary-foreground">
           Эти упражнения уже совпадают с системной базой и не изменятся.
         </p>
+      ) : null}
+      {open && items.length > 0 ? (
+        <ul className="space-y-1 pb-2">
+          {items.map((item) => (
+            <li key={item.id} className="rounded-2xl border border-border bg-card px-3 py-2 text-[15px]">
+              {item.exercise_name}
+            </li>
+          ))}
+        </ul>
       ) : null}
     </section>
   )
