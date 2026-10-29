@@ -54,6 +54,63 @@ export const MUSCLE_ZONE_BY_SLUG: Record<string, MuscleZone> = {
   brachioradialis: 'upper',
 }
 
+/** slug → Russian name (keep in sync with plan-service MUSCLE_SEED). */
+const MUSCLE_NAME_BY_SLUG: Record<string, string> = {
+  neck: 'Шея',
+  traps_upper: 'Трапеции (верх)',
+  chest_upper: 'Грудь (верх)',
+  chest: 'Грудь',
+  chest_lower: 'Грудь (низ)',
+  serratus: 'Передняя зубчатая',
+  anterior_deltoid: 'Передняя дельта',
+  lateral_deltoid: 'Средняя дельта',
+  biceps: 'Бицепс',
+  brachialis: 'Плечевая мышца',
+  forearms: 'Предплечья',
+  abs: 'Пресс',
+  obliques: 'Косые мышцы живота',
+  hip_flexors: 'Сгибатели бедра',
+  quadriceps: 'Квадрицепсы',
+  adductors: 'Приводящие бедра',
+  tibialis: 'Передняя большеберцовая',
+  traps: 'Трапеции',
+  traps_mid: 'Трапеции (середина)',
+  rear_deltoid: 'Задняя дельта',
+  rhomboids: 'Ромбовидные',
+  lats: 'Широчайшие',
+  teres: 'Круглая мышца спины',
+  lower_back: 'Разгибатели спины',
+  triceps: 'Трицепс',
+  glutes: 'Ягодицы',
+  hamstrings: 'Бицепс бедра',
+  calves: 'Икры',
+  soleus: 'Камбаловидная',
+  rotator_cuff: 'Вращательная манжета',
+  pectoralis_minor: 'Малая грудная',
+  core: 'Кор (стабилизаторы)',
+  abductors: 'Отводящие бедра',
+  gastrocnemius: 'Икроножная',
+  wrist_flexors: 'Сгибатели запястья',
+  wrist_extensors: 'Разгибатели запястья',
+  levator_scapulae: 'Мышца, поднимающая лопатку',
+  infraspinatus: 'Подостная',
+  subscapularis: 'Подлопаточная',
+  brachioradialis: 'Плечелучевая',
+}
+
+const MUSCLE_NAME_BY_FOLDED_LABEL = new Map(
+  Object.values(MUSCLE_NAME_BY_SLUG).map((name) => [name.toLocaleLowerCase('ru-RU'), name]),
+)
+
+/** Slug из каталога или уже готовая подпись. Неизвестное значение остаётся как пришло. */
+export function formatMuscleName(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const known = MUSCLE_NAME_BY_SLUG[trimmed.toLowerCase()]
+  if (known) return known
+  return MUSCLE_NAME_BY_FOLDED_LABEL.get(trimmed.toLocaleLowerCase('ru-RU')) ?? trimmed
+}
+
 export function deriveWorkoutCategory(primaryMuscles: string[]): WorkoutCategory {
   const zones = new Set<MuscleZone>()
   for (const slug of primaryMuscles) {
