@@ -577,19 +577,20 @@ function MediaColumn({
   )
 }
 
+// Кадры диффа в 4:3, как слоты фото в каталоге.
 function DiffFrame({ slot, url }: { slot: MediaSlot; url: string | null }) {
   const caption = mediaSlotCaption(slot)
   if (!url) {
     return (
-      <div className="flex h-24 w-[4.5rem] items-center justify-center rounded-xl border border-dashed border-border px-1 text-center text-[11px] leading-tight text-secondary-foreground">
+      <div className="flex aspect-[4/3] w-28 items-center justify-center rounded-xl border border-dashed border-border px-1 text-center text-[11px] leading-tight text-secondary-foreground">
         {mediaSlotMissing(slot)}
       </div>
     )
   }
   if (slot === 'video') {
     return (
-      <figure className="w-[4.5rem]">
-        <span className="relative block h-24 overflow-hidden rounded-xl bg-secondary">
+      <figure className="w-28">
+        <span className="relative block aspect-[4/3] overflow-hidden rounded-xl bg-secondary">
           <img src={VIDEO_PLACEHOLDER_SRC} alt="" className="h-full w-full object-cover" />
           <span className="absolute inset-0 flex items-center justify-center">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-background/80">
@@ -602,8 +603,8 @@ function DiffFrame({ slot, url }: { slot: MediaSlot; url: string | null }) {
     )
   }
   return (
-    <figure className="w-[4.5rem]">
-      <img src={resolveExerciseMediaUrl(url) ?? CATALOG_THUMB_SRC} alt="" className="h-24 w-[4.5rem] rounded-xl object-cover" />
+    <figure className="w-28">
+      <img src={resolveExerciseMediaUrl(url) ?? CATALOG_THUMB_SRC} alt="" className="aspect-[4/3] w-28 rounded-xl object-cover" />
       <figcaption className="mt-1 text-center text-[11px] text-secondary-foreground">{caption}</figcaption>
     </figure>
   )
