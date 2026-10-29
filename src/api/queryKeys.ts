@@ -31,6 +31,8 @@ export const queryKeys = {
       ['exercises', 'trainer-exercise', trainerUserId, rowId] as const,
     platformExercise: (rowId: string) => ['exercises', 'platform-exercise', rowId] as const,
     platformCatalog: ['exercises', 'platform-catalog'] as const,
+    catalogSyncPreview: (trainerUserId: string) =>
+      ['exercises', 'catalog-sync-preview', trainerUserId] as const,
   },
   messages: {
     conversations: ['messages', 'conversations'] as const,

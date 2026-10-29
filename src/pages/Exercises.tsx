@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { listMuscles } from '../api/exercises'
+import { CatalogSyncDialog } from '../components/exercises/CatalogSyncDialog'
 import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
 import { MissingPhoto } from '../components/media/ExerciseMedia'
 import { ExerciseThumb } from '../components/ui/kit'
@@ -165,6 +166,7 @@ export function ExercisesPage() {
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
   const { profileQuery } = useProfile(trainerUserId)
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [syncOpen, setSyncOpen] = useState(false)
   const [showPlanHint, setShowPlanHint] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [startPhoto, setStartPhoto] = useState<File | null>(null)
@@ -263,16 +265,28 @@ export function ExercisesPage() {
             Упражнения
           </CardTitle>
           <CardDescription>
-            Системная база упражнений пока не подтягивается сама. Здесь вы создаёте свои, а правите их на странице упражнения.
+            Подтяните новые упражнения из системной базы или создайте своё. Правки — на странице упражнения.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {showPlanHint ? <ExercisePlanHint /> : null}
-          {!isCreateFormOpen ? (
-            <Button type="button" size="lg" className="min-w-56" onClick={() => setIsCreateFormOpen(true)}>
-              Создать упражнение
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {!isCreateFormOpen ? (
+              <Button type="button" size="lg" className="w-full sm:w-auto sm:min-w-56" onClick={() => setIsCreateFormOpen(true)}>
+                Создать упражнение
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              size="lg"
+              variant="secondary"
+              className="w-full sm:w-auto sm:min-w-56"
+              onClick={() => setSyncOpen(true)}
+            >
+              Синхронизировать с системной базой
             </Button>
-          ) : (
+          </div>
+          {isCreateFormOpen ? (
             <form
               className="grid gap-4 rounded-xl border border-border/70 bg-secondary/20 p-4"
               onSubmit={form.handleSubmit((values) => {
@@ -653,7 +667,7 @@ export function ExercisesPage() {
                 </Button>
               </div>
             </form>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
@@ -755,6 +769,7 @@ export function ExercisesPage() {
           ) : null}
         </CardContent>
       </Card>
+      {syncOpen ? <CatalogSyncDialog trainerUserId={trainerUserId} onClose={() => setSyncOpen(false)} /> : null}
     </div>
   )
 }

@@ -1,4 +1,12 @@
 import {
+  catalogSyncApplyBody,
+  normalizeCatalogSyncApplyResult,
+  normalizeCatalogSyncPreview,
+  type CatalogSyncApplyRequest,
+  type CatalogSyncApplyResult,
+  type CatalogSyncPreview,
+} from '../lib/catalog-sync'
+import {
   adminPlatformExercisePhotoPath,
   EXERCISE_PHOTO_UPLOAD_TIMEOUT_MS,
   trainerExercisePhotoPath,
@@ -29,6 +37,36 @@ export async function listTrainerExercises(
     { params: { include_archived: includeArchived } },
   )
   return data
+}
+
+// Контракт plan-service: предпросмотр и применение синхронизации каталога.
+// GET  /api/v1/trainers/{id}/exercises/sync-preview
+//      { summary: { new_count, media_update_count, unchanged_count }, add[], update[] }
+//      id в обеих секциях — platform_exercise_id. Мышцы — slug. Медиа — подписанные URL.
+//      update[]: trainer + platform и changed_fields (video_url | start_image_url | end_image_url).
+// POST /api/v1/trainers/{id}/exercises/sync
+//      { add_ids, update_ids, include_media }
+//      update_ids при include_media: false сервер отвергает с 422, поэтому клиент их не шлёт.
+export function trainerCatalogSyncPreviewPath(trainerUserId: string): string {
+  return `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/exercises/sync-preview`
+}
+
+export function trainerCatalogSyncApplyPath(trainerUserId: string): string {
+  return `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/exercises/sync`
+}
+
+export async function previewTrainerCatalogSync(trainerUserId: string): Promise<CatalogSyncPreview> {
+  const { data } = await apiClient.get<unknown>(trainerCatalogSyncPreviewPath(trainerUserId))
+  return normalizeCatalogSyncPreview(data)
+}
+
+export async function applyTrainerCatalogSync(
+  trainerUserId: string,
+  payload: CatalogSyncApplyRequest,
+): Promise<CatalogSyncApplyResult> {
+  const body = catalogSyncApplyBody(payload)
+  const { data } = await apiClient.post<unknown>(trainerCatalogSyncApplyPath(trainerUserId), body)
+  return normalizeCatalogSyncApplyResult(data, body)
 }
 
 export async function listPlatformExercises(): Promise<PlatformExercise[]> {
