@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
 import { Archive, ArchiveRestore, Dumbbell, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { CatalogSyncDialog } from '../components/exercises/CatalogSyncDialog'
 import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
 import { MissingPhoto } from '../components/media/ExerciseMedia'
 import { ExerciseThumb } from '../components/ui/kit'
+import { useCatalogSyncAttention, type CatalogSyncAttentionStatus } from '../hooks/use-catalog-sync-attention'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
@@ -165,6 +166,9 @@ export function ExercisesPage() {
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
   const { profileQuery } = useProfile(trainerUserId)
+  const syncHintId = useId()
+  const syncAttention = useCatalogSyncAttention(trainerUserId)
+  const showSyncDot = syncAttention.showDot
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
   const [syncOpen, setSyncOpen] = useState(false)
   const [showPlanHint, setShowPlanHint] = useState(false)
@@ -281,10 +285,18 @@ export function ExercisesPage() {
               size="lg"
               variant="secondary"
               className="w-full sm:w-auto sm:min-w-56"
+              aria-describedby={showSyncDot ? syncHintId : undefined}
+              data-sync-attention={syncAttentionMarker(syncAttention.status, showSyncDot)}
               onClick={() => setSyncOpen(true)}
             >
               Синхронизировать с системной базой
+              {showSyncDot ? <CatalogSyncAttentionDot /> : null}
             </Button>
+            {showSyncDot ? (
+              <span id={syncHintId} className="sr-only">
+                В системной базе есть упражнения, которые можно добавить или обновить.
+              </span>
+            ) : null}
           </div>
           {isCreateFormOpen ? (
             <form
@@ -771,6 +783,34 @@ export function ExercisesPage() {
       </Card>
       {syncOpen ? <CatalogSyncDialog trainerUserId={trainerUserId} onClose={() => setSyncOpen(false)} /> : null}
     </div>
+  )
+}
+
+function syncAttentionMarker(
+  status: CatalogSyncAttentionStatus,
+  showDot: boolean,
+): 'pending' | 'clear' | 'error' | undefined {
+  switch (status) {
+    case 'loading':
+      return undefined
+    case 'error':
+      return 'error'
+    case 'ready':
+      return showDot ? 'pending' : 'clear'
+    default: {
+      const unexpected: never = status
+      return unexpected
+    }
+  }
+}
+
+function CatalogSyncAttentionDot() {
+  return (
+    <span
+      aria-hidden
+      data-testid="catalog-sync-pending-dot"
+      className="h-2 w-2 shrink-0 rounded-full bg-destructive"
+    />
   )
 }
 

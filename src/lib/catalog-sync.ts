@@ -391,6 +391,42 @@ export function formatSyncSummary(summary: CatalogSyncSummary): string {
   return `${parts.added} · ${parts.media} · ${parts.unchanged}`
 }
 
+/** Точка на кнопке синхронизации. Пропуски и «без изменений» не считаются. */
+export function catalogSyncHasPendingChanges(
+  preview: Pick<CatalogSyncPreview, 'summary' | 'add' | 'update'>,
+): boolean {
+  return (
+    preview.summary.new_count > 0 ||
+    preview.summary.media_update_count > 0 ||
+    preview.add.length > 0 ||
+    preview.update.length > 0
+  )
+}
+
+/** Снимает применённые id, чтобы точка погасла сразу, не дожидаясь повторного предпросмотра. */
+export function catalogSyncPreviewAfterApply(
+  preview: CatalogSyncPreview,
+  applied: Pick<CatalogSyncApplyRequest, 'add_ids' | 'update_ids'>,
+): CatalogSyncPreview {
+  const added = new Set(applied.add_ids)
+  const updated = new Set(applied.update_ids)
+  const add = preview.add.filter((item) => !added.has(item.id))
+  const update = preview.update.filter((item) => !updated.has(item.id))
+  return {
+    ...preview,
+    add,
+    update,
+    summary: {
+      new_count: Math.max(0, preview.summary.new_count - (preview.add.length - add.length)),
+      media_update_count: Math.max(
+        0,
+        preview.summary.media_update_count - (preview.update.length - update.length),
+      ),
+      unchanged_count: preview.summary.unchanged_count,
+    },
+  }
+}
+
 export function initialCatalogSyncSelection(preview: CatalogSyncPreview): CatalogSyncSelection {
   return {
     includeMedia: false,

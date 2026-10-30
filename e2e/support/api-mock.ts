@@ -58,6 +58,16 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
 }
 
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
+function platformExerciseId(item: unknown): string {
+  const id = asRecord(item).platform_exercise_id
+  return typeof id === 'string' ? id : ''
+}
+
 function readBody(request: PlaywrightRequest): unknown {
   const raw = request.postData()
   if (!raw) return null
@@ -148,6 +158,22 @@ function planDay(
   }
 }
 
+type CatalogSyncPreviewBody = {
+  summary: { new_count: number; media_update_count: number; unchanged_count: number }
+  add: unknown[]
+  update: unknown[]
+  unchanged: unknown[]
+}
+
+function emptyCatalogSyncPreview(): CatalogSyncPreviewBody {
+  return {
+    summary: { new_count: 0, media_update_count: 0, unchanged_count: 0 },
+    add: [],
+    update: [],
+    unchanged: [],
+  }
+}
+
 export class ApiMock {
   private readonly usersByToken = new Map<string, AuthUser>()
   private readonly profiles = new Map<string, ProfileResponse>()
@@ -157,6 +183,7 @@ export class ApiMock {
   private notifications: NotificationSettings
   private revision = 1
   private inviteCode = 'AB3K9Z'
+  private catalogSyncPreview: CatalogSyncPreviewBody = emptyCatalogSyncPreview()
 
   constructor() {
     const trainer = user({
@@ -318,6 +345,10 @@ export class ApiMock {
     this.plans.set(IDS.anna, plan)
   }
 
+  setCatalogSyncPreview(preview: CatalogSyncPreviewBody): void {
+    this.catalogSyncPreview = preview
+  }
+
   handle(request: PlaywrightRequest): MockResponse {
     const url = new URL(request.url())
     const path = url.pathname
@@ -407,6 +438,12 @@ export class ApiMock {
     const exercises = /^\/api\/v1\/trainers\/([^/]+)\/exercises$/.exec(path)
     if (exercises && method === 'GET') return this.json(200, this.catalog)
 
+    const syncPreview = /^\/api\/v1\/trainers\/([^/]+)\/exercises\/sync-preview$/.exec(path)
+    if (syncPreview && method === 'GET') return this.json(200, this.catalogSyncPreview)
+
+    const syncApply = /^\/api\/v1\/trainers\/([^/]+)\/exercises\/sync$/.exec(path)
+    if (syncApply && method === 'POST') return this.applyCatalogSync(readBody(request))
+
     const exercise = /^\/api\/v1\/trainers\/([^/]+)\/exercises\/([^/]+)$/.exec(path)
     if (exercise && method === 'GET') {
       const found = this.catalog.find((item) => item.row_id === decodeURIComponent(exercise[2]))
@@ -471,6 +508,30 @@ export class ApiMock {
     const header = request.headers().authorization ?? ''
     const token = header.replace(/^Bearer\s+/i, '')
     return this.usersByToken.get(token) ?? null
+  }
+
+  private applyCatalogSync(body: unknown): MockResponse {
+    const record = asRecord(body)
+    const addIds = new Set(stringList(record.add_ids))
+    const updateIds = new Set(stringList(record.update_ids))
+    const add = this.catalogSyncPreview.add.filter((item) => !addIds.has(platformExerciseId(item)))
+    const update = this.catalogSyncPreview.update.filter((item) => !updateIds.has(platformExerciseId(item)))
+    this.catalogSyncPreview = {
+      summary: {
+        new_count: add.length,
+        media_update_count: update.length,
+        unchanged_count: this.catalogSyncPreview.summary.unchanged_count,
+      },
+      add,
+      update,
+      unchanged: this.catalogSyncPreview.unchanged,
+    }
+    return this.json(200, {
+      added_count: addIds.size,
+      updated_count: updateIds.size,
+      added_ids: [...addIds],
+      updated_ids: [...updateIds],
+    })
   }
 
   private json(status: number, data: unknown, headers?: Record<string, string>): MockResponse {
