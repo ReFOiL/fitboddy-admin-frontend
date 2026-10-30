@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 
 import { APP_PATHS, type AppRole } from '../../config'
 import { firstName } from '../../lib/person'
+import { cn } from '../../lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 
 type AccountMenuProps = {
@@ -38,23 +39,23 @@ export function AccountMenu({
   }, [open])
 
   return (
-    <div className="relative">
+    <div className={cn('relative', open && 'z-50')}>
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-12 items-center gap-1 text-[15px] font-semibold"
+        className="relative z-50 flex h-12 items-center gap-1 text-[15px] font-semibold"
         onClick={() => setOpen((current) => !current)}
       >
         {label}
         <ChevronDown size={16} aria-hidden />
       </button>
       {open ? (
-        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
+        <>
+          <div className="fixed inset-0 z-40" role="presentation" onClick={() => setOpen(false)} />
           <div
             role="menu"
-            className="absolute right-4 top-14 w-64 overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
-            onClick={(event) => event.stopPropagation()}
+            className="absolute right-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
           >
             <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.profile} onClick={() => setOpen(false)}>
               Профиль
@@ -97,7 +98,7 @@ export function AccountMenu({
               {logoutPending ? 'Выходим…' : 'Выйти'}
             </button>
           </div>
-        </div>
+        </>
       ) : null}
     </div>
   )
