@@ -5,8 +5,11 @@ import {
   isEmptyLeadInDay,
   isSamePlanStartChoice,
   isSkippedWorkout,
+  nextMondayOptionRepeatsWorkout,
   nextWeekMonday,
   nextWorkoutDate,
+  planStartAnchorsCoincide,
+  planStartChoiceForSlots,
   planStartChoiceFromPlan,
   planStartRequest,
 } from '../src/lib/plan-start'
@@ -28,6 +31,47 @@ describe('plan start dates', () => {
     expect(nextWeekMonday('2026-10-26')).toBe('2026-11-02')
     expect(nextWeekMonday('2026-11-01')).toBe('2026-11-02')
     expect(formatPlanStartSubtitle('2026-11-03')).toBe('Вт, 3 ноя')
+  })
+
+  it('пн–пт для пн/ср/пт даты и подписи различаются', () => {
+    const slots = [0, 2, 4]
+    const weekdays = ['2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23']
+    for (const today of weekdays) {
+      const workout = nextWorkoutDate(slots, today)
+      const monday = nextWeekMonday(today)
+      expect(workout).toBeTruthy()
+      expect(monday).toBeTruthy()
+      expect(workout).not.toBe(monday)
+      expect(formatPlanStartSubtitle(workout ?? '')).not.toBe(formatPlanStartSubtitle(monday ?? ''))
+      expect(planStartAnchorsCoincide(slots, today)).toBe(false)
+      expect(nextMondayOptionRepeatsWorkout(slots, today)).toBe(false)
+    }
+
+    expect(nextWorkoutDate([0], '2026-10-19')).toBe('2026-10-19')
+    expect(nextWeekMonday('2026-10-19')).toBe('2026-10-26')
+    expect(formatPlanStartSubtitle('2026-10-19')).toBe('Пн, 19 окт')
+    expect(formatPlanStartSubtitle('2026-10-26')).toBe('Пн, 26 окт')
+  })
+
+  it('сб/вс и пн/ср/пт — один понедельник, выбор схлопывается в ближайшую', () => {
+    const slots = [0, 2, 4]
+    for (const today of ['2026-10-24', '2026-10-25']) {
+      expect(nextWorkoutDate(slots, today)).toBe('2026-10-26')
+      expect(nextWeekMonday(today)).toBe('2026-10-26')
+      expect(formatPlanStartSubtitle('2026-10-26')).toBe('Пн, 26 окт')
+      expect(planStartAnchorsCoincide(slots, today)).toBe(true)
+      expect(nextMondayOptionRepeatsWorkout(slots, today)).toBe(true)
+      expect(planStartChoiceForSlots({ mode: 'next_monday' }, slots, today)).toEqual({ mode: 'next_workout' })
+      expect(planStartRequest({ mode: 'next_monday' }, slots, today)).toEqual({
+        start_mode: 'next_workout',
+        start_date: '2026-10-26',
+      })
+    }
+    expect(planStartChoiceForSlots({ mode: 'next_monday' }, slots, '2026-10-23')).toEqual({ mode: 'next_monday' })
+    expect(planStartChoiceForSlots({ mode: 'date', date: '2026-11-04' }, slots, '2026-10-24')).toEqual({
+      mode: 'date',
+      date: '2026-11-04',
+    })
   })
 
   it('собирает payload выбранного варианта', () => {

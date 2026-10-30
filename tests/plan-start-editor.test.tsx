@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 
 import {
@@ -9,9 +10,10 @@ import {
   replacePlanDaySlots,
   setPlanStart,
 } from '../src/api'
+import { PlanStartCard } from '../src/components/trainer/PlanStartCard'
 import { PlanStudio } from '../src/components/trainer/PlanStudio'
 import { addIsoDays, formatMonthDay, localTodayIso } from '../src/lib/dates'
-import { formatPlanStartSubtitle, nextWeekMonday, nextWorkoutDate } from '../src/lib/plan-start'
+import { formatPlanStartSubtitle, nextWeekMonday, nextWorkoutDate, type PlanStartChoice } from '../src/lib/plan-start'
 import type { PlanDay, PlanExercise, TrainingPlan } from '../src/types/plan'
 
 vi.mock('../src/hooks/use-auth', () => ({
@@ -135,6 +137,28 @@ function renderStudio(plan: TrainingPlan) {
   )
 }
 
+function StartHarness({
+  todayIso,
+  initialDays,
+  initialChoice,
+}: {
+  todayIso: string
+  initialDays: number[]
+  initialChoice: PlanStartChoice
+}) {
+  const [choice, setChoice] = useState(initialChoice)
+  const [dayOfWeeks, setDayOfWeeks] = useState(initialDays)
+  return (
+    <>
+      <div data-testid="start-mode">{choice.mode}</div>
+      <PlanStartCard choice={choice} todayIso={todayIso} dayOfWeeks={dayOfWeeks} onChange={setChoice} />
+      <button type="button" onClick={() => setDayOfWeeks([0])}>
+        Оставить понедельник
+      </button>
+    </>
+  )
+}
+
 describe('Когда начать', () => {
   afterEach(() => {
     cleanup()
@@ -150,14 +174,19 @@ describe('Когда начать', () => {
     const nearest = await screen.findByRole('radio', { name: /С ближайшей тренировки/ })
     expect(nearest).toBeChecked()
     const nearestDate = nextWorkoutDate(weekdays, today)
+    const monday = nextWeekMonday(today)
     expect(nearestDate).toBeTruthy()
     expect(nearest).toHaveTextContent(formatPlanStartSubtitle(nearestDate ?? ''))
     expect(screen.getByRole('button', { name: 'Сохранить план' })).toBeDisabled()
+    if (nearestDate && monday && nearestDate === monday) {
+      expect(screen.queryByRole('radio', { name: /С понедельника следующей недели/ })).not.toBeInTheDocument()
+      return
+    }
+    expect(formatPlanStartSubtitle(nearestDate ?? '')).not.toBe(formatPlanStartSubtitle(monday ?? ''))
     expect(screen.queryByRole('button', { name: 'Пн', exact: true })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ср', exact: true })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('radio', { name: /С понедельника следующей недели/ }))
-    const monday = nextWeekMonday(today)
     expect(monday).toBeTruthy()
     expect(screen.getByRole('radio', { name: /С понедельника следующей недели/ })).toHaveTextContent(
       formatPlanStartSubtitle(monday ?? ''),
@@ -211,5 +240,48 @@ describe('Когда начать', () => {
     expect(screen.getByText(new RegExp(formatMonthDay(addIsoDays(today, -2))))).toBeInTheDocument()
     expect(screen.queryByText(new RegExp(formatMonthDay(addIsoDays(today, -4))))).not.toBeInTheDocument()
     expect(screen.getAllByText('×')).toHaveLength(1)
+  })
+
+  it('прячет понедельник следующей недели, когда подпись совпала бы с ближайшей', async () => {
+    const slots = [0, 2, 4]
+    render(<StartHarness todayIso="2026-10-23" initialDays={slots} initialChoice={{ mode: 'next_workout' }} />)
+
+    const nearest = screen.getByRole('radio', { name: /С ближайшей тренировки/ })
+    const monday = screen.getByRole('radio', { name: /С понедельника следующей недели/ })
+    expect(nearest).toHaveTextContent('Пт, 23 окт')
+    expect(monday).toHaveTextContent('Пн, 26 окт')
+    expect(nearest).toBeChecked()
+
+    fireEvent.click(monday)
+    expect(monday).toBeChecked()
+    expect(screen.getByTestId('start-mode')).toHaveTextContent('next_monday')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Оставить понедельник' }))
+
+    expect(screen.queryByRole('radio', { name: /С понедельника следующей недели/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toHaveTextContent('Пн, 26 окт')
+    await waitFor(() => {
+      expect(screen.getByTestId('start-mode')).toHaveTextContent('next_workout')
+    })
+  })
+
+  it('в понедельник с понедельником в плане подписи не совпадают', () => {
+    render(<StartHarness todayIso="2026-10-19" initialDays={[0, 2, 4]} initialChoice={{ mode: 'next_workout' }} />)
+
+    expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toHaveTextContent('Пн, 19 окт')
+    expect(screen.getByRole('radio', { name: /С понедельника следующей недели/ })).toHaveTextContent('Пн, 26 окт')
+  })
+
+  it('сохранённый next_monday в субботу становится ближайшей тренировкой', async () => {
+    render(<StartHarness todayIso="2026-10-24" initialDays={[0, 2, 4]} initialChoice={{ mode: 'next_monday' }} />)
+
+    expect(screen.queryByRole('radio', { name: /С понедельника следующей недели/ })).not.toBeInTheDocument()
+    const nearest = screen.getByRole('radio', { name: /С ближайшей тренировки/ })
+    expect(nearest).toBeChecked()
+    expect(nearest).toHaveTextContent('Пн, 26 окт')
+    await waitFor(() => {
+      expect(screen.getByTestId('start-mode')).toHaveTextContent('next_workout')
+    })
   })
 })

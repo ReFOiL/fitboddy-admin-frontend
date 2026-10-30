@@ -52,6 +52,40 @@ export function nextWeekMonday(todayIso: string): string | null {
   return addIsoDays(todayIso, daysAhead)
 }
 
+/**
+ * True when both anchors are the same calendar day.
+ * Plan-service does this on purpose: Sat/Sun with a Monday slot is that Monday.
+ */
+export function planStartAnchorsCoincide(dayOfWeeks: readonly number[], todayIso: string): boolean {
+  const workout = nextWorkoutDate(dayOfWeeks, todayIso)
+  const monday = nextWeekMonday(todayIso)
+  return workout != null && monday != null && workout === monday
+}
+
+/**
+ * Hide «С понедельника следующей недели» when it would repeat the nearest workout,
+ * either as the same date or as the same subtitle.
+ */
+export function nextMondayOptionRepeatsWorkout(dayOfWeeks: readonly number[], todayIso: string): boolean {
+  const workout = nextWorkoutDate(dayOfWeeks, todayIso)
+  const monday = nextWeekMonday(todayIso)
+  if (!workout || !monday) return false
+  if (workout === monday) return true
+  return formatPlanStartSubtitle(workout) === formatPlanStartSubtitle(monday)
+}
+
+/** Nearest workout replaces next Monday while that option would repeat it. */
+export function planStartChoiceForSlots(
+  choice: PlanStartChoice,
+  dayOfWeeks: readonly number[],
+  todayIso: string,
+): PlanStartChoice {
+  if (choice.mode === 'next_monday' && nextMondayOptionRepeatsWorkout(dayOfWeeks, todayIso)) {
+    return { mode: 'next_workout' }
+  }
+  return choice
+}
+
 export function planStartChoiceFromPlan(plan: {
   start_mode?: PlanStartMode | null
   start_date?: string | null
@@ -94,16 +128,17 @@ export function planStartRequest(
   dayOfWeeks: readonly number[],
   todayIso: string,
 ): SetPlanStartRequest | null {
-  switch (choice.mode) {
+  const resolved = planStartChoiceForSlots(choice, dayOfWeeks, todayIso)
+  switch (resolved.mode) {
     case 'next_workout':
       return { start_mode: 'next_workout', start_date: nextWorkoutDate(dayOfWeeks, todayIso) }
     case 'next_monday':
       return { start_mode: 'next_monday', start_date: nextWeekMonday(todayIso) }
     case 'date':
-      if (!choice.date) return null
-      return { start_mode: 'date', start_date: choice.date }
+      if (!resolved.date) return null
+      return { start_mode: 'date', start_date: resolved.date }
     default: {
-      const unreachable: never = choice
+      const unreachable: never = resolved
       return unreachable
     }
   }
