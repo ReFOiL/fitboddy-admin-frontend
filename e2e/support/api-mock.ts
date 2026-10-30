@@ -486,6 +486,11 @@ export class ApiMock {
       return this.copyDay(decodeURIComponent(copyDay[1]), Number(copyDay[3]), readBody(request))
     }
 
+    const swapWeekday = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/days\/(\d+)\/weekday$/.exec(path)
+    if (swapWeekday && method === 'POST') {
+      return this.changeWeekday(decodeURIComponent(swapWeekday[1]), Number(swapWeekday[3]), readBody(request))
+    }
+
     const dayItem = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/days\/(\d+)$/.exec(path)
     if (dayItem && method === 'PUT') {
       return this.replaceSlots(decodeURIComponent(dayItem[1]), Number(dayItem[3]), readBody(request))
@@ -831,6 +836,39 @@ export class ApiMock {
     day.scheduled_time = typeof record.scheduled_time === 'string' && record.scheduled_time ? record.scheduled_time : null
     this.touch(plan)
     return this.json(200, structuredClone(day))
+  }
+
+  private changeWeekday(clientUserId: string, dayIndex: number, body: unknown): MockResponse {
+    const plan = this.plans.get(clientUserId)
+    const day = plan?.days.find((item) => item.day_index === dayIndex)
+    if (!plan || !day) return this.json(404, { detail: 'plan day not found' })
+    const dayOfWeek = this.readWeekday(body)
+    if (dayOfWeek == null) return this.json(422, { detail: 'day_of_week must be between 0 and 6 (monday is 0)' })
+    if (dayOfWeek === day.day_of_week) return this.json(422, { detail: 'day is already on that weekday' })
+    const other = plan.days.find(
+      (item) => item.day_index !== day.day_index && item.week === day.week && item.day_of_week === dayOfWeek,
+    )
+    const previous = day.day_of_week
+    day.day_of_week = dayOfWeek
+    day.scheduled_for = this.scheduledFor(plan, day.week, dayOfWeek)
+    if (other) {
+      other.day_of_week = previous
+      other.scheduled_for = this.scheduledFor(plan, other.week, previous)
+    }
+    this.touch(plan)
+    return this.json(200, {
+      outcome: other ? 'swap' : 'set',
+      day_index: dayIndex,
+      day_of_week: dayOfWeek,
+      swapped_day_index: other ? other.day_index : null,
+      plan: structuredClone(plan),
+    })
+  }
+
+  private readWeekday(body: unknown): number | null {
+    const dayOfWeek = Number(asRecord(body).day_of_week)
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) return null
+    return dayOfWeek
   }
 
   private copyDay(clientUserId: string, dayIndex: number, body: unknown): MockResponse {

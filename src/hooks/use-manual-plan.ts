@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 
 import {
   addPlanDay,
+  changePlanDayWeekday,
   copyPlanDay,
   copyPlanWeek,
   deletePlanDay,
@@ -14,6 +15,7 @@ import {
   setPlanStart,
 } from '../api'
 import { isSlotsDirty, isTimeDirty, slotsToWrite, type DayDraft } from '../lib/plan-draft'
+import { weekdayOutcomeMessage } from '../lib/plan-weekday'
 import { getUserErrorMessage } from '../lib/user-error-message'
 import type { AddPlanDayRequest, CopyPlanDayRequest, CopyPlanWeekRequest, SetPlanStartRequest } from '../types/plan'
 
@@ -92,6 +94,18 @@ export function useManualPlan(clientUserId: string, trainerUserId: string) {
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось скопировать неделю.')),
   })
 
+  const changeWeekdayMutation = useMutation({
+    mutationFn: async (input: { dayIndex: number; dayOfWeek: number }) =>
+      changePlanDayWeekday(clientUserId, trainerUserId, input.dayIndex, { day_of_week: input.dayOfWeek }),
+    onSuccess: (response) => {
+      // Календарь берём из ответа. day_index в черновике не переписываем сами.
+      queryClient.setQueryData(queryKeys.plans.trainerClientPlan(clientUserId, trainerUserId), response.plan)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.plans.activeByUser(clientUserId) })
+      toast.success(weekdayOutcomeMessage(response.outcome))
+    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось изменить день недели.')),
+  })
+
   const status = axios.isAxiosError(planQuery.error) ? planQuery.error.response?.status : undefined
 
   return {
@@ -101,6 +115,7 @@ export function useManualPlan(clientUserId: string, trainerUserId: string) {
     deleteDayMutation,
     copyDayMutation,
     copyWeekMutation,
+    changeWeekdayMutation,
     isMissing: status === 404,
   }
 }

@@ -3,6 +3,8 @@ import type { ClientExerciseLoad, UpsertClientLoadRequest } from '../types/exerc
 import type { GenerationPolicy } from '../types/generation-policy'
 import type {
   AddPlanDayRequest,
+  ChangePlanDayWeekdayRequest,
+  ChangePlanDayWeekdayResponse,
   CopyPlanDayRequest,
   CopyPlanWeekRequest,
   CreateEmptyPlanRequest,
@@ -133,6 +135,34 @@ export async function copyPlanDay(
 ): Promise<TrainingPlan> {
   const { data } = await apiClient.post<TrainingPlan>(
     `${trainerPlanRoot(clientUserId, trainerUserId)}/days/${dayIndex}/copy`,
+    payload,
+  )
+  return data
+}
+
+/**
+ * Move a plan day onto another weekday in the same week.
+ *
+ * Matches plan-service PR #11 (open, not on main as of 2026-10-30):
+ * https://github.com/ReFOiL/fitboddy-plan-service/pull/11
+ *
+ * `POST /api/v1/plans/clients/{client}/trainers/{trainer}/days/{day_index}/weekday`
+ * `{ day_of_week: 0..6 }` Monday is 0.
+ *
+ * 200 `{ outcome: "set" | "swap", day_index, day_of_week, swapped_day_index, plan }`.
+ * `plan` matches `GET .../active`. Render from `plan.days`. `day_index` is the path
+ * day and does not change. `set` means the weekday was free (`swapped_day_index`
+ * is null). `swap` exchanges `day_of_week` with the other day in that week.
+ * 422 `day is already on that weekday` when the day is already there.
+ */
+export async function changePlanDayWeekday(
+  clientUserId: string,
+  trainerUserId: string,
+  dayIndex: number,
+  payload: ChangePlanDayWeekdayRequest,
+): Promise<ChangePlanDayWeekdayResponse> {
+  const { data } = await apiClient.post<ChangePlanDayWeekdayResponse>(
+    `${trainerPlanRoot(clientUserId, trainerUserId)}/days/${dayIndex}/weekday`,
     payload,
   )
   return data

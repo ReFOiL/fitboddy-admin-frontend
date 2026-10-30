@@ -97,6 +97,27 @@ export type CopyPlanWeekRequest = {
   mode: CopyDayMode
 }
 
+/** Monday is 0. The path carries `day_index`; the body does not. */
+export type ChangePlanDayWeekdayRequest = {
+  day_of_week: number
+}
+
+/** `set` writes a free weekday. `swap` exchanges calendar fields with the other day. */
+export type PlanWeekdayOutcome = 'set' | 'swap'
+
+/**
+ * `POST .../days/{day_index}/weekday`.
+ * `plan` is the active plan after the change, same shape as `GET .../active`.
+ * `day_index` matches the path. `swapped_day_index` is null when `outcome` is `set`.
+ */
+export type ChangePlanDayWeekdayResponse = {
+  outcome: PlanWeekdayOutcome
+  day_index: number
+  day_of_week: number
+  swapped_day_index: number | null
+  plan: TrainingPlan
+}
+
 export type CreateEmptyPlanRequest = {
   goal?: string
   level?: string
