@@ -20,6 +20,7 @@ import { dirtyDayIndexes, draftsFromPlan, formatDosage, type DayDraft, type Draf
 import {
   isEmptyLeadInDay,
   isSamePlanStartChoice,
+  planStartChoiceForSlots,
   planStartChoiceFromPlan,
   planStartRequest,
   type PlanStartChoice,
@@ -153,10 +154,13 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const baseline = stored?.baseline ?? []
   const dirty = stored ? dirtyDayIndexes(baseline, draft) : []
   const dayOfWeeks = draft.map((day) => day.dayOfWeek)
-  const startRequest = planStartRequest(startChoice, dayOfWeeks, todayIso)
+  const resolvedStart = planStartChoiceForSlots(startChoice, dayOfWeeks, todayIso)
+  const startRequest = planStartRequest(resolvedStart, dayOfWeeks, todayIso)
   const chosenStart = startRequest?.start_date ?? null
-  const startDirty = stored ? !isSamePlanStartChoice(startChoice, stored.startBaseline) : false
-  const startNeedsDate = startChoice.mode === 'date' && !startChoice.date
+  const startDirty = stored
+    ? !isSamePlanStartChoice(resolvedStart, planStartChoiceForSlots(stored.startBaseline, dayOfWeeks, todayIso))
+    : false
+  const startNeedsDate = resolvedStart.mode === 'date' && !resolvedStart.date
   const isDirty = dirty.length > 0 || (startDirty && !startNeedsDate)
   useUnsavedChangesGuard(isDirty && !manual.saveMutation.isPending)
 
