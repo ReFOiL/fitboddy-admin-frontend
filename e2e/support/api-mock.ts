@@ -429,6 +429,11 @@ export class ApiMock {
       return this.createEmpty(decodeURIComponent(trainerPlan[1]), decodeURIComponent(trainerPlan[2]), readBody(request))
     }
 
+    const planStart = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/start$/.exec(path)
+    if (planStart && method === 'PATCH') {
+      return this.setPlanStart(decodeURIComponent(planStart[1]), readBody(request))
+    }
+
     const newDay = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/days$/.exec(path)
     if (newDay && method === 'POST') {
       return this.addDay(decodeURIComponent(newDay[1]), readBody(request))
@@ -698,6 +703,29 @@ export class ApiMock {
 
   private nextDayIndex(plan: TrainingPlan): number {
     return plan.days.reduce((max, day) => Math.max(max, day.day_index), 0) + 1
+  }
+
+  private setPlanStart(clientUserId: string, body: unknown): MockResponse {
+    const plan = this.plans.get(clientUserId)
+    if (!plan) return this.json(404, { detail: 'not found' })
+    const record = asRecord(body)
+    const mode = record.start_mode
+    if (mode !== 'next_workout' && mode !== 'next_monday' && mode !== 'date') {
+      return this.json(422, { detail: 'start_mode must be next_workout, next_monday, or date' })
+    }
+    if (mode === 'date' && (typeof record.start_date !== 'string' || !record.start_date)) {
+      return this.json(422, { detail: 'start_date is required when start_mode is date' })
+    }
+    const start = typeof record.start_date === 'string' && record.start_date ? record.start_date.slice(0, 10) : plan.start_date
+    plan.start_date = start
+    plan.start_mode = mode
+    for (const day of plan.days) {
+      day.scheduled_for = this.scheduledFor(plan, day.week, day.day_of_week)
+    }
+    const latest = plan.days.reduce((max, day) => (day.scheduled_for > max ? day.scheduled_for : max), plan.start_date)
+    plan.end_date = latest
+    this.touch(plan)
+    return this.json(200, structuredClone(plan))
   }
 
   private addDay(clientUserId: string, body: unknown): MockResponse {

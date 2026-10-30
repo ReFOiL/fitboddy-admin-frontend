@@ -1,6 +1,7 @@
 import { formatMonthDay, formatWorkoutClock, formatWorkoutDuration, weeksLabel } from '../../lib/dates'
 import { formatDosage } from '../../lib/plan-draft'
 import { formatWeekdayShort } from '../../lib/plan-formatters'
+import { isEmptyLeadInDay, isSkippedWorkout } from '../../lib/plan-start'
 import { firstName } from '../../lib/person'
 import { lastCompletedDay, weekProgress } from '../../lib/roster'
 import type { TrainingPlan } from '../../types/plan'
@@ -29,6 +30,13 @@ export function ClientProgress({
   const recent = plan
     ? [...plan.days]
         .filter((day) => day.scheduled_for.slice(0, 10) <= todayIso)
+        .filter(
+          (day) =>
+            !isEmptyLeadInDay(
+              { week: day.week, scheduledFor: day.scheduled_for, exerciseCount: day.exercises.length },
+              plan.start_date,
+            ),
+        )
         .sort((left, right) => right.scheduled_for.localeCompare(left.scheduled_for))
         .slice(0, 6)
     : []
@@ -54,7 +62,15 @@ export function ClientProgress({
           </div>
           {[currentWeek, previousWeek].filter((week): week is number => week != null && week > 0).map((week) => {
             const progress = weekProgress(plan, week)
-            if (progress.total === 0) return null
+            const visibleDays = plan.days.filter(
+              (day) =>
+                day.week === week &&
+                !isEmptyLeadInDay(
+                  { week: day.week, scheduledFor: day.scheduled_for, exerciseCount: day.exercises.length },
+                  plan.start_date,
+                ),
+            )
+            if (progress.total === 0 || visibleDays.length === 0) return null
             return (
               <section key={week} className="mt-6">
                 <SectionLabel>
@@ -62,10 +78,18 @@ export function ClientProgress({
                   {week === currentWeek ? ' · сейчас' : ''}
                 </SectionLabel>
                 <div className="mt-2 grid grid-cols-3 gap-3 text-center text-[13px] font-semibold">
-                  {plan.days
-                    .filter((day) => day.week === week)
+                  {visibleDays
                     .map((day) => {
-                      const missed = day.scheduled_for.slice(0, 10) < todayIso && !day.is_completed
+                      const missed = isSkippedWorkout(
+                        {
+                          week: day.week,
+                          scheduledFor: day.scheduled_for,
+                          exerciseCount: day.exercises.length,
+                          isCompleted: Boolean(day.is_completed),
+                        },
+                        todayIso,
+                        plan.start_date,
+                      )
                       return (
                         <div key={day.day_id}>
                           <div>{formatWeekdayShort(day.day_of_week)}</div>
@@ -90,7 +114,16 @@ export function ClientProgress({
           <section className="mt-6">
             <SectionLabel>Последние</SectionLabel>
             {recent.map((day) => {
-              const missed = !day.is_completed && day.scheduled_for.slice(0, 10) < todayIso
+              const missed = isSkippedWorkout(
+                {
+                  week: day.week,
+                  scheduledFor: day.scheduled_for,
+                  exerciseCount: day.exercises.length,
+                  isCompleted: Boolean(day.is_completed),
+                },
+                todayIso,
+                plan.start_date,
+              )
               const first = day.exercises[0]
               const finishedAt = day.finished_at ?? day.completed_at
               const clock = finishedAt ? formatWorkoutClock(finishedAt) : ''

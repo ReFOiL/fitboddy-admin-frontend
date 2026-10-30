@@ -34,6 +34,8 @@ const DETAIL_TRANSLATIONS: Record<string, string> = {
   'mode must be overwrite or append': 'Выберите замену или добавление.',
   'week must be between 1 and 8': 'Неделя может быть от 1 до 8.',
   'day_of_week must be between 0 and 6 (monday is 0)': 'День недели указан неверно.',
+  'start_date is required when start_mode is date': 'Укажите дату старта.',
+  'start_mode must be next_workout, next_monday, or date': 'Выберите, когда начать план.',
   'note must be at most 500 characters': 'Заметка не длиннее 500 символов.',
   'started_at must not be after the workout finish time': 'Старт тренировки не может быть позже окончания.',
   'started_at is too far before the workout finish time': 'Старт тренировки слишком давно. Начните её заново.',

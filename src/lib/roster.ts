@@ -1,4 +1,5 @@
 import { addIsoDays, formatMonthDay, missedWorkoutsLabel } from './dates'
+import { isSkippedWorkout } from './plan-start'
 import type { PlanDay, TrainingPlan } from '../types/plan'
 
 export type PlanLoadState = 'loading' | 'missing' | 'error' | 'ready'
@@ -11,7 +12,18 @@ export function todayPlanDay(plan: TrainingPlan | null | undefined, todayIso: st
 }
 
 export function missedPlanDays(plan: TrainingPlan, todayIso: string): PlanDay[] {
-  return plan.days.filter((day) => day.scheduled_for.slice(0, 10) < todayIso && !day.is_completed)
+  return plan.days.filter((day) =>
+    isSkippedWorkout(
+      {
+        week: day.week,
+        scheduledFor: day.scheduled_for,
+        exerciseCount: day.exercises.length,
+        isCompleted: Boolean(day.is_completed),
+      },
+      todayIso,
+      plan.start_date,
+    ),
+  )
 }
 
 export function weekProgress(plan: TrainingPlan, week: number): { done: number; total: number } {

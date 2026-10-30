@@ -45,7 +45,7 @@ test('тренер собирает план: день, упражнение, д
   await expect(row).toContainText('4×9')
   await expect(row).toContainText('42.5 кг')
   await expect(row).not.toContainText('отдых')
-  await page.getByRole('button', { name: 'Есть изменения' }).click()
+  await page.getByRole('button', { name: 'Сохранить план' }).click()
   await expect(page.getByText('План сохранён')).toBeVisible()
 
   await page.reload()
@@ -130,7 +130,7 @@ test('на 390px кнопка сохранения выше таб-бара', as
   await page.getByRole('button', { name: 'Больше: Подходы' }).click()
   await page.getByRole('button', { name: 'К плану' }).click()
 
-  const save = page.getByRole('button', { name: 'Есть изменения' })
+  const save = page.getByRole('button', { name: 'Сохранить план' })
   const tabs = page.getByRole('navigation', { name: 'Мобильная навигация' })
   await expect(save).toBeVisible()
   await expect(save).toBeEnabled()
