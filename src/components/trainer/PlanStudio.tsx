@@ -15,6 +15,7 @@ import { useTrainerRelations } from '../../hooks/use-relations'
 import { formatMonthDay, localTodayIso } from '../../lib/dates'
 import { formatEquipmentLabel } from '../../lib/equipment'
 import { formatWeekday, formatWeekdayShort } from '../../lib/plan-formatters'
+import { WEEKDAYS, weekdaySlots, type WeekdaySlot } from '../../lib/plan-weekday'
 import { dirtyDayIndexes, draftsFromPlan, formatDosage, type DayDraft, type DraftSlot } from '../../lib/plan-draft'
 import {
   isEmptyLeadInDay,
@@ -50,11 +51,10 @@ import {
 } from '../ui/kit'
 import { ClientProgress } from './ClientProgress'
 import { PlanStartCard } from './PlanStartCard'
+import { PlanDayChip, WeekdayMenu, WeekdaySwapSheet } from './WeekdayChange'
 
 type StudioScreen = 'plan' | 'progress' | 'add' | 'edit' | 'weights' | 'questionnaire'
 type Picker = 'none' | 'copy-day' | 'copy-week' | 'add-day'
-
-const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const
 
 const MUSCLE_CHIPS = [
   { id: 'all', label: 'Все' },
@@ -121,6 +121,8 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const [picked, setPicked] = useState<string[]>([])
   const [restOpen, setRestOpen] = useState(false)
   const [confirm, setConfirm] = useState<'assemble' | 'delete-day' | 'leave' | null>(null)
+  const [weekdayOpen, setWeekdayOpen] = useState(false)
+  const [swapWith, setSwapWith] = useState<number | null>(null)
 
   // Черновик сбрасывается, когда с сервера приходит другой план или новая версия.
   if (
@@ -129,6 +131,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   ) {
     const next = draftsFromPlan(editablePlan)
     const choice = planStartChoiceFromPlan(editablePlan)
+    const samePlan = stored?.id === editablePlan.plan_id
     setStored({
       id: editablePlan.plan_id,
       updatedAt: editablePlan.updated_at,
@@ -137,8 +140,13 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
       startBaseline: choice,
     })
     setStartChoice(choice)
-    setWeek(next[0]?.week ?? null)
-    setDayIndex(next[0]?.dayIndex ?? null)
+    // Смена дня недели не переназначает day_index: остаёмся на той же тренировке.
+    if (!samePlan || !next.some((day) => day.week === week)) {
+      setWeek(next[0]?.week ?? null)
+    }
+    if (!samePlan || dayIndex == null || !next.some((day) => day.dayIndex === dayIndex)) {
+      setDayIndex(next[0]?.dayIndex ?? null)
+    }
   }
 
   const draft = stored?.draft ?? []
@@ -192,12 +200,36 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     manual.addDayMutation.isPending ||
     manual.deleteDayMutation.isPending ||
     manual.copyDayMutation.isPending ||
-    manual.copyWeekMutation.isPending
+    manual.copyWeekMutation.isPending ||
+    manual.changeWeekdayMutation.isPending
 
   const requireCleanDraft = () => {
     if (!isDirty) return true
     toast.error('Сначала сохраните упражнения.')
     return false
+  }
+
+  const pickWeekday = (slot: WeekdaySlot) => {
+    if (!selectedDay || structureBusy) return
+    switch (slot.kind) {
+      case 'current':
+        setWeekdayOpen(false)
+        return
+      case 'free':
+        manual.changeWeekdayMutation.mutate(
+          { dayIndex: selectedDay.dayIndex, dayOfWeek: slot.dayOfWeek },
+          { onSuccess: () => setWeekdayOpen(false) },
+        )
+        return
+      case 'occupied':
+        setWeekdayOpen(false)
+        setSwapWith(slot.dayOfWeek)
+        return
+      default: {
+        const unreachable: never = slot.kind
+        return unreachable
+      }
+    }
   }
 
   const runAssemble = () => {
@@ -386,6 +418,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     )
   }
 
+  const canChangeWeekday = !readOnly && Boolean(editablePlan)
   const last = plan ? lastCompletedDay(plan) : null
 
   return (
@@ -418,6 +451,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
               className={`h-12 rounded-xl text-[17px] font-semibold ${item === activeWeek ? 'bg-card text-foreground shadow-sm' : 'text-secondary-foreground'}`}
               onClick={() => {
                 setWeek(item)
+                setWeekdayOpen(false)
                 const inWeek = draft.filter((day) => day.week === item)
                 const first =
                   inWeek.find(
@@ -436,19 +470,43 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
         </div>
       ) : null}
 
-      <div className="mt-4 flex gap-2 overflow-x-auto">
-        {daysForWeek.map((day) => (
-          <Chip key={day.dayId} active={selectedDay?.dayId === day.dayId} onClick={() => setDayIndex(day.dayIndex)}>
-            {formatWeekdayShort(day.dayOfWeek)}
-          </Chip>
-        ))}
-        {!readOnly && editablePlan ? (
+      {canChangeWeekday ? <p className="mt-4 text-[13px] font-semibold text-secondary-foreground">День недели</p> : null}
+      <div className={`relative z-30 ${canChangeWeekday ? 'mt-2' : 'mt-4'} flex gap-2 overflow-x-auto`}>
+        {daysForWeek.map((day) => {
+          const isActive = selectedDay?.dayId === day.dayId
+          return (
+            <PlanDayChip
+              key={day.dayId}
+              label={formatWeekdayShort(day.dayOfWeek)}
+              active={isActive}
+              disclosure={isActive && canChangeWeekday}
+              expanded={isActive && weekdayOpen}
+              onClick={() => {
+                if (!isActive) {
+                  setWeekdayOpen(false)
+                  setDayIndex(day.dayIndex)
+                  return
+                }
+                if (!canChangeWeekday) return
+                if (weekdayOpen) {
+                  setWeekdayOpen(false)
+                  return
+                }
+                if (!requireCleanDraft()) return
+                setSwapWith(null)
+                setWeekdayOpen(true)
+              }}
+            />
+          )
+        })}
+        {canChangeWeekday ? (
           <button
             type="button"
             aria-label="Добавить день"
             className="inline-flex h-12 min-w-12 items-center justify-center rounded-full border border-dashed border-primary/50 bg-secondary px-4 text-[17px] font-semibold text-foreground"
             onClick={() => {
               if (!requireCleanDraft()) return
+              setWeekdayOpen(false)
               setAddTime('')
               setPicker('add-day')
             }}
@@ -457,6 +515,21 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
           </button>
         ) : null}
       </div>
+      {weekdayOpen && canChangeWeekday && selectedDay ? (
+        <>
+          <button
+            type="button"
+            aria-label="Закрыть список дней"
+            className="fixed inset-0 z-20 cursor-default"
+            onClick={() => setWeekdayOpen(false)}
+          />
+          <WeekdayMenu
+            slots={weekdaySlots(weekDays, selectedDay.dayOfWeek)}
+            pending={manual.changeWeekdayMutation.isPending}
+            onPick={pickWeekday}
+          />
+        </>
+      ) : null}
 
       {!readOnly && editablePlan && draft.length > 0 ? (
         <PlanStartCard choice={startChoice} todayIso={todayIso} dayOfWeeks={dayOfWeeks} onChange={setStartChoice} />
@@ -672,6 +745,20 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
             leaveRelationMutation.mutate(
               { relationId: relation.relation_id },
               { onSuccess: () => navigate(APP_PATHS.clients) },
+            )
+          }
+        />
+      ) : null}
+      {swapWith != null && selectedDay ? (
+        <WeekdaySwapSheet
+          fromDayOfWeek={selectedDay.dayOfWeek}
+          toDayOfWeek={swapWith}
+          pending={manual.changeWeekdayMutation.isPending}
+          onClose={() => setSwapWith(null)}
+          onConfirm={() =>
+            manual.changeWeekdayMutation.mutate(
+              { dayIndex: selectedDay.dayIndex, dayOfWeek: swapWith },
+              { onSuccess: () => setSwapWith(null) },
             )
           }
         />
