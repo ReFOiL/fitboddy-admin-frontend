@@ -28,6 +28,13 @@ export type CatalogSyncUpdateItem = {
   changes: string[]
 }
 
+export type CatalogSyncSkipItem = {
+  /** platform_exercise_id. */
+  id: string
+  trainer_exercise_id: string
+  exercise_name: string
+}
+
 export type CatalogSyncSummary = {
   new_count: number
   media_update_count: number
@@ -38,6 +45,7 @@ export type CatalogSyncPreview = {
   summary: CatalogSyncSummary
   add: CatalogSyncAddItem[]
   update: CatalogSyncUpdateItem[]
+  unchanged: CatalogSyncSkipItem[]
   unchanged_count: number
 }
 
@@ -289,6 +297,22 @@ function readUpdateItems(value: unknown): CatalogSyncUpdateItem[] {
   return items
 }
 
+function readSkipItems(value: unknown): CatalogSyncSkipItem[] {
+  if (!Array.isArray(value)) return []
+  const items: CatalogSyncSkipItem[] = []
+  const seen = new Set<string>()
+  for (const entry of value) {
+    if (!isRecord(entry)) continue
+    const id = readString(entry.platform_exercise_id)
+    const trainerExerciseId = readString(entry.trainer_exercise_id)
+    const exerciseName = readString(entry.exercise_name)
+    if (!id || !trainerExerciseId || !exerciseName || seen.has(id)) continue
+    seen.add(id)
+    items.push({ id, trainer_exercise_id: trainerExerciseId, exercise_name: exerciseName })
+  }
+  return items
+}
+
 export function normalizeCatalogSyncPreview(payload: unknown): CatalogSyncPreview {
   if (!isRecord(payload) || !isRecord(payload.summary)) {
     throw new Error('Catalog sync preview payload is not an object')
@@ -296,7 +320,9 @@ export function normalizeCatalogSyncPreview(payload: unknown): CatalogSyncPrevie
   const summary = payload.summary
   const add = readAddItems(payload.add)
   const update = readUpdateItems(payload.update)
-  const unchanged = readNumber(summary.unchanged_count) ?? 0
+  const skipped = readSkipItems(payload.unchanged)
+  // Счётчики секций берём из списка, если сервер его прислал, чтобы цифра не расходилась с содержимым.
+  const unchanged = Array.isArray(payload.unchanged) ? skipped.length : (readNumber(summary.unchanged_count) ?? 0)
   return {
     summary: {
       new_count: readNumber(summary.new_count) ?? add.length,
@@ -305,6 +331,7 @@ export function normalizeCatalogSyncPreview(payload: unknown): CatalogSyncPrevie
     },
     add,
     update,
+    unchanged: skipped,
     unchanged_count: unchanged,
   }
 }
