@@ -105,6 +105,15 @@ export type CreateEmptyPlanRequest = {
   day_count?: number
 }
 
+/** How the trainer anchors the plan. Matches the plan-service start contract. */
+export type PlanStartMode = 'next_workout' | 'next_monday' | 'date'
+
+export type SetPlanStartRequest = {
+  start_mode: PlanStartMode
+  /** ISO date `YYYY-MM-DD`. Null when `next_workout` has no training weekdays yet. */
+  start_date: string | null
+}
+
 export type TrainingPlan = {
   plan_id: string
   source: PlanSource
@@ -115,6 +124,8 @@ export type TrainingPlan = {
   level: string
   workouts_per_week: number
   start_date: string
+  /** Present once plan-service echoes the trainer's start choice. */
+  start_mode?: PlanStartMode | null
   end_date: string
   created_at: string
   updated_at: string

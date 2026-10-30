@@ -9,6 +9,7 @@ import type {
   GeneratePlanRequest,
   PlanDay,
   PlanSlotWrite,
+  SetPlanStartRequest,
   TodayWorkout,
   TrainingPlan,
 } from '../types/plan'
@@ -144,6 +145,29 @@ export async function copyPlanWeek(
   payload: CopyPlanWeekRequest,
 ): Promise<TrainingPlan> {
   const { data } = await apiClient.post<TrainingPlan>(`${trainerPlanRoot(clientUserId, trainerUserId)}/weeks/${week}/copy`, payload)
+  return data
+}
+
+/**
+ * Anchor when the client's plan starts.
+ *
+ * plan-service main (and open PRs as of 2026-10-30) store `start_date` but do not
+ * expose `start_mode` yet. This client follows the contract the backend PR should
+ * implement:
+ *
+ * `PATCH /api/v1/plans/clients/{client}/trainers/{trainer}/start`
+ * `{ start_mode: "next_workout" | "next_monday" | "date", start_date: "YYYY-MM-DD" | null }`
+ *
+ * `start_date` is required when `start_mode` is `date`. The response is the
+ * active plan with week windows re-anchored to `start_date`. Days before that
+ * date, including empty week-1 lead-in days, are not missed workouts.
+ */
+export async function setPlanStart(
+  clientUserId: string,
+  trainerUserId: string,
+  payload: SetPlanStartRequest,
+): Promise<TrainingPlan> {
+  const { data } = await apiClient.patch<TrainingPlan>(`${trainerPlanRoot(clientUserId, trainerUserId)}/start`, payload)
   return data
 }
 

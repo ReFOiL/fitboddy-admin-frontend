@@ -11,10 +11,11 @@ import {
   patchPlanDayTime,
   queryKeys,
   replacePlanDaySlots,
+  setPlanStart,
 } from '../api'
 import { isSlotsDirty, isTimeDirty, slotsToWrite, type DayDraft } from '../lib/plan-draft'
 import { getUserErrorMessage } from '../lib/user-error-message'
-import type { AddPlanDayRequest, CopyPlanDayRequest, CopyPlanWeekRequest } from '../types/plan'
+import type { AddPlanDayRequest, CopyPlanDayRequest, CopyPlanWeekRequest, SetPlanStartRequest } from '../types/plan'
 
 export function useManualPlan(clientUserId: string, trainerUserId: string) {
   const queryClient = useQueryClient()
@@ -33,7 +34,7 @@ export function useManualPlan(clientUserId: string, trainerUserId: string) {
   }
 
   const saveMutation = useMutation({
-    mutationFn: async (input: { baseline: DayDraft[]; draft: DayDraft[] }) => {
+    mutationFn: async (input: { baseline: DayDraft[]; draft: DayDraft[]; start: SetPlanStartRequest }) => {
       const baseByIndex = new Map(input.baseline.map((day) => [day.dayIndex, day]))
       for (const day of input.draft) {
         const original = baseByIndex.get(day.dayIndex)
@@ -44,6 +45,7 @@ export function useManualPlan(clientUserId: string, trainerUserId: string) {
           await patchPlanDayTime(clientUserId, trainerUserId, day.dayIndex, day.scheduledTime)
         }
       }
+      await setPlanStart(clientUserId, trainerUserId, input.start)
     },
     onSuccess: async () => {
       await refreshPlan()

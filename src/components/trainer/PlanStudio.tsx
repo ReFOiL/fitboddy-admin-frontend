@@ -16,6 +16,13 @@ import { formatMonthDay, localTodayIso } from '../../lib/dates'
 import { formatEquipmentLabel } from '../../lib/equipment'
 import { formatWeekday, formatWeekdayShort } from '../../lib/plan-formatters'
 import { dirtyDayIndexes, draftsFromPlan, formatDosage, type DayDraft, type DraftSlot } from '../../lib/plan-draft'
+import {
+  isEmptyLeadInDay,
+  isSamePlanStartChoice,
+  planStartChoiceFromPlan,
+  planStartRequest,
+  type PlanStartChoice,
+} from '../../lib/plan-start'
 import { formatWorkoutCategory } from '../../lib/muscles'
 import { muscleBucket } from '../../lib/muscle-bucket'
 import { clientDisplayName } from '../../lib/person'
@@ -42,6 +49,7 @@ import {
   type OverflowItem,
 } from '../ui/kit'
 import { ClientProgress } from './ClientProgress'
+import { PlanStartCard } from './PlanStartCard'
 
 type StudioScreen = 'plan' | 'progress' | 'add' | 'edit' | 'weights' | 'questionnaire'
 type Picker = 'none' | 'copy-day' | 'copy-week' | 'add-day'
@@ -90,7 +98,14 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const plan = editablePlan ?? fallbackPlan
   const readOnly = !editablePlan && Boolean(fallbackPlan)
 
-  const [stored, setStored] = useState<{ id: string; updatedAt: string; baseline: DayDraft[]; draft: DayDraft[] } | null>(null)
+  const [stored, setStored] = useState<{
+    id: string
+    updatedAt: string
+    baseline: DayDraft[]
+    draft: DayDraft[]
+    startBaseline: PlanStartChoice
+  } | null>(null)
+  const [startChoice, setStartChoice] = useState<PlanStartChoice>({ mode: 'next_workout' })
   const [screen, setScreen] = useState<StudioScreen>(initialScreen)
   const [week, setWeek] = useState<number | null>(null)
   const [dayIndex, setDayIndex] = useState<number | null>(null)
@@ -113,7 +128,15 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     (!stored || stored.id !== editablePlan.plan_id || stored.updatedAt !== editablePlan.updated_at)
   ) {
     const next = draftsFromPlan(editablePlan)
-    setStored({ id: editablePlan.plan_id, updatedAt: editablePlan.updated_at, baseline: next, draft: next })
+    const choice = planStartChoiceFromPlan(editablePlan)
+    setStored({
+      id: editablePlan.plan_id,
+      updatedAt: editablePlan.updated_at,
+      baseline: next,
+      draft: next,
+      startBaseline: choice,
+    })
+    setStartChoice(choice)
     setWeek(next[0]?.week ?? null)
     setDayIndex(next[0]?.dayIndex ?? null)
   }
@@ -121,13 +144,26 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const draft = stored?.draft ?? []
   const baseline = stored?.baseline ?? []
   const dirty = stored ? dirtyDayIndexes(baseline, draft) : []
-  const isDirty = dirty.length > 0
+  const dayOfWeeks = draft.map((day) => day.dayOfWeek)
+  const startRequest = planStartRequest(startChoice, dayOfWeeks, todayIso)
+  const chosenStart = startRequest?.start_date ?? null
+  const startDirty = stored ? !isSamePlanStartChoice(startChoice, stored.startBaseline) : false
+  const startNeedsDate = startChoice.mode === 'date' && !startChoice.date
+  const isDirty = dirty.length > 0 || (startDirty && !startNeedsDate)
   useUnsavedChangesGuard(isDirty && !manual.saveMutation.isPending)
 
   const weeks = [...new Set(draft.map((day) => day.week))]
   const activeWeek = week ?? weeks[0] ?? 1
   const weekDays = draft.filter((day) => day.week === activeWeek)
-  const selectedDay = draft.find((day) => day.dayIndex === dayIndex) ?? weekDays[0] ?? null
+  const shownWeekDays = weekDays.filter(
+    (day) =>
+      !isEmptyLeadInDay(
+        { week: day.week, scheduledFor: day.scheduledFor, exerciseCount: day.slots.length },
+        chosenStart,
+      ),
+  )
+  const daysForWeek = shownWeekDays.length > 0 ? shownWeekDays : weekDays
+  const selectedDay = daysForWeek.find((day) => day.dayIndex === dayIndex) ?? daysForWeek[0] ?? null
   const catalog = (catalogQuery.data ?? []).filter((item) => item.is_active)
   const media = useMemo(() => new Map(catalog.map((item) => [item.row_id, item])), [catalog])
 
@@ -147,9 +183,9 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   }
 
   const save = () => {
-    if (!stored) return
+    if (!stored || !startRequest || startNeedsDate) return
     const payload = stored.draft.filter((day) => dirty.includes(day.dayIndex))
-    manual.saveMutation.mutate({ baseline: stored.baseline, draft: payload })
+    manual.saveMutation.mutate({ baseline: stored.baseline, draft: payload, start: startRequest })
   }
 
   const structureBusy =
@@ -382,7 +418,15 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
               className={`h-12 rounded-xl text-[17px] font-semibold ${item === activeWeek ? 'bg-card text-foreground shadow-sm' : 'text-secondary-foreground'}`}
               onClick={() => {
                 setWeek(item)
-                const first = draft.find((day) => day.week === item)
+                const inWeek = draft.filter((day) => day.week === item)
+                const first =
+                  inWeek.find(
+                    (day) =>
+                      !isEmptyLeadInDay(
+                        { week: day.week, scheduledFor: day.scheduledFor, exerciseCount: day.slots.length },
+                        chosenStart,
+                      ),
+                  ) ?? inWeek[0]
                 if (first) setDayIndex(first.dayIndex)
               }}
             >
@@ -393,7 +437,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
       ) : null}
 
       <div className="mt-4 flex gap-2 overflow-x-auto">
-        {weekDays.map((day) => (
+        {daysForWeek.map((day) => (
           <Chip key={day.dayId} active={selectedDay?.dayId === day.dayId} onClick={() => setDayIndex(day.dayIndex)}>
             {formatWeekdayShort(day.dayOfWeek)}
           </Chip>
@@ -413,6 +457,10 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
           </button>
         ) : null}
       </div>
+
+      {!readOnly && editablePlan && draft.length > 0 ? (
+        <PlanStartCard choice={startChoice} todayIso={todayIso} dayOfWeeks={dayOfWeeks} onChange={setStartChoice} />
+      ) : null}
 
       {!readOnly && selectedDay ? (
         <label className="mt-4 grid gap-2 text-[17px] font-semibold" htmlFor="plan-day-time">
@@ -492,8 +540,14 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
 
       {!readOnly && selectedDay ? (
         <StickyActionBar>
-          <Button type="button" size="lg" className="w-full" disabled={!isDirty || manual.saveMutation.isPending} onClick={save}>
-            {manual.saveMutation.isPending ? 'Сохраняем…' : isDirty ? 'Есть изменения' : 'Нет изменений'}
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            disabled={!isDirty || startNeedsDate || manual.saveMutation.isPending}
+            onClick={save}
+          >
+            {manual.saveMutation.isPending ? 'Сохраняем…' : 'Сохранить план'}
           </Button>
         </StickyActionBar>
       ) : null}
