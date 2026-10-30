@@ -226,6 +226,107 @@ describe('CatalogSyncDialog', () => {
     await waitFor(() => expect(previewTrainerCatalogSync).toHaveBeenCalledTimes(2))
   })
 
+  function renderExercises() {
+    return render(
+      wrapper(
+        <MemoryRouter>
+          <ExercisesPage />
+        </MemoryRouter>,
+      ),
+    )
+  }
+
+  function syncButton() {
+    return screen.getByRole('button', { name: 'Синхронизировать с системной базой' })
+  }
+
+  it('marks the sync button with a dot and no count when there is something to add', async () => {
+    renderExercises()
+
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'pending'))
+    const dot = screen.getByTestId('catalog-sync-pending-dot')
+    expect(dot).toBeEmptyDOMElement()
+    expect(dot).toHaveClass('bg-destructive')
+    expect(syncButton()).toHaveAccessibleName('Синхронизировать с системной базой')
+    expect(syncButton()).toHaveAccessibleDescription(/добавить или обновить/)
+  })
+
+  it('marks the sync button when the preview only has media updates', async () => {
+    vi.mocked(previewTrainerCatalogSync).mockResolvedValue({
+      summary: { new_count: 0, media_update_count: 1, unchanged_count: 4 },
+      add: [],
+      update: previewFixture.update,
+      unchanged: previewFixture.unchanged,
+      unchanged_count: 4,
+    })
+    renderExercises()
+
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'pending'))
+    expect(screen.getByTestId('catalog-sync-pending-dot')).toHaveTextContent(/^$/)
+  })
+
+  it('does not mark the sync button when the preview only has unchanged exercises', async () => {
+    vi.mocked(previewTrainerCatalogSync).mockResolvedValue({
+      summary: { new_count: 0, media_update_count: 0, unchanged_count: 4 },
+      add: [],
+      update: [],
+      unchanged: previewFixture.unchanged,
+      unchanged_count: 4,
+    })
+    renderExercises()
+
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'clear'))
+    expect(screen.queryByTestId('catalog-sync-pending-dot')).not.toBeInTheDocument()
+    expect(syncButton()).not.toHaveAccessibleDescription()
+  })
+
+  it('does not mark the sync button when the preview fails', async () => {
+    vi.mocked(previewTrainerCatalogSync).mockRejectedValue(new Error('down'))
+    renderExercises()
+
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'error'))
+    expect(screen.queryByTestId('catalog-sync-pending-dot')).not.toBeInTheDocument()
+  })
+
+  it('clears the dot after a successful sync leaves nothing to add or update', async () => {
+    renderExercises()
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'pending'))
+
+    fireEvent.click(syncButton())
+    await screen.findByRole('button', { name: 'Синхронизировать выбранное (2)' })
+    vi.mocked(previewTrainerCatalogSync).mockResolvedValue({
+      summary: { new_count: 0, media_update_count: 0, unchanged_count: 4 },
+      add: [],
+      update: [],
+      unchanged: previewFixture.unchanged,
+      unchanged_count: 4,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Синхронизировать выбранное (2)' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'clear'))
+    expect(screen.queryByTestId('catalog-sync-pending-dot')).not.toBeInTheDocument()
+  })
+
+  it('keeps the dot when a successful sync still leaves a media update', async () => {
+    renderExercises()
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'pending'))
+    fireEvent.click(syncButton())
+    await screen.findByRole('button', { name: 'Синхронизировать выбранное (2)' })
+
+    vi.mocked(previewTrainerCatalogSync).mockResolvedValue({
+      summary: { new_count: 0, media_update_count: 1, unchanged_count: 4 },
+      add: [],
+      update: previewFixture.update,
+      unchanged: previewFixture.unchanged,
+      unchanged_count: 4,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Синхронизировать выбранное (2)' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(syncButton()).toHaveAttribute('data-sync-attention', 'pending'))
+  })
+
   it('opens the dialog from the trainer exercises screen', async () => {
     render(
       wrapper(

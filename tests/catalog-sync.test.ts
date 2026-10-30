@@ -4,6 +4,8 @@ import { apiClient } from '../src/api/client'
 import { applyTrainerCatalogSync, previewTrainerCatalogSync } from '../src/api/exercises'
 import {
   catalogSyncApplyBody,
+  catalogSyncHasPendingChanges,
+  catalogSyncPreviewAfterApply,
   catalogSyncSelectionCount,
   checkState,
   formatSyncSummary,
@@ -118,6 +120,62 @@ describe('catalog sync preview', () => {
       'обновлено видео',
     ])
     expect(notesForChangedFields(['start_image_url'], yours, system)).toEqual([])
+  })
+})
+
+describe('catalog sync attention', () => {
+  const preview = normalizeCatalogSyncPreview({
+    summary: { new_count: 2, media_update_count: 1, unchanged_count: 4 },
+    add: [
+      { platform_exercise_id: 'a', exercise_name: 'А' },
+      { platform_exercise_id: 'b', exercise_name: 'Б' },
+    ],
+    update: [
+      {
+        platform_exercise_id: 'plat-u',
+        trainer_exercise_id: 'tr-u',
+        changed_fields: ['video_url'],
+        trainer: { exercise_name: 'В', video_url: null, start_image_url: null, end_image_url: null },
+        platform: { exercise_name: 'В', video_url: '/v.mp4', start_image_url: null, end_image_url: null },
+      },
+    ],
+  })
+
+  it('counts adds and media updates, and ignores unchanged exercises', () => {
+    expect(catalogSyncHasPendingChanges(preview)).toBe(true)
+    expect(
+      catalogSyncHasPendingChanges({
+        summary: { new_count: 0, media_update_count: 0, unchanged_count: 9 },
+        add: [],
+        update: [],
+      }),
+    ).toBe(false)
+    expect(
+      catalogSyncHasPendingChanges({
+        summary: { new_count: 0, media_update_count: 2, unchanged_count: 9 },
+        add: [],
+        update: [],
+      }),
+    ).toBe(true)
+    expect(
+      catalogSyncHasPendingChanges({
+        summary: { new_count: 0, media_update_count: 0, unchanged_count: 0 },
+        add: [{ id: 'orphan', exercise_name: 'Орфан', muscles: [], start_image_url: null }],
+        update: [],
+      }),
+    ).toBe(true)
+  })
+
+  it('clears applied ids and leaves a dot while media updates remain', () => {
+    const afterAdds = catalogSyncPreviewAfterApply(preview, { add_ids: ['a', 'b'], update_ids: [] })
+    expect(afterAdds.add).toEqual([])
+    expect(afterAdds.summary).toEqual({ new_count: 0, media_update_count: 1, unchanged_count: 4 })
+    expect(catalogSyncHasPendingChanges(afterAdds)).toBe(true)
+
+    const afterMedia = catalogSyncPreviewAfterApply(afterAdds, { add_ids: [], update_ids: ['plat-u'] })
+    expect(afterMedia.update).toEqual([])
+    expect(afterMedia.summary.unchanged_count).toBe(4)
+    expect(catalogSyncHasPendingChanges(afterMedia)).toBe(false)
   })
 })
 

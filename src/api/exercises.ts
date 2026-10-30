@@ -42,6 +42,7 @@ export async function listTrainerExercises(
 // Контракт plan-service: предпросмотр и применение синхронизации каталога.
 // GET  /api/v1/trainers/{id}/exercises/sync-preview
 //      { summary: { new_count, media_update_count, unchanged_count }, add[], update[] }
+//      Точке на каталоге хватает summary: new_count и media_update_count. unchanged не считается.
 //      id в обеих секциях — platform_exercise_id. Мышцы — slug. Медиа — подписанные URL.
 //      update[]: trainer + platform и changed_fields (video_url | start_image_url | end_image_url).
 // POST /api/v1/trainers/{id}/exercises/sync

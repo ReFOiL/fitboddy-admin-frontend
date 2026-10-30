@@ -10,6 +10,7 @@ import {
   checkState,
   slotsForChangedFields,
   formatCatalogSyncSuccessDescription,
+  catalogSyncPreviewAfterApply,
   formatSyncSummary,
   initialCatalogSyncSelection,
   mediaSlotCaption,
@@ -60,12 +61,17 @@ export function CatalogSyncDialog({ trainerUserId, onClose }: CatalogSyncDialogP
   const applyMutation = useMutation({
     mutationFn: (payload: ReturnType<typeof toCatalogSyncApplyRequest>) =>
       applyTrainerCatalogSync(trainerUserId, payload),
-    onSuccess: () => {
+    onSuccess: (_result, payload) => {
       const catalogPrefix = queryKeys.exercises.trainerCatalog(trainerUserId, false).slice(0, -1)
       const exercisePrefix = queryKeys.exercises.trainerExercise(trainerUserId, '').slice(0, -1)
       void queryClient.invalidateQueries({ queryKey: catalogPrefix })
       void queryClient.invalidateQueries({ queryKey: exercisePrefix })
-      queryClient.removeQueries({ queryKey: queryKeys.exercises.catalogSyncPreview(trainerUserId) })
+      // Каталог читает тот же предпросмотр для точки. Обновляем кэш, а не выбрасываем его.
+      const previewKey = queryKeys.exercises.catalogSyncPreview(trainerUserId)
+      queryClient.setQueryData<CatalogSyncPreview>(previewKey, (current) =>
+        current ? catalogSyncPreviewAfterApply(current, payload) : current,
+      )
+      void queryClient.invalidateQueries({ queryKey: previewKey })
     },
   })
 
