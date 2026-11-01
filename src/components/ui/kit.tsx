@@ -2,6 +2,7 @@ import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import { useEffect, useId, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
+import { ExercisePhotoFrame } from '../media/ExercisePhotoFrame'
 import { CATALOG_THUMB_SRC, VIDEO_PLACEHOLDER_SRC } from '../../lib/media-placeholders'
 import { personInitials } from '../../lib/person'
 import { cn } from '../../lib/utils'
@@ -283,14 +284,15 @@ export function ExerciseThumb({ imageUrl, hasVideo }: { imageUrl?: string | null
   const src = imageUrl?.trim() ? imageUrl : hasVideo ? VIDEO_PLACEHOLDER_SRC : CATALOG_THUMB_SRC
   const showPlay = Boolean(hasVideo && imageUrl?.trim())
   return (
-    <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary">
-      <img src={src} alt="" className="h-full w-full object-cover" />
+    <ExercisePhotoFrame src={src} alt="" className="h-12 w-16 shrink-0 rounded-lg">
       {showPlay ? (
-        <span className="absolute flex h-6 w-6 items-center justify-center rounded-full bg-background/80 text-foreground">
-          <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground" />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background/80 text-foreground">
+            <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground" />
+          </span>
         </span>
       ) : null}
-    </span>
+    </ExercisePhotoFrame>
   )
 }
 

@@ -4,19 +4,18 @@ import { Archive, ArchiveRestore, Dumbbell, Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
-import { toast } from 'sonner'
 import { z } from 'zod'
 
 import { listMuscles } from '../api/exercises'
 import { CatalogSyncDialog } from '../components/exercises/CatalogSyncDialog'
+import { CreateExercisePhotoField } from '../components/exercises/CreateExercisePhotoField'
 import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
-import { MissingPhoto } from '../components/media/ExerciseMedia'
 import { ExerciseThumb } from '../components/ui/kit'
 import { useCatalogSyncAttention, type CatalogSyncAttentionStatus } from '../hooks/use-catalog-sync-attention'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
-import { validateExercisePhotoFile } from '../lib/exercise-photos'
+import { EXERCISE_PHOTO_ASPECT_HINT } from '../lib/exercise-photo-crop'
 import type { LoadScheme, UpsertTrainerExerciseRequest } from '../types/exercise'
 import { formatEquipmentLabel, normalizeEquipmentName } from '../lib/equipment'
 import {
@@ -339,7 +338,7 @@ export function ExercisesPage() {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <CreatePhotoPicker
+                <CreateExercisePhotoField
                   label="Старт"
                   inputId="create_photo_start"
                   preview={startPreview}
@@ -350,7 +349,7 @@ export function ExercisesPage() {
                     setStartPreview(file ? URL.createObjectURL(file) : null)
                   }}
                 />
-                <CreatePhotoPicker
+                <CreateExercisePhotoField
                   label="Финиш"
                   inputId="create_photo_end"
                   preview={endPreview}
@@ -362,6 +361,7 @@ export function ExercisesPage() {
                   }}
                 />
               </div>
+              <p className="text-xs text-secondary-foreground">{EXERCISE_PHOTO_ASPECT_HINT}</p>
 
               <div className={moreOpen ? 'grid gap-1.5' : 'hidden'}>
                 <Label htmlFor="description">Описание</Label>
@@ -814,45 +814,3 @@ function CatalogSyncAttentionDot() {
   )
 }
 
-function CreatePhotoPicker({
-  label,
-  inputId,
-  preview,
-  disabled,
-  onFile,
-}: {
-  label: 'Старт' | 'Финиш'
-  inputId: string
-  preview: string | null
-  disabled: boolean
-  onFile: (file: File | null) => void
-}) {
-  return (
-    <div className="grid gap-2">
-      <Label htmlFor={inputId}>Фото · {label}</Label>
-      {preview ? (
-        <img src={preview} alt="" className="aspect-[4/3] w-full rounded-2xl object-cover" />
-      ) : (
-        <MissingPhoto label={label} className="aspect-[4/3] w-full rounded-2xl" />
-      )}
-      <Input
-        id={inputId}
-        type="file"
-        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-        disabled={disabled}
-        onChange={(event) => {
-          const file = event.target.files?.[0] ?? null
-          if (file) {
-            const error = validateExercisePhotoFile(file)
-            if (error) {
-              toast.error(error)
-              event.currentTarget.value = ''
-              return
-            }
-          }
-          onFile(file)
-        }}
-      />
-    </div>
-  )
-}

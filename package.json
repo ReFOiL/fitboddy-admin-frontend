@@ -24,6 +24,7 @@
     "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-easy-crop": "^6.2.4",
     "react-hook-form": "^7.74.0",
     "react-muscle-highlighter": "^1.2.0",
     "react-router-dom": "^7.14.2",
