@@ -43,16 +43,20 @@ describe('ExercisePhotoSlots', () => {
 
     expect(screen.getByText('Исходное положение')).toBeInTheDocument()
     expect(screen.getByText('Конечное положение')).toBeInTheDocument()
-    expect(screen.getByAltText('Исходное положение')).toHaveAttribute(
-      'src',
-      `${API_BASE}/media/start.jpg`,
-    )
+    const photo = screen.getByAltText('Исходное положение')
+    expect(photo).toHaveAttribute('src', `${API_BASE}/media/start.jpg`)
+    expect(photo).toHaveClass('object-cover', 'object-center')
+    expect(photo).not.toHaveClass('object-contain')
+    expect(photo.parentElement).toHaveAttribute('data-aspect', '4/3')
+    expect(photo.parentElement).toHaveClass('aspect-[4/3]', 'overflow-hidden')
     expect(screen.getByText('Финиш')).toBeInTheDocument()
+    expect(screen.getByText('Старт · 4:3')).toBeInTheDocument()
+    expect(screen.getByText('Финиш · 4:3')).toBeInTheDocument()
     expect(screen.queryByLabelText('Загрузить фото')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Удалить фото' })).not.toBeInTheDocument()
   })
 
-  it('lets trainers upload, replace and delete start/end photos', () => {
+  it('opens the 4:3 cropper before upload and still deletes a photo', async () => {
     const onUpload = vi.fn()
     const onDelete = vi.fn()
 
@@ -69,10 +73,21 @@ describe('ExercisePhotoSlots', () => {
     expect(screen.getByLabelText('Загрузить фото')).toBeInTheDocument()
     expect(screen.getAllByText('Поддерживаются JPG, PNG и WEBP, до 15 МБ.')).toHaveLength(2)
     expect(screen.getByText('Финиш')).toBeInTheDocument()
+    expect(screen.getByText('Кадр всегда 4:3 — в каталоге и у клиента фото не раздувает экран.')).toBeInTheDocument()
 
     const startFile = new File([new Uint8Array(8)], 'start.jpg', { type: 'image/jpeg' })
     fireEvent.change(screen.getByLabelText('Заменить фото'), { target: { files: [startFile] } })
-    expect(onUpload).toHaveBeenCalledWith('start', startFile)
+
+    expect(await screen.findByRole('dialog', { name: 'Кадр старта' })).toBeInTheDocument()
+    expect(screen.getByText('Перетащи фото и масштабируй — в кадр попадёт только то, что внутри рамки.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Сбросить' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Готово' })).toBeInTheDocument()
+    expect(screen.getByRole('slider', { name: 'Масштаб' })).toBeInTheDocument()
+    expect(onUpload).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onUpload).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Удалить фото' }))
     expect(window.confirm).toHaveBeenCalledWith('Удалить фото «Исходное положение»?')

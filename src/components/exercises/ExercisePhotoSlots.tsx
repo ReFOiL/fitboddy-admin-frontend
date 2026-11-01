@@ -1,9 +1,14 @@
 import { Image, Loader2, Trash2 } from 'lucide-react'
 import { useRef } from 'react'
-import { toast } from 'sonner'
 
 import { MissingPhoto } from '../media/ExerciseMedia'
+import { ExercisePhotoFrame } from '../media/ExercisePhotoFrame'
 
+import {
+  EXERCISE_PHOTO_ASPECT_HINT,
+  EXERCISE_PHOTO_FRAME_CAPTIONS,
+  EXERCISE_PHOTO_SHORT_LABELS,
+} from '../../lib/exercise-photo-crop'
 import {
   EXERCISE_PHOTO_ACCEPT,
   EXERCISE_PHOTO_HINT,
@@ -12,11 +17,12 @@ import {
   type ExercisePhotoPosition,
   getExercisePhotoUrl,
   resolveExerciseMediaUrl,
-  validateExercisePhotoFile,
 } from '../../lib/exercise-photos'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import { ExercisePhotoCropHost } from './ExercisePhotoCropDialog'
+import { useExercisePhotoCrop } from './use-exercise-photo-crop'
 
 const MAX_EXPIRED_PHOTO_REFRESHES = 2
 
@@ -50,6 +56,8 @@ export function ExercisePhotoSlots({
   onDelete,
   onImageError,
 }: ExercisePhotoSlotsProps) {
+  const { pending, openCrop, closeCrop } = useExercisePhotoCrop()
+
   return (
     <div className="grid gap-3 rounded-xl border border-border/70 bg-secondary/20 p-4">
       <div className="flex items-center gap-2 text-sm font-medium">
@@ -69,13 +77,22 @@ export function ExercisePhotoSlots({
               isUploading={busyPosition === position && busyAction === 'upload'}
               isDeleting={busyPosition === position && busyAction === 'delete'}
               uploadProgress={uploadProgress}
-              onUpload={onUpload}
+              onPickFile={openCrop}
               onDelete={onDelete}
               onImageError={onImageError}
             />
           )
         })}
       </div>
+      {editable ? <p className="text-xs text-secondary-foreground">{EXERCISE_PHOTO_ASPECT_HINT}</p> : null}
+      <ExercisePhotoCropHost
+        pending={pending}
+        onCancel={closeCrop}
+        onComplete={(position, file) => {
+          onUpload?.(position, file)
+          closeCrop()
+        }}
+      />
     </div>
   )
 }
@@ -87,7 +104,7 @@ function ExercisePhotoSlot({
   isUploading,
   isDeleting,
   uploadProgress,
-  onUpload,
+  onPickFile,
   onDelete,
   onImageError,
 }: {
@@ -97,7 +114,7 @@ function ExercisePhotoSlot({
   isUploading: boolean
   isDeleting: boolean
   uploadProgress: number | null
-  onUpload?: (position: ExercisePhotoPosition, file: File) => void
+  onPickFile: (position: ExercisePhotoPosition, file: File) => void
   onDelete?: (position: ExercisePhotoPosition) => void
   onImageError?: (position: ExercisePhotoPosition) => void
 }) {
@@ -135,15 +152,10 @@ function ExercisePhotoSlot({
             accept={EXERCISE_PHOTO_ACCEPT}
             onChange={(event) => {
               const file = event.target.files?.[0]
-              if (!file) return
-              const validationError = validateExercisePhotoFile(file)
-              if (validationError) {
-                toast.error(validationError)
-                event.currentTarget.value = ''
-                return
-              }
-              onUpload?.(position, file)
               event.currentTarget.value = ''
+              if (!file) return
+              // Кадр 4:3 собирается до загрузки: наружу уходит уже сжатый файл.
+              onPickFile(position, file)
             }}
             disabled={isBusy}
           />
@@ -179,14 +191,19 @@ function ExercisePhotoSlot({
 
       {imageUrl ? (
         <div className={`space-y-3 ${isBusy ? 'pointer-events-none opacity-50' : ''}`}>
-          <img
+          <ExercisePhotoFrame
             key={imageUrl}
             src={imageUrl}
             alt={label}
             onError={handleImageError}
             onLoad={handleImageLoad}
-            className="max-h-72 w-full rounded-xl border border-border/60 bg-background/40 object-contain"
-          />
+            className="rounded-xl border border-border/60"
+          >
+            <span className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-media/80 px-2 py-0.5 text-[12px] font-semibold text-media-foreground">
+              {EXERCISE_PHOTO_SHORT_LABELS[position]}
+            </span>
+          </ExercisePhotoFrame>
+          <p className="text-center text-[13px] text-secondary-foreground">{EXERCISE_PHOTO_FRAME_CAPTIONS[position]}</p>
           {editable ? (
             <Button
               type="button"
@@ -204,10 +221,13 @@ function ExercisePhotoSlot({
           ) : null}
         </div>
       ) : !isBusy ? (
-        <MissingPhoto
-          label={position === 'start' ? 'Старт' : 'Финиш'}
-          className="aspect-[4/3] w-full rounded-xl"
-        />
+        <div className="space-y-2">
+          <MissingPhoto
+            label={EXERCISE_PHOTO_SHORT_LABELS[position]}
+            className="aspect-[4/3] w-full rounded-xl"
+          />
+          <p className="text-center text-[13px] text-secondary-foreground">{EXERCISE_PHOTO_FRAME_CAPTIONS[position]}</p>
+        </div>
       ) : null}
     </div>
   )

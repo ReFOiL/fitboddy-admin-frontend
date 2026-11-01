@@ -202,6 +202,16 @@ describe('CatalogSyncDialog', () => {
     expect(screen.getByRole('dialog', { name: 'Синхронизация с системной базой' })).toBeInTheDocument()
   })
 
+  it('frames sync photo thumbs at 4:3', async () => {
+    renderDialog()
+    expect(await screen.findByRole('button', { name: 'Синхронизировать выбранное (2)' })).toBeEnabled()
+    const frames = document.querySelectorAll('[data-aspect="4/3"]')
+    expect(frames.length).toBeGreaterThan(0)
+    for (const frame of frames) {
+      expect(frame.querySelector('img')).toHaveClass('object-cover', 'object-center')
+    }
+  })
+
   it('explains an empty preview', async () => {
     vi.mocked(previewTrainerCatalogSync).mockResolvedValue({
       summary: { new_count: 0, media_update_count: 0, unchanged_count: 0 },

@@ -30,6 +30,7 @@ import {
 } from '../../lib/catalog-sync'
 import { resolveExerciseMediaUrl } from '../../lib/exercise-photos'
 import { CATALOG_THUMB_SRC, VIDEO_PLACEHOLDER_SRC } from '../../lib/media-placeholders'
+import { ExercisePhotoFrame } from '../media/ExercisePhotoFrame'
 import { getUserErrorMessage } from '../../lib/user-error-message'
 import { cn } from '../../lib/utils'
 import { EmptyState, QueryState } from '../shared'
@@ -610,7 +611,7 @@ function DiffFrame({ slot, url }: { slot: MediaSlot; url: string | null }) {
   }
   return (
     <figure className="w-28">
-      <img src={resolveExerciseMediaUrl(url) ?? CATALOG_THUMB_SRC} alt="" className="aspect-[4/3] w-28 rounded-xl object-cover" />
+      <ExercisePhotoFrame src={resolveExerciseMediaUrl(url) ?? CATALOG_THUMB_SRC} alt="" className="rounded-xl" />
       <figcaption className="mt-1 text-center text-[11px] text-secondary-foreground">{caption}</figcaption>
     </figure>
   )
@@ -618,11 +619,7 @@ function DiffFrame({ slot, url }: { slot: MediaSlot; url: string | null }) {
 
 function SyncThumb({ imageUrl }: { imageUrl: string | null }) {
   const src = resolveExerciseMediaUrl(imageUrl) ?? CATALOG_THUMB_SRC
-  return (
-    <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-secondary">
-      <img src={src} alt="" className="h-full w-full object-cover" />
-    </span>
-  )
+  return <ExercisePhotoFrame src={src} alt="" className="h-16 w-[calc(4rem*4/3)] shrink-0 rounded-xl" />
 }
 
 function CheckRow({

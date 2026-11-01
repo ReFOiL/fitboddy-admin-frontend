@@ -2,6 +2,7 @@ import { photoPlaceholderForTheme, VIDEO_PLACEHOLDER_SRC } from '../../lib/media
 import { resolveExerciseMediaUrl } from '../../lib/exercise-photos'
 import { useTheme } from '../../hooks/use-theme'
 import { cn } from '../../lib/utils'
+import { ExercisePhotoFrame } from './ExercisePhotoFrame'
 
 type FrameProps = {
   label?: string
@@ -65,14 +66,14 @@ export function ExerciseHeroMedia({ videoUrl, startUrl, endUrl, className }: Her
   }
 
   if (!start && !end) {
-    return <MissingPhoto label="Фото положения" className={cn('aspect-[4/5] w-full rounded-2xl', className)} />
+    return <MissingPhoto label="Фото положения" className={cn('aspect-[4/3] w-full rounded-2xl', className)} />
   }
 
   if (start && end) {
     return (
       <div className={cn('grid grid-cols-2 gap-2', className)}>
-        <img src={start} alt="Старт" className="aspect-[4/5] w-full rounded-2xl object-cover" />
-        <img src={end} alt="Финиш" className="aspect-[4/5] w-full rounded-2xl object-cover" />
+        <ExercisePhotoFrame src={start} alt="Старт" />
+        <ExercisePhotoFrame src={end} alt="Финиш" />
       </div>
     )
   }
@@ -81,7 +82,7 @@ export function ExerciseHeroMedia({ videoUrl, startUrl, endUrl, className }: Her
   const missingLabel = start ? 'Финиш' : 'Старт'
   return (
     <div className={className}>
-      <img src={photo ?? ''} alt={start ? 'Старт' : 'Финиш'} className="aspect-[4/5] w-full rounded-2xl object-cover" />
+      <ExercisePhotoFrame src={photo ?? ''} alt={start ? 'Старт' : 'Финиш'} />
       <p className="mt-2 text-[15px] text-secondary-foreground">Нет фото: {missingLabel}</p>
     </div>
   )
@@ -106,7 +107,7 @@ export function SlotPhotoPreview({ startUrl, endUrl, className }: SlotPreviewPro
 
   return (
     <div className={className}>
-      <img src={preview} alt="" className="aspect-[4/3] w-full rounded-2xl object-cover" />
+      <ExercisePhotoFrame src={preview} alt="" />
       {missing.length > 0 ? <p className="mt-2 text-[15px] font-semibold">Нет фото: {missing.join(' · ')}</p> : null}
     </div>
   )
