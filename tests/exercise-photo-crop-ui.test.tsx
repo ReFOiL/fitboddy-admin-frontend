@@ -4,7 +4,14 @@ import { toast } from 'sonner'
 
 import { CreateExercisePhotoField } from '../src/components/exercises/CreateExercisePhotoField'
 import { ExercisePhotoSlots } from '../src/components/exercises/ExercisePhotoSlots'
-import { EXERCISE_PHOTO_EXPORT_QUALITY } from '../src/lib/exercise-photo-crop'
+import {
+  EXERCISE_PHOTO_EXPORT_QUALITY,
+  exercisePhotoCoverZoom,
+  exercisePhotoPanLimit,
+} from '../src/lib/exercise-photo-crop'
+
+const LANDSCAPE_MEDIA = { width: 800, height: 500 }
+const LANDSCAPE_CROP = { width: 400, height: 300 }
 
 vi.mock('sonner', () => ({
   toast: {
@@ -18,21 +25,39 @@ vi.mock('react-easy-crop', async () => {
 
   function MockCropper(props: {
     zoom?: number
+    minZoom?: number
+    objectFit?: string
+    restrictPosition?: boolean
     onCropComplete?: (
       area: { x: number; y: number; width: number; height: number },
       pixels: { x: number; y: number; width: number; height: number },
     ) => void
+    setMediaSize?: (size: { width: number; height: number; naturalWidth: number; naturalHeight: number }) => void
+    setCropSize?: (size: { width: number; height: number }) => void
   }) {
-    const { onCropComplete, zoom } = props
+    const { onCropComplete, zoom, minZoom, objectFit, restrictPosition, setMediaSize, setCropSize } = props
     React.useEffect(() => {
       onCropComplete?.(
         { x: 0, y: 0, width: 80, height: 60 },
         { x: 12, y: 24, width: 2400, height: 1800 },
       )
     }, [onCropComplete])
+    React.useEffect(() => {
+      // Как object-fit: cover в высоком диалоге: снимок больше рамки 4:3 по обеим осям.
+      setMediaSize?.({
+        width: 800,
+        height: 500,
+        naturalWidth: 960,
+        naturalHeight: 600,
+      })
+      setCropSize?.({ width: 400, height: 300 })
+    }, [setMediaSize, setCropSize])
     return React.createElement('div', {
       'data-testid': 'exercise-photo-cropper',
       'data-zoom': String(zoom ?? 1),
+      'data-min-zoom': String(minZoom ?? 1),
+      'data-object-fit': objectFit ?? '',
+      'data-restrict-position': String(Boolean(restrictPosition)),
     })
   }
 
@@ -129,14 +154,40 @@ describe('exercise photo crop UI', () => {
     fireEvent.change(screen.getAllByLabelText('Загрузить фото')[1], { target: { files: [original] } })
 
     expect(await screen.findByRole('dialog', { name: 'Кадр финиша' })).toBeInTheDocument()
+    const cover = exercisePhotoCoverZoom(
+      LANDSCAPE_MEDIA.width,
+      LANDSCAPE_MEDIA.height,
+      LANDSCAPE_CROP.width,
+      LANDSCAPE_CROP.height,
+    )
+    const pan = exercisePhotoPanLimit(
+      LANDSCAPE_MEDIA.width,
+      LANDSCAPE_MEDIA.height,
+      LANDSCAPE_CROP.width,
+      LANDSCAPE_CROP.height,
+      cover,
+    )
+    expect(pan.y).toBeCloseTo(0)
+    expect(pan.x).toBeGreaterThan(0)
+
     const slider = screen.getByRole('slider', { name: 'Масштаб' })
+    const cropper = screen.getByTestId('exercise-photo-cropper')
+    expect(Number((slider as HTMLInputElement).value)).toBeCloseTo(cover)
+    expect(cropper).toHaveAttribute('data-object-fit', 'cover')
+    expect(cropper).toHaveAttribute('data-restrict-position', 'true')
+    expect(Number(cropper.getAttribute('data-min-zoom'))).toBeCloseTo(cover)
+    expect(Number(cropper.getAttribute('data-zoom'))).toBeCloseTo(cover)
+
+    fireEvent.change(slider, { target: { value: '0.1' } })
+    expect(Number((slider as HTMLInputElement).value)).toBeCloseTo(cover)
+
     fireEvent.change(slider, { target: { value: '2.4' } })
     expect(slider).toHaveValue('2.4')
-    expect(screen.getByTestId('exercise-photo-cropper')).toHaveAttribute('data-zoom', '2.4')
+    expect(cropper).toHaveAttribute('data-zoom', '2.4')
 
     fireEvent.click(screen.getByRole('button', { name: 'Сбросить' }))
-    expect(slider).toHaveValue('1')
-    expect(screen.getByTestId('exercise-photo-cropper')).toHaveAttribute('data-zoom', '1')
+    expect(Number((slider as HTMLInputElement).value)).toBeCloseTo(cover)
+    expect(Number(cropper.getAttribute('data-zoom'))).toBeCloseTo(cover)
 
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import Cropper, { type Area, type Point } from 'react-easy-crop'
+import Cropper, { type Area, type MediaSize, type Point, type Size } from 'react-easy-crop'
 import { toast } from 'sonner'
 
 import {
@@ -8,16 +8,16 @@ import {
   EXERCISE_PHOTO_ASPECT,
   EXERCISE_PHOTO_CROP_FAILED_MESSAGE,
   EXERCISE_PHOTO_CROP_HINT,
+  EXERCISE_PHOTO_CROP_MAX_ZOOM,
   EXERCISE_PHOTO_CROP_TITLES,
+  EXERCISE_PHOTO_ZOOM_STEP,
   loadExercisePhoto,
+  snapExercisePhotoZoom,
   type ExercisePhotoPixelCrop,
 } from '../../lib/exercise-photo-crop'
 import type { ExercisePhotoPosition } from '../../types/exercise'
 import { Button } from '../ui/button'
 import { type PendingExercisePhotoCrop } from './use-exercise-photo-crop'
-
-const MIN_ZOOM = 1
-const MAX_ZOOM = 3
 
 type ExercisePhotoCropDialogProps = {
   imageUrl: string
@@ -31,10 +31,47 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
   const hintId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(MIN_ZOOM)
+  const [zoom, setZoom] = useState(1)
+  const [minZoom, setMinZoom] = useState(1)
   const [cropPixels, setCropPixels] = useState<ExercisePhotoPixelCrop | null>(null)
   const [busy, setBusy] = useState(false)
   const title = EXERCISE_PHOTO_CROP_TITLES[position]
+  const minZoomRef = useRef(1)
+  const zoomRef = useRef(1)
+  const mediaSizeRef = useRef<{ width: number; height: number } | null>(null)
+  const maxZoom = Math.max(EXERCISE_PHOTO_CROP_MAX_ZOOM, minZoom)
+
+  const commitZoom = (value: number) => {
+    const next = Math.min(maxZoom, Math.max(minZoomRef.current, value))
+    zoomRef.current = next
+    setZoom(next)
+  }
+
+  const handleMediaSize = useCallback((size: MediaSize) => {
+    mediaSizeRef.current = { width: size.width, height: size.height }
+  }, [])
+
+  const handleCropSize = useCallback((size: Size) => {
+    const media = mediaSizeRef.current
+    if (!media || media.width <= 0 || media.height <= 0 || size.width <= 0 || size.height <= 0) return
+    const snap = snapExercisePhotoZoom(
+      zoomRef.current,
+      minZoomRef.current,
+      media.width,
+      media.height,
+      size.width,
+      size.height,
+    )
+    minZoomRef.current = snap.minZoom
+    setMinZoom(snap.minZoom)
+    if (Math.abs(zoomRef.current - snap.zoom) > 1e-4) {
+      zoomRef.current = snap.zoom
+      setZoom(snap.zoom)
+    }
+    if (snap.recenter) {
+      setCrop((current) => (current.x === 0 && current.y === 0 ? current : { x: 0, y: 0 }))
+    }
+  }, [])
 
   const rememberCrop = useCallback((_area: Area, pixels: Area) => {
     setCropPixels((current) => {
@@ -53,7 +90,7 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
 
   const reset = () => {
     setCrop({ x: 0, y: 0 })
-    setZoom(MIN_ZOOM)
+    commitZoom(minZoomRef.current)
   }
 
   useEffect(() => {
@@ -127,8 +164,8 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
             zoom={zoom}
             rotation={0}
             aspect={EXERCISE_PHOTO_ASPECT}
-            minZoom={MIN_ZOOM}
-            maxZoom={MAX_ZOOM}
+            minZoom={minZoom}
+            maxZoom={maxZoom}
             cropShape="rect"
             objectFit="cover"
             showGrid={false}
@@ -137,7 +174,9 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
             keyboardStep={1}
             restrictPosition
             onCropChange={setCrop}
-            onZoomChange={setZoom}
+            onZoomChange={commitZoom}
+            setMediaSize={handleMediaSize}
+            setCropSize={handleCropSize}
             onCropComplete={rememberCrop}
             onCropAreaChange={rememberCrop}
             style={{
@@ -166,15 +205,15 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
           <input
             type="range"
             className="photo-crop-zoom"
-            min={MIN_ZOOM}
-            max={MAX_ZOOM}
-            step={0.01}
+            min={minZoom}
+            max={maxZoom}
+            step={EXERCISE_PHOTO_ZOOM_STEP}
             value={zoom}
             aria-label="Масштаб"
             disabled={busy}
             onChange={(event) => {
               const next = Number(event.target.value)
-              if (Number.isFinite(next)) setZoom(next)
+              if (Number.isFinite(next)) commitZoom(next)
             }}
           />
           <div className="grid grid-cols-2 gap-3">

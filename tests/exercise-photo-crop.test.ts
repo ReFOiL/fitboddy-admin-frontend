@@ -5,10 +5,15 @@ import {
   clampPixelCrop,
   cropAndCompressExercisePhoto,
   EXERCISE_PHOTO_ASPECT,
+  EXERCISE_PHOTO_CROP_MAX_ZOOM,
   EXERCISE_PHOTO_EXPORT_MAX_EDGE,
   EXERCISE_PHOTO_EXPORT_QUALITY,
+  exercisePhotoCoverZoom,
   exercisePhotoExportFileName,
   exercisePhotoExportSize,
+  exercisePhotoPanLimit,
+  exercisePhotoSliderZoom,
+  snapExercisePhotoZoom,
 } from '../src/lib/exercise-photo-crop'
 
 const source = { width: 8, height: 8 } as CanvasImageSource
@@ -149,6 +154,103 @@ describe('exercise photo crop', () => {
     expect(file.name).toBe('start.jpg')
     expect(file.type).toBe('image/jpeg')
     expect(file.size).toBe(20)
+  })
+
+  it('covers the 4:3 frame and locks the short axis at the minimum zoom', () => {
+    // Высокий диалог, широкое фото после object-fit: cover. Рамка 4:3 на всю ширину
+    // контейнера и ниже снимка — при zoom 1 его можно двигать и по вертикали.
+    const media = { width: 800, height: 500 }
+    const crop = { width: 400, height: 300 }
+    const cover = exercisePhotoCoverZoom(media.width, media.height, crop.width, crop.height)
+    expect(cover).toBeCloseTo(0.6)
+
+    const free = exercisePhotoPanLimit(media.width, media.height, crop.width, crop.height, 1)
+    expect(free.x).toBeGreaterThan(20)
+    expect(free.y).toBeGreaterThan(20)
+
+    const locked = exercisePhotoPanLimit(media.width, media.height, crop.width, crop.height, cover)
+    expect(locked.y).toBeCloseTo(0)
+    expect(locked.x).toBeGreaterThan(20)
+
+    const opened = snapExercisePhotoZoom(1, 1, media.width, media.height, crop.width, crop.height)
+    expect(opened.minZoom).toBeCloseTo(cover)
+    expect(opened.zoom).toBeCloseTo(cover)
+    expect(opened.recenter).toBe(true)
+    expect(opened.maxZoom).toBe(EXERCISE_PHOTO_CROP_MAX_ZOOM)
+
+    const zoomed = snapExercisePhotoZoom(2, cover, media.width, media.height, crop.width, crop.height)
+    expect(zoomed.zoom).toBe(2)
+    expect(zoomed.recenter).toBe(false)
+    const zoomedPan = exercisePhotoPanLimit(media.width, media.height, crop.width, crop.height, zoomed.zoom)
+    expect(zoomedPan.x).toBeGreaterThan(0)
+    expect(zoomedPan.y).toBeGreaterThan(0)
+  })
+
+  it('lets a portrait photo pan only vertically and a 4:3 photo not at all', () => {
+    const portraitZoom = exercisePhotoCoverZoom(300, 800, 300, 225)
+    expect(portraitZoom).toBeCloseTo(1)
+    const portraitPan = exercisePhotoPanLimit(300, 800, 300, 225, portraitZoom)
+    expect(portraitPan.x).toBeCloseTo(0)
+    expect(portraitPan.y).toBeGreaterThan(20)
+
+    const squareZoom = exercisePhotoCoverZoom(800, 600, 800, 600)
+    expect(squareZoom).toBeCloseTo(1)
+    const squarePan = exercisePhotoPanLimit(800, 600, 800, 600, squareZoom)
+    expect(squarePan.x).toBeCloseTo(0)
+    expect(squarePan.y).toBeCloseTo(0)
+
+    // Исходник ровно 4:3, но cover контейнера рисует его крупнее рамки.
+    const fitted = exercisePhotoCoverZoom(800, 600, 400, 300)
+    expect(fitted).toBeCloseTo(0.5)
+    const fittedPan = exercisePhotoPanLimit(800, 600, 400, 300, fitted)
+    expect(fittedPan.x).toBeCloseTo(0)
+    expect(fittedPan.y).toBeCloseTo(0)
+  })
+
+  it('keeps the crop covered for every source aspect at the cover zoom', () => {
+    const crop = { width: 400, height: 300 }
+    const sources = [
+      [1600, 900],
+      [960, 600],
+      [800, 800],
+      [600, 960],
+      [400, 300],
+      [300, 400],
+      [100, 1000],
+      [1000, 100],
+    ]
+    for (const [mediaWidth, mediaHeight] of sources) {
+      const zoom = exercisePhotoCoverZoom(mediaWidth, mediaHeight, crop.width, crop.height)
+      const overflowX = mediaWidth * zoom - crop.width
+      const overflowY = mediaHeight * zoom - crop.height
+      expect(overflowX).toBeGreaterThanOrEqual(-1e-4)
+      expect(overflowY).toBeGreaterThanOrEqual(-1e-4)
+      expect(Math.min(overflowX, overflowY)).toBeCloseTo(0, 5)
+      const gapZoom = zoom * 0.95
+      const gap = Math.min(mediaWidth * gapZoom - crop.width, mediaHeight * gapZoom - crop.height)
+      expect(gap).toBeLessThan(-1)
+    }
+  })
+
+  it('follows a new cover zoom when the frame is still at the minimum', () => {
+    const raised = snapExercisePhotoZoom(0.6, 0.6, 800, 500, 400, 360)
+    expect(raised.zoom).toBeCloseTo(360 / 500)
+    expect(raised.recenter).toBe(true)
+
+    const clamped = snapExercisePhotoZoom(5, 0.6, 800, 500, 400, 300)
+    expect(clamped.zoom).toBe(EXERCISE_PHOTO_CROP_MAX_ZOOM)
+    expect(clamped.recenter).toBe(false)
+
+    expect(exercisePhotoCoverZoom(0, 500, 400, 300)).toBe(1)
+    expect(exercisePhotoCoverZoom(Number.NaN, 500, 400, 300)).toBe(1)
+    expect(exercisePhotoPanLimit(Number.NaN, 500, 400, 300, 1)).toEqual({ x: 0, y: 100 })
+    expect(exercisePhotoSliderZoom(0.7402031930333817)).toBe(0.741)
+    expect(exercisePhotoSliderZoom(0.6)).toBe(0.6)
+    const snapped = exercisePhotoSliderZoom(0.4787234042553192)
+    expect(snapped).toBe(0.479)
+    const extra = 500 * snapped - 500 * 0.4787234042553192
+    expect(extra).toBeGreaterThan(0)
+    expect(extra).toBeLessThan(1)
   })
 
   it('fails clearly when the canvas context is missing', async () => {

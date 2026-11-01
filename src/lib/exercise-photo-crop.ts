@@ -33,6 +33,96 @@ export const EXERCISE_PHOTO_ASPECT_HINT =
 
 export const EXERCISE_PHOTO_CROP_FAILED_MESSAGE = 'Не удалось обрезать фото. Попробуйте другой файл.'
 
+/** Верх слайдера, пока минимум не оказался выше. */
+export const EXERCISE_PHOTO_CROP_MAX_ZOOM = 3
+
+/** Шаг ползунка. Минимум округляем вверх, чтобы шаг не открыл край кадра. */
+export const EXERCISE_PHOTO_ZOOM_STEP = 0.001
+
+const ZOOM_AT_MINIMUM_EPSILON = 1e-3
+
+export function exercisePhotoSliderZoom(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= 0) return 1
+  const steps = Math.ceil(zoom / EXERCISE_PHOTO_ZOOM_STEP - 1e-6)
+  return Number((Math.max(steps, 1) * EXERCISE_PHOTO_ZOOM_STEP).toFixed(3))
+}
+
+export type ExercisePhotoZoomSnap = {
+  minZoom: number
+  maxZoom: number
+  zoom: number
+  recenter: boolean
+}
+
+/**
+ * Масштаб, при котором уже отрисованное фото закрывает рамку без полей.
+ * У react-easy-crop zoom 1 — это object-fit от контейнера, не от рамки 4:3.
+ * В высоком диалоге широкое фото при zoom 1 торчит и сверху, и снизу, и рамку
+ * можно сдвинуть по обеим осям. Берём большее из отношений сторон: короткая
+ * садится на рамку, по длинной остаётся запас.
+ */
+export function exercisePhotoCoverZoom(
+  mediaWidth: number,
+  mediaHeight: number,
+  cropWidth: number,
+  cropHeight: number,
+): number {
+  if (
+    !Number.isFinite(mediaWidth) ||
+    !Number.isFinite(mediaHeight) ||
+    !Number.isFinite(cropWidth) ||
+    !Number.isFinite(cropHeight) ||
+    mediaWidth <= 0 ||
+    mediaHeight <= 0 ||
+    cropWidth <= 0 ||
+    cropHeight <= 0
+  ) {
+    return 1
+  }
+  return Math.max(cropWidth / mediaWidth, cropHeight / mediaHeight)
+}
+
+/** Предел сдвига в пикселях экрана. Ноль по оси — фото уже уперлось в рамку. */
+export function exercisePhotoPanLimit(
+  mediaWidth: number,
+  mediaHeight: number,
+  cropWidth: number,
+  cropHeight: number,
+  zoom: number,
+): { x: number; y: number } {
+  const axis = (media: number, crop: number) => {
+    if (!Number.isFinite(media) || !Number.isFinite(crop) || !Number.isFinite(zoom)) return 0
+    return Math.abs((media * zoom) / 2 - crop / 2)
+  }
+  return {
+    x: axis(mediaWidth, cropWidth),
+    y: axis(mediaHeight, cropHeight),
+  }
+}
+
+/**
+ * Держит ползунок на минимуме, пока тренер сам не увеличил кадр.
+ * После ресайза тот же минимум прижимает фото заново и возвращает его в центр.
+ */
+export function snapExercisePhotoZoom(
+  currentZoom: number,
+  previousMinZoom: number,
+  mediaWidth: number,
+  mediaHeight: number,
+  cropWidth: number,
+  cropHeight: number,
+): ExercisePhotoZoomSnap {
+  const minZoom = exercisePhotoSliderZoom(
+    exercisePhotoCoverZoom(mediaWidth, mediaHeight, cropWidth, cropHeight),
+  )
+  const maxZoom = Math.max(EXERCISE_PHOTO_CROP_MAX_ZOOM, minZoom)
+  const current = Number.isFinite(currentZoom) ? currentZoom : minZoom
+  const previousMin = Number.isFinite(previousMinZoom) ? previousMinZoom : minZoom
+  const recenter = current <= previousMin + ZOOM_AT_MINIMUM_EPSILON
+  const zoom = recenter || current < minZoom ? minZoom : Math.min(current, maxZoom)
+  return { minZoom, maxZoom, zoom, recenter }
+}
+
 export type ExercisePhotoPixelCrop = {
   x: number
   y: number
