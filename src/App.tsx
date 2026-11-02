@@ -14,6 +14,8 @@ const DashboardPage = lazy(async () => ({ default: (await import('./pages/Dashbo
 const ExerciseDetailsPage = lazy(async () => ({ default: (await import('./pages/ExerciseDetails')).ExerciseDetailsPage }))
 const ExercisesPage = lazy(async () => ({ default: (await import('./pages/Exercises')).ExercisesPage }))
 const LoginPage = lazy(async () => ({ default: (await import('./pages/Login')).LoginPage }))
+const PrivacyPolicyPage = lazy(async () => ({ default: (await import('./pages/LegalDocumentPage')).PrivacyPolicyPage }))
+const UserAgreementPage = lazy(async () => ({ default: (await import('./pages/LegalDocumentPage')).UserAgreementPage }))
 const PlanGenerationPage = lazy(async () => ({ default: (await import('./pages/PlanGeneration')).PlanGenerationPage }))
 const PlanRulesPage = lazy(async () => ({ default: (await import('./pages/PlanRules')).PlanRulesPage }))
 const ProfilePage = lazy(async () => ({ default: (await import('./pages/Profile')).ProfilePage }))
@@ -58,6 +60,8 @@ function App() {
       <Suspense fallback={<div className="py-10 text-center text-sm text-secondary-foreground">Загрузка страницы...</div>}>
         <Routes>
           <Route path={APP_PATHS.login} element={<LoginPage />} />
+          <Route path={APP_PATHS.privacy} element={<PrivacyPolicyPage />} />
+          <Route path={APP_PATHS.terms} element={<UserAgreementPage />} />
           <Route path={APP_PATHS.inviteLanding} element={<InviteLandingPage />} />
 
           <Route

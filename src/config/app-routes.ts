@@ -6,6 +6,8 @@ export type AppRole = 'trainer' | 'client' | null
 
 export const APP_PATHS = {
   login: '/login',
+  privacy: '/privacy',
+  terms: '/terms',
   home: '/home',
   clients: '/clients',
   trainerInvite: '/clients/invite',
@@ -45,6 +47,14 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Вход',
     matches: (pathname) => pathname === APP_PATHS.login,
+  },
+  {
+    title: 'Политика обработки персональных данных',
+    matches: (pathname) => pathname === APP_PATHS.privacy,
+  },
+  {
+    title: 'Пользовательское соглашение',
+    matches: (pathname) => pathname === APP_PATHS.terms,
   },
   {
     title: 'Приглашение',

@@ -8,6 +8,7 @@ import { acceptInviteCode, getPublicInvite } from '../api/relations'
 import { queryKeys } from '../api/queryKeys'
 import { BrandLogo } from '../components/brand/BrandLogo'
 import { ThemeToggle } from '../components/layout/ThemeToggle'
+import { LegalDocumentLinks } from '../components/legal/LegalDocumentLinks'
 import { QueryState } from '../components/shared'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
@@ -32,6 +33,7 @@ function InviteFrame({ children }: { children: ReactNode }) {
         <ThemeToggle />
       </div>
       <div className="mx-auto mt-8 w-full max-w-lg">{children}</div>
+      <LegalDocumentLinks className="mx-auto mt-6 w-full max-w-lg" />
     </main>
   )
 }

@@ -14,6 +14,8 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { StyledSelect } from '../components/ui/styled-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { LegalDocumentLinks } from '../components/legal/LegalDocumentLinks'
+import { RegistrationConsentField } from '../components/legal/RegistrationConsentField'
 import { AlertBanner } from '../components/shared'
 import { APP_PATHS } from '../config'
 import { pathAfterAuth } from '../lib/invite'
@@ -38,6 +40,10 @@ const registerSchema = z
     email: z.string().email('Введите корректный email'),
     password: z.string().min(8, 'Минимум 8 символов'),
     confirmPassword: z.string().min(8, 'Минимум 8 символов'),
+    // Согласие только для создания аккаунта. Вход существующего пользователя его не требует.
+    acceptedDocuments: z
+      .boolean()
+      .refine((value) => value, 'Отметьте согласие с политикой и пользовательским соглашением'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Пароли должны совпадать',
@@ -91,6 +97,7 @@ export function LoginPage() {
       email: '',
       password: '',
       confirmPassword: '',
+      acceptedDocuments: false,
     },
   })
 
@@ -350,12 +357,20 @@ export function LoginPage() {
                     ) : null}
                   </div>
 
+                  <RegistrationConsentField
+                    id="register_accepted_documents"
+                    disabled={registerMutation.isPending}
+                    error={registerForm.formState.errors.acceptedDocuments?.message}
+                    {...registerForm.register('acceptedDocuments')}
+                  />
+
                   <Button type="submit" size="lg" disabled={registerMutation.isPending}>
                     {registerMutation.isPending ? 'Создаём аккаунт…' : 'Зарегистрироваться'}
                   </Button>
                 </form>
               </TabsContent>
             </Tabs>
+            <LegalDocumentLinks className="mt-4" />
           </CardContent>
         </Card>
       </div>

@@ -72,6 +72,8 @@ describe('InviteLandingPage', () => {
     expect(await screen.findByRole('heading', { name: 'Тренер Марина Соколова приглашает вас' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Зарегистрироваться' })).toHaveAttribute('href', '/login?tab=register')
     expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: 'Политика обработки персональных данных' })).toHaveAttribute('href', '/privacy')
+    expect(screen.getByRole('link', { name: 'Пользовательское соглашение' })).toHaveAttribute('href', '/terms')
     expect(sessionStorage.getItem(PENDING_INVITE_CODE_KEY)).toBe('AB3K9Z')
     expect(mocks.acceptInviteCode).not.toHaveBeenCalled()
   })
