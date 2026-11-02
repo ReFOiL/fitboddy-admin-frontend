@@ -8,20 +8,36 @@ import type {
   RegisterResponse,
 } from '../types/auth'
 
+// Без Bearer: протухший access на шлюзе даёт 401 раньше, чем разберут тело запроса.
+const credentialRequestConfig = {
+  skipAuth: true,
+  skipAuthRedirect: true,
+}
+
 export async function login(payload: LoginRequest): Promise<LoginResponse> {
-  const { data } = await apiClient.post<LoginResponse>('/api/v1/auth/login', payload)
+  const { data } = await apiClient.post<LoginResponse>(
+    '/api/v1/auth/login',
+    payload,
+    credentialRequestConfig,
+  )
   return data
 }
 
 export async function register(payload: RegisterRequest): Promise<RegisterResponse> {
-  const { data } = await apiClient.post<RegisterResponse>('/api/v1/auth/register', payload)
+  const { data } = await apiClient.post<RegisterResponse>(
+    '/api/v1/auth/register',
+    payload,
+    credentialRequestConfig,
+  )
   return data
 }
 
 export async function refresh(refreshToken: string): Promise<RefreshResponse> {
-  const { data } = await apiClient.post<RefreshResponse>('/api/v1/auth/refresh', {
-    refresh_token: refreshToken,
-  })
+  const { data } = await apiClient.post<RefreshResponse>(
+    '/api/v1/auth/refresh',
+    { refresh_token: refreshToken },
+    credentialRequestConfig,
+  )
   return data
 }
 
