@@ -29,17 +29,20 @@ describe('profile payload helpers', () => {
         goal: 'strength',
       }),
     ).toEqual({
-      full_name: 'Новое имя',
-      city: 'Москва',
-      bio: null,
-      age: 30,
-      gender: 'male',
-      goal: 'strength',
-      experience_level: 'beginner',
-      workout_location: 'home',
-      unavailable_equipment: ['barbell', 'bench'],
-      limitations: null,
-      medical_notes: null,
+      ok: true,
+      request: {
+        full_name: 'Новое имя',
+        city: 'Москва',
+        bio: null,
+        age: 30,
+        gender: 'male',
+        goal: 'strength',
+        experience_level: 'beginner',
+        workout_location: 'home',
+        unavailable_equipment: ['barbell', 'bench'],
+        limitations: null,
+        medical_notes: null,
+      },
     })
   })
 
@@ -48,11 +51,79 @@ describe('profile payload helpers', () => {
       buildUpsertProfileRequest(undefined, {
         full_name: 'Анна',
       }),
+    ).toEqual({
+      ok: true,
+      request: expect.objectContaining({
+        full_name: 'Анна',
+        age: null,
+        goal: null,
+        unavailable_equipment: [],
+        limitations: null,
+        medical_notes: null,
+      }),
+    })
+  })
+
+  it('не кладёт сведения о здоровье в запрос без согласия', () => {
+    const result = buildUpsertProfileRequest(profile, {
+      limitations: 'травма колена',
+      medical_notes: 'астма',
+      health_data_consent: false,
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.message).toMatch(/согласие/)
+      expect(JSON.stringify(result)).not.toContain('травма колена')
+      expect(JSON.stringify(result)).not.toContain('астма')
+    }
+  })
+
+  it('сохраняет сведения о здоровье только вместе с согласием', () => {
+    expect(
+      buildUpsertProfileRequest(profile, {
+        limitations: '  травма колена  ',
+        medical_notes: 'астма',
+        health_data_consent: true,
+      }),
     ).toMatchObject({
-      full_name: 'Анна',
-      age: null,
-      goal: null,
-      unavailable_equipment: [],
+      ok: true,
+      request: {
+        limitations: 'травма колена',
+        medical_notes: 'астма',
+      },
+    })
+  })
+
+  it('очищает сведения о здоровье, если согласия нет и поля пустые', () => {
+    expect(
+      buildUpsertProfileRequest(
+        { ...profile, limitations: 'травма колена', medical_notes: 'астма' },
+        { limitations: '   ', medical_notes: '', health_data_consent: false, city: 'Казань' },
+      ),
+    ).toMatchObject({
+      ok: true,
+      request: {
+        city: 'Казань',
+        limitations: null,
+        medical_notes: null,
+      },
+    })
+  })
+
+  it('при замене профиля не из анкеты здоровья не подменяет уже сохранённый текст', () => {
+    expect(
+      buildUpsertProfileRequest(
+        { ...profile, limitations: 'травма колена', medical_notes: 'астма' },
+        { limitations: 'новое', medical_notes: 'другое', health_data_consent: false, city: 'Казань' },
+        { preserveHealthFields: true },
+      ),
+    ).toMatchObject({
+      ok: true,
+      request: {
+        city: 'Казань',
+        limitations: 'травма колена',
+        medical_notes: 'астма',
+      },
     })
   })
 })

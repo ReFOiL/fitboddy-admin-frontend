@@ -129,10 +129,13 @@ function TrainingSettings({ userId, onBack }: { userId: string; onBack: () => vo
       const equipmentChanged = !sameEquipment(nextEquipment, savedEquipment)
       if (!equipmentChanged && writes.length === 0) return 'unchanged' as const
       if (equipmentChanged) {
-        await upsertProfile(
-          userId,
-          buildUpsertProfileRequest({ ...profile, unavailable_equipment: nextEquipment }, profileToFormValues(profile)),
+        const built = buildUpsertProfileRequest(
+          { ...profile, unavailable_equipment: nextEquipment },
+          profileToFormValues(profile),
+          { preserveHealthFields: true },
         )
+        if (!built.ok) throw new Error(built.message)
+        await upsertProfile(userId, built.request)
       }
       for (const write of writes) {
         const payload = { working_weight_kg: write.value }

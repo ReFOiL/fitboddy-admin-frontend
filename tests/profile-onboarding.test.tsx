@@ -181,7 +181,72 @@ describe('ProfileOnboardingPage', () => {
       workout_location: 'home',
       age: 27,
       gender: 'female',
+      limitations: null,
+      medical_notes: null,
     })
+    expect(mocks.mutate.mock.calls[0][0]).not.toHaveProperty('health_data_consent')
+  })
+
+  it('ставит согласие перед полями здоровья', () => {
+    sessionStorage.setItem(storageKey, JSON.stringify({ step: 3, draft: { age: 27, gender: 'female' } }))
+    renderPage()
+
+    const consent = screen.getByRole('checkbox', { name: /показ их тренеру/ })
+    const limitations = screen.getByLabelText('Ограничения')
+    const notes = screen.getByLabelText('Медицинские заметки')
+    expect(consent.compareDocumentPosition(limitations) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(limitations.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(consent).toHaveAccessibleName(/обработку ограничений и медицинских заметок/)
+  })
+
+  it('не отправляет текст о здоровье без согласия', async () => {
+    mocks.profileQuery.data = {
+      ...existingProfile,
+      full_name: 'Анна',
+      goal: 'weight_loss',
+      experience_level: 'beginner',
+      workout_location: 'home',
+      age: 31,
+      gender: 'female',
+    }
+    sessionStorage.setItem(storageKey, JSON.stringify({ step: 3, draft: {} }))
+    renderPage()
+
+    await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(31))
+    fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: 'травма колена' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/согласие/))
+    expect(mocks.mutate).not.toHaveBeenCalled()
+  })
+
+  it('отправляет текст о здоровье, если согласие отмечено', async () => {
+    mocks.profileQuery.data = {
+      ...existingProfile,
+      full_name: 'Анна',
+      goal: 'weight_loss',
+      experience_level: 'beginner',
+      workout_location: 'home',
+      age: 31,
+      gender: 'female',
+    }
+    sessionStorage.setItem(storageKey, JSON.stringify({ step: 3, draft: {} }))
+    mocks.mutate.mockImplementation((_payload, options) => options?.onSuccess?.())
+    renderPage()
+
+    await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(31))
+    fireEvent.click(screen.getByRole('checkbox', { name: /показ их тренеру/ }))
+    fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: '  травма колена  ' } })
+    fireEvent.change(screen.getByLabelText('Медицинские заметки'), { target: { value: 'астма' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledOnce())
+    expect(mocks.mutate.mock.calls[0][0]).toMatchObject({
+      limitations: 'травма колена',
+      medical_notes: 'астма',
+      full_name: 'Анна',
+    })
+    expect(mocks.mutate.mock.calls[0][0]).not.toHaveProperty('health_data_consent')
   })
 
   it('после анкеты открывает приглашение, если код сохранён', async () => {
@@ -206,6 +271,6 @@ describe('ProfileOnboardingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
 
     expect(await screen.findByText('Подключаем к тренеру…')).toBeInTheDocument()
-    expect(screen.getByTestId('location')).toHaveTextContent('/i/AB3K9Z')
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/i/AB3K9Z'))
   })
 })

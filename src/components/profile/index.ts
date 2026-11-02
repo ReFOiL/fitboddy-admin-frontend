@@ -1,3 +1,5 @@
+export { HealthDataConsentField } from './HealthDataConsentField'
+export { HealthDataTrainerSummary } from './HealthDataTrainerSummary'
 export { NotificationSettings } from './NotificationSettings'
 export { ProfileFormField } from './ProfileFormField'
 export { ProfileSelectField } from './ProfileSelectField'
