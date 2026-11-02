@@ -333,9 +333,7 @@ export function ProfilePage() {
                 <HeartPulse size={19} className="text-accent-ink" aria-hidden />
                 Здоровье и ограничения
               </CardTitle>
-              <CardDescription>
-                Необязательно. Без согласия ниже текст не сохранится и не будет показан тренеру.
-              </CardDescription>
+              <CardDescription>Укажите всё, что нужно учитывать для безопасных тренировок.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               <HealthDataConsentField
@@ -366,15 +364,12 @@ export function ProfilePage() {
               <ProfileFormField
                 id="medical_notes"
                 label="Медицинские заметки"
-                hint="Необязательно. Сохраняется только вместе с согласием выше."
                 error={form.formState.errors.medical_notes?.message}
               >
                 <Textarea
                   id="medical_notes"
                   aria-invalid={Boolean(form.formState.errors.medical_notes)}
-                  aria-describedby={
-                    form.formState.errors.medical_notes ? 'medical_notes-error' : 'medical_notes-hint'
-                  }
+                  aria-describedby={form.formState.errors.medical_notes ? 'medical_notes-error' : undefined}
                   placeholder="Дополнительная информация"
                   {...form.register('medical_notes')}
                 />

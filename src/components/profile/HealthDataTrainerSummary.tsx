@@ -18,7 +18,7 @@ export function HealthDataTrainerSummary({ profile }: HealthDataTrainerSummaryPr
     case 'private':
     case 'empty':
       return (
-        <p className="border-b border-border py-4 text-[15px] text-secondary-foreground" role="status">
+        <p className="flex min-h-16 items-center border-b border-border text-[17px] text-secondary-foreground" role="status">
           {view.message}
         </p>
       )

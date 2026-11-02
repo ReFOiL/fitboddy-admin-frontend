@@ -1,5 +1,7 @@
-export const HEALTH_DATA_CONSENT_REQUIRED_MESSAGE =
-  'Отметьте согласие на обработку сведений о здоровье и показ их тренеру — или очистите ограничения и медицинские заметки. Без согласия эти поля не сохраняются.'
+export const HEALTH_DATA_CONSENT_LABEL =
+  'Соглашаюсь на обработку ограничений и медицинских заметок и показ их тренеру'
+
+export const HEALTH_DATA_CONSENT_REQUIRED_MESSAGE = 'Отметьте согласие или очистите поля.'
 
 export const TRAINER_HEALTH_PRIVATE_MESSAGE = 'Не показано без согласия'
 

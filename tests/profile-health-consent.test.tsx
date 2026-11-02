@@ -71,7 +71,7 @@ describe('ProfilePage health consent', () => {
 
   it('ставит согласие перед полями здоровья', async () => {
     renderPage()
-    const consent = await screen.findByRole('checkbox', { name: /Согласие на сведения о здоровье/ })
+    const consent = await screen.findByRole('checkbox', { name: /показ их тренеру/ })
     const limitations = screen.getByLabelText('Ограничения')
     expect(consent.compareDocumentPosition(limitations) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(consent).not.toBeChecked()
@@ -121,7 +121,7 @@ describe('ProfilePage health consent', () => {
   it('отправляет текст о здоровье после согласия', async () => {
     renderPage()
     await waitFor(() => expect(screen.getByLabelText('Город')).toHaveValue('Москва'))
-    fireEvent.click(screen.getByRole('checkbox', { name: /Согласие на сведения о здоровье/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /показ их тренеру/ }))
     fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: 'травма колена' } })
     fireEvent.change(screen.getByLabelText('Медицинские заметки'), { target: { value: 'астма' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))

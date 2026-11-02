@@ -191,12 +191,12 @@ describe('ProfileOnboardingPage', () => {
     sessionStorage.setItem(storageKey, JSON.stringify({ step: 3, draft: { age: 27, gender: 'female' } }))
     renderPage()
 
-    const consent = screen.getByRole('checkbox', { name: /Согласие на сведения о здоровье/ })
+    const consent = screen.getByRole('checkbox', { name: /показ их тренеру/ })
     const limitations = screen.getByLabelText('Ограничения')
     const notes = screen.getByLabelText('Медицинские заметки')
     expect(consent.compareDocumentPosition(limitations) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(limitations.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(screen.getByText(/Тренер увидит только то, что написано в этих двух полях/)).toBeInTheDocument()
+    expect(consent).toHaveAccessibleName(/обработку ограничений и медицинских заметок/)
   })
 
   it('не отправляет текст о здоровье без согласия', async () => {
@@ -235,7 +235,7 @@ describe('ProfileOnboardingPage', () => {
     renderPage()
 
     await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(31))
-    fireEvent.click(screen.getByRole('checkbox', { name: /Согласие на сведения о здоровье/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /показ их тренеру/ }))
     fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: '  травма колена  ' } })
     fireEvent.change(screen.getByLabelText('Медицинские заметки'), { target: { value: 'астма' } })
     fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
