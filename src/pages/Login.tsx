@@ -14,6 +14,8 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { StyledSelect } from '../components/ui/styled-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { LegalDocLink, LegalDocumentLinks } from '../components/legal/LegalDocumentLinks'
+import { RegistrationConsentField } from '../components/legal/RegistrationConsentField'
 import { AlertBanner } from '../components/shared'
 import { APP_PATHS } from '../config'
 import { pathAfterAuth } from '../lib/invite'
@@ -38,6 +40,9 @@ const registerSchema = z
     email: z.string().email('Введите корректный email'),
     password: z.string().min(8, 'Минимум 8 символов'),
     confirmPassword: z.string().min(8, 'Минимум 8 символов'),
+    // Оба согласия только для создания аккаунта. Вход существующего пользователя их не требует.
+    privacyConsent: z.boolean().refine((value) => value, 'Отметьте согласие на обработку персональных данных'),
+    termsConsent: z.boolean().refine((value) => value, 'Отметьте согласие с пользовательским соглашением'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Пароли должны совпадать',
@@ -91,6 +96,8 @@ export function LoginPage() {
       email: '',
       password: '',
       confirmPassword: '',
+      privacyConsent: false,
+      termsConsent: false,
     },
   })
 
@@ -350,12 +357,31 @@ export function LoginPage() {
                     ) : null}
                   </div>
 
+                  <RegistrationConsentField
+                    id="register_privacy_consent"
+                    disabled={registerMutation.isPending}
+                    error={registerForm.formState.errors.privacyConsent?.message}
+                    {...registerForm.register('privacyConsent')}
+                  >
+                    Я даю <LegalDocLink to={APP_PATHS.privacy}>согласие на обработку персональных данных</LegalDocLink>
+                  </RegistrationConsentField>
+
+                  <RegistrationConsentField
+                    id="register_terms_consent"
+                    disabled={registerMutation.isPending}
+                    error={registerForm.formState.errors.termsConsent?.message}
+                    {...registerForm.register('termsConsent')}
+                  >
+                    Я принимаю <LegalDocLink to={APP_PATHS.terms}>пользовательское соглашение (оферту)</LegalDocLink>
+                  </RegistrationConsentField>
+
                   <Button type="submit" size="lg" disabled={registerMutation.isPending}>
                     {registerMutation.isPending ? 'Создаём аккаунт…' : 'Зарегистрироваться'}
                   </Button>
                 </form>
               </TabsContent>
             </Tabs>
+            <LegalDocumentLinks className="mt-4" />
           </CardContent>
         </Card>
       </div>
