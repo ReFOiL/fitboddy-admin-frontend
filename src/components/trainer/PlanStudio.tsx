@@ -50,6 +50,7 @@ import {
   StickyActionBar,
   type OverflowItem,
 } from '../ui/kit'
+import { HealthDataTrainerSummary } from '../profile/HealthDataTrainerSummary'
 import { ClientProgress } from './ClientProgress'
 import { PlanStartCard } from './PlanStartCard'
 import { PlanDayChip, WeekdayMenu, WeekdaySwapSheet } from './WeekdayChange'
@@ -1070,7 +1071,6 @@ function QuestionnaireScreen({
     ['Цель', label(meta?.goals, profile?.goal)],
     ['Уровень', label(meta?.levels, profile?.experience_level)],
     ['Место', label(meta?.workout_locations, profile?.workout_location)],
-    ['Ограничения', profile?.limitations?.trim() || 'Не указано'],
   ]
   return (
     <div className="mx-auto w-full max-w-lg">
@@ -1081,6 +1081,7 @@ function QuestionnaireScreen({
           <span className="text-right text-[17px] font-semibold">{value}</span>
         </div>
       ))}
+      <HealthDataTrainerSummary profile={profile} />
     </div>
   )
 }

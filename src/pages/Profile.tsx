@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 
-import { NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
+import { HealthDataConsentField, NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
 import { APP_PATHS } from '../config'
 import { notificationsEnabled } from '../config/features'
 import { useAuth } from '../hooks/use-auth'
@@ -55,6 +55,7 @@ export function ProfilePage() {
   const watchedGoal = useWatch({ control: form.control, name: 'goal' })
   const watchedExperienceLevel = useWatch({ control: form.control, name: 'experience_level' })
   const watchedWorkoutLocation = useWatch({ control: form.control, name: 'workout_location' })
+  const healthDataConsent = useWatch({ control: form.control, name: 'health_data_consent' })
   const isTrainerOwnProfile = user?.role === 'trainer'
   const questionnaireRequired = !isTrainerOwnProfile
   const isFormDirty = form.formState.isDirty
@@ -100,8 +101,17 @@ export function ProfilePage() {
       return
     }
 
-    upsertMutation.mutate(buildUpsertProfileRequest(profileQuery.data, values), {
-      onSuccess: (savedProfile) => form.reset(profileToFormValues(savedProfile)),
+    const built = buildUpsertProfileRequest(profileQuery.data, values)
+    if (!built.ok) {
+      form.setError('health_data_consent', { type: 'manual', message: built.message })
+      return
+    }
+    upsertMutation.mutate(built.request, {
+      onSuccess: (savedProfile) =>
+        form.reset({
+          ...profileToFormValues(savedProfile),
+          health_data_consent: values.health_data_consent,
+        }),
     })
   })
 
@@ -323,9 +333,20 @@ export function ProfilePage() {
                 <HeartPulse size={19} className="text-accent-ink" aria-hidden />
                 Здоровье и ограничения
               </CardTitle>
-              <CardDescription>Укажите всё, что нужно учитывать для безопасных тренировок.</CardDescription>
+              <CardDescription>
+                Необязательно. Без согласия ниже текст не сохранится и не будет показан тренеру.
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
+              <HealthDataConsentField
+                id="health_data_consent"
+                checked={healthDataConsent === true}
+                error={form.formState.errors.health_data_consent?.message}
+                onCheckedChange={(checked) => {
+                  form.setValue('health_data_consent', checked, { shouldDirty: true })
+                  if (checked) form.clearErrors('health_data_consent')
+                }}
+              />
               <ProfileFormField
                 id="limitations"
                 label="Ограничения"
@@ -345,7 +366,7 @@ export function ProfilePage() {
               <ProfileFormField
                 id="medical_notes"
                 label="Медицинские заметки"
-                hint="Необязательное поле. Не указывайте лишние персональные медицинские данные."
+                hint="Необязательно. Сохраняется только вместе с согласием выше."
                 error={form.formState.errors.medical_notes?.message}
               >
                 <Textarea

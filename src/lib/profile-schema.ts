@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { ProfileResponse, UpsertProfileRequest } from '../types/profile'
+import { healthFieldsForUpsert } from './health-data-consent'
 
 export function isValidAvatarReference(value: string): boolean {
   if (!value) return true
@@ -34,6 +35,7 @@ export const profileSchema = z.object({
   workout_location: z.string().nullable(),
   limitations: z.string().max(1000, 'Максимум 1000 символов').optional(),
   medical_notes: z.string().max(1000, 'Максимум 1000 символов').optional(),
+  health_data_consent: z.boolean(),
 })
 
 export type ProfileFormValues = z.infer<typeof profileSchema>
@@ -50,6 +52,7 @@ export const emptyProfileFormValues: ProfileFormValues = {
   workout_location: null,
   limitations: '',
   medical_notes: '',
+  health_data_consent: false,
 }
 
 export function profileToFormValues(profile?: Partial<ProfileResponse> | null): ProfileFormValues {
@@ -65,6 +68,8 @@ export function profileToFormValues(profile?: Partial<ProfileResponse> | null): 
     workout_location: typeof profile?.workout_location === 'string' ? profile.workout_location : null,
     limitations: typeof profile?.limitations === 'string' ? profile.limitations : '',
     medical_notes: typeof profile?.medical_notes === 'string' ? profile.medical_notes : '',
+    // Never pre-check. A stored health note is not a record of consent.
+    health_data_consent: false,
   }
 }
 
@@ -73,27 +78,44 @@ function nullableText(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null
 }
 
+export type BuiltProfileUpsert =
+  | { ok: true; request: UpsertProfileRequest }
+  | { ok: false; message: string }
+
 export function buildUpsertProfileRequest(
   profile: Partial<ProfileResponse> | undefined,
   draft: Partial<ProfileFormValues>,
-): UpsertProfileRequest {
+  options?: { preserveHealthFields?: boolean },
+): BuiltProfileUpsert {
   const current = profileToFormValues(profile)
   const merged = { ...current, ...draft }
+  const health = healthFieldsForUpsert({
+    preserve: options?.preserveHealthFields === true,
+    consent: merged.health_data_consent === true,
+    limitations: merged.limitations,
+    medical_notes: merged.medical_notes,
+    storedLimitations: typeof profile?.limitations === 'string' ? profile.limitations : null,
+    storedMedicalNotes: typeof profile?.medical_notes === 'string' ? profile.medical_notes : null,
+  })
+  if (!health.ok) return health
 
   return {
-    full_name: nullableText(merged.full_name),
-    city: nullableText(merged.city),
-    bio: nullableText(merged.bio),
-    age: merged.age ?? null,
-    gender: nullableText(merged.gender),
-    goal: nullableText(merged.goal),
-    experience_level: nullableText(merged.experience_level),
-    workout_location: nullableText(merged.workout_location),
-    unavailable_equipment: Array.isArray(profile?.unavailable_equipment)
-      ? [...profile.unavailable_equipment]
-      : [],
-    limitations: nullableText(merged.limitations),
-    medical_notes: nullableText(merged.medical_notes),
+    ok: true,
+    request: {
+      full_name: nullableText(merged.full_name),
+      city: nullableText(merged.city),
+      bio: nullableText(merged.bio),
+      age: merged.age ?? null,
+      gender: nullableText(merged.gender),
+      goal: nullableText(merged.goal),
+      experience_level: nullableText(merged.experience_level),
+      workout_location: nullableText(merged.workout_location),
+      unavailable_equipment: Array.isArray(profile?.unavailable_equipment)
+        ? [...profile.unavailable_equipment]
+        : [],
+      limitations: health.fields.limitations,
+      medical_notes: health.fields.medical_notes,
+    },
   }
 }
 

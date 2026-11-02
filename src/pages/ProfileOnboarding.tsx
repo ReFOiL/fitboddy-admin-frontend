@@ -6,7 +6,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ThemeToggle } from '../components/layout/ThemeToggle'
-import { ProfileFormField, ProfileSelectField } from '../components/profile'
+import { HealthDataConsentField, ProfileFormField, ProfileSelectField } from '../components/profile'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -72,6 +72,7 @@ export function ProfileOnboardingPage() {
   const pendingInviteCode = readPendingInviteCode()
   const age = useWatch({ control: form.control, name: 'age' })
   const gender = useWatch({ control: form.control, name: 'gender' })
+  const healthDataConsent = useWatch({ control: form.control, name: 'health_data_consent' })
   const goal = useWatch({ control: form.control, name: 'goal' })
   const level = useWatch({ control: form.control, name: 'experience_level' })
   const location = useWatch({ control: form.control, name: 'workout_location' })
@@ -150,6 +151,12 @@ export function ProfileOnboardingPage() {
       form.setError('gender', { type: 'manual', message: 'Выберите пол из списка' })
       return false
     }
+    const built = buildUpsertProfileRequest(profileQuery.data, form.getValues())
+    if (!built.ok) {
+      form.setError('health_data_consent', { type: 'manual', message: built.message })
+      return false
+    }
+    form.clearErrors('health_data_consent')
     return valid
   }
 
@@ -168,8 +175,12 @@ export function ProfileOnboardingPage() {
       return
     }
 
-    const payload = buildUpsertProfileRequest(profileQuery.data, draft)
-    upsertMutation.mutate(payload, {
+    const built = buildUpsertProfileRequest(profileQuery.data, draft)
+    if (!built.ok) {
+      form.setError('health_data_consent', { type: 'manual', message: built.message })
+      return
+    }
+    upsertMutation.mutate(built.request, {
       onSuccess: () => {
         setCompleted(true)
         saveStoredState(storageKey, { step: 3, draft, completed: true })
@@ -259,7 +270,7 @@ export function ProfileOnboardingPage() {
               ? 'Фото и город можно добавить позже в профиле.'
               : step === 2
                 ? 'Ответы помогут подобрать подходящую нагрузку.'
-                : 'Ограничения и медицинские заметки можно не заполнять.'}
+                : 'Их можно не заполнять. Текст сохранится и будет доступен тренеру только с согласием ниже.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -355,6 +366,15 @@ export function ProfileOnboardingPage() {
                     error={form.formState.errors.gender?.message}
                   />
                 </div>
+                <HealthDataConsentField
+                  id="onboarding_health_data_consent"
+                  checked={healthDataConsent === true}
+                  error={form.formState.errors.health_data_consent?.message}
+                  onCheckedChange={(checked) => {
+                    form.setValue('health_data_consent', checked, { shouldDirty: true })
+                    if (checked) form.clearErrors('health_data_consent')
+                  }}
+                />
                 <ProfileFormField id="onboarding_limitations" label="Ограничения" error={form.formState.errors.limitations?.message}>
                   <Textarea
                     id="onboarding_limitations"

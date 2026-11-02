@@ -30,6 +30,12 @@ export type ProfileResponse = {
   unavailable_equipment: string[]
   limitations: string | null
   medical_notes: string | null
+  /**
+   * Separate consent to process limitations / medical_notes and show them to the
+   * bound trainer. Not part of the current profile API (AUTH-003 / PROF-02).
+   * Absence means the trainer UI must hide health text.
+   */
+  health_data_consent?: boolean | null
   created_at: string
   updated_at: string
 }
