@@ -1,5 +1,6 @@
-import { getProfileOnboardingStep, type ProfileOnboardingStep } from './profile-completion'
 import type { ProfileResponse } from '../types/profile'
+import { GUARDIAN_CONSENT_REQUIRED_MESSAGE } from './guardian-consent'
+import { getProfileOnboardingStep, profileLacksGuardianConsent, type ProfileOnboardingStep } from './profile-completion'
 
 const PROFILE_STEP_LABEL: Record<ProfileOnboardingStep, string> = {
   age: 'возраст',
@@ -11,8 +12,9 @@ const PROFILE_STEP_LABEL: Record<ProfileOnboardingStep, string> = {
 
 function missingProfileReason(profile: ProfileResponse | undefined, prefix: string): string | null {
   const step = getProfileOnboardingStep(profile)
-  if (!step) return null
-  return `${prefix}: в анкете не указан ${PROFILE_STEP_LABEL[step]}.`
+  if (step) return `${prefix}: в анкете не указан ${PROFILE_STEP_LABEL[step]}.`
+  if (profileLacksGuardianConsent(profile)) return GUARDIAN_CONSENT_REQUIRED_MESSAGE
+  return null
 }
 
 export function clientSystemGenerateBlockReason(input: {

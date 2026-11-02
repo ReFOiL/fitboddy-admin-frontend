@@ -29,7 +29,7 @@ import { formatWorkoutCategory } from '../../lib/muscles'
 import { muscleBucket } from '../../lib/muscle-bucket'
 import { clientDisplayName } from '../../lib/person'
 import { lastCompletedDay } from '../../lib/roster'
-import { isProfileCompleted } from '../../lib/profile-completion'
+import { getProfileOnboardingStep, isProfileCompleted, profileLacksGuardianConsent } from '../../lib/profile-completion'
 import { getTrainerPlanComposeBlockReason } from '../../lib/trainer-plan-compose'
 import type { TrainerExercise } from '../../types/exercise'
 import type { CopyDayMode } from '../../types/plan'
@@ -85,6 +85,8 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     hasProfileLoadError: Boolean(profileQuery.isError && profileStatus !== 404 && profileStatus !== 403),
     hasProfile: Boolean(profileQuery.data),
     questionnaireReady: isProfileCompleted(profileQuery.data),
+    guardianConsentMissing:
+      getProfileOnboardingStep(profileQuery.data) === null && profileLacksGuardianConsent(profileQuery.data),
   })
   const { trainerClientsQuery, leaveRelationMutation } = useTrainerRelations({ trainerUserId })
   const catalogQuery = useQuery({

@@ -24,6 +24,9 @@ describe('getTrainerPlanComposeBlockReason', () => {
       getTrainerPlanComposeBlockReason({ ...ready, hasProfileLoadError: true, hasProfile: false, questionnaireReady: false }),
     ).toMatch(/Не удалось загрузить анкету/)
     expect(getTrainerPlanComposeBlockReason({ ...ready, questionnaireReady: false })).toMatch(/неполная/)
+    expect(
+      getTrainerPlanComposeBlockReason({ ...ready, questionnaireReady: false, guardianConsentMissing: true }),
+    ).toMatch(/законного представителя/)
   })
 
   it('не блокирует готовую анкету', () => {

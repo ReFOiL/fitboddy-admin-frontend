@@ -1,3 +1,4 @@
+import { rememberGuardianConsent } from '../src/lib/guardian-consent'
 import {
   getProfileOnboardingStep,
   isProfileCompleted,
@@ -26,6 +27,10 @@ const profile = (overrides: Partial<ProfileResponse> = {}): ProfileResponse => (
 })
 
 describe('profile-completion', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('returns the first incomplete onboarding step', () => {
     expect(getProfileOnboardingStep(undefined)).toBe('age')
     expect(getProfileOnboardingStep(profile({ age: null }))).toBe('age')
@@ -39,5 +44,30 @@ describe('profile-completion', () => {
     expect(getProfileOnboardingStep(profile())).toBeNull()
     expect(isProfileCompleted(profile())).toBe(true)
     expect(isProfileCompleted(profile({ goal: ' ' }))).toBe(false)
+  })
+
+  it('считает анкету младше 18 незавершённой без согласия представителя', () => {
+    expect(getProfileOnboardingStep(profile({ age: 16 }))).toBeNull()
+    expect(isProfileCompleted(profile({ age: 10 }))).toBe(false)
+    expect(isProfileCompleted(profile({ age: 16 }))).toBe(false)
+    expect(isProfileCompleted(profile({ age: 17 }))).toBe(false)
+    rememberGuardianConsent('someone-else', 16, true)
+    expect(isProfileCompleted(profile({ age: 16 }))).toBe(false)
+  })
+
+  it('считает анкету младше 18 завершённой только после согласия представителя', () => {
+    rememberGuardianConsent('user-1', 16, true)
+    expect(isProfileCompleted(profile({ age: 16 }))).toBe(true)
+    expect(isProfileCompleted(profile({ age: 10 }))).toBe(true)
+    expect(isProfileCompleted(profile({ age: 16, goal: ' ' }))).toBe(false)
+  })
+
+  it('с 18 лет не требует согласие представителя', () => {
+    expect(isProfileCompleted(profile({ age: 18 }))).toBe(true)
+    expect(isProfileCompleted(profile({ age: 30 }))).toBe(true)
+    rememberGuardianConsent('user-1', 16, true)
+    rememberGuardianConsent('user-1', 18, false)
+    expect(isProfileCompleted(profile({ age: 16 }))).toBe(false)
+    expect(isProfileCompleted(profile({ age: 18 }))).toBe(true)
   })
 })

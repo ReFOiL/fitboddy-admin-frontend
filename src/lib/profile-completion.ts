@@ -1,4 +1,5 @@
 import type { ProfileResponse } from '../types/profile'
+import { readGuardianConsent, requiresGuardianConsent } from './guardian-consent'
 
 export const PROFILE_ONBOARDING_STEPS = [
   'age',
@@ -25,6 +26,11 @@ export function getProfileOnboardingStep(
   return null
 }
 
+export function profileLacksGuardianConsent(profile: ProfileResponse | undefined): boolean {
+  if (!requiresGuardianConsent(profile?.age)) return false
+  return !readGuardianConsent(profile?.user_id)
+}
+
 export function isProfileCompleted(profile: ProfileResponse | undefined): boolean {
-  return getProfileOnboardingStep(profile) === null
+  return getProfileOnboardingStep(profile) === null && !profileLacksGuardianConsent(profile)
 }

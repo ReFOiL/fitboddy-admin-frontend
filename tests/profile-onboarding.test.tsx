@@ -79,6 +79,7 @@ function renderPage() {
 describe('ProfileOnboardingPage', () => {
   beforeEach(() => {
     sessionStorage.clear()
+    localStorage.clear()
     mocks.mutate.mockReset()
     mocks.profileQuery.data = existingProfile
     mocks.profileQuery.error = undefined
@@ -272,5 +273,137 @@ describe('ProfileOnboardingPage', () => {
 
     expect(await screen.findByText('Подключаем к тренеру…')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/i/AB3K9Z'))
+  })
+
+  it('показывает согласие представителя под возрастом младше 18 и не отмечает его', () => {
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        step: 3,
+        draft: {
+          full_name: 'Анна',
+          goal: 'weight_loss',
+          experience_level: 'beginner',
+          workout_location: 'home',
+          age: 16,
+          gender: 'female',
+          guardian_consent: true,
+        },
+      }),
+    )
+    renderPage()
+
+    const checkbox = screen.getByRole('checkbox', { name: /законный представитель/i })
+    const age = screen.getByLabelText('Возраст')
+    expect(checkbox).not.toBeChecked()
+    expect(age.compareDocumentPosition(checkbox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(checkbox.compareDocumentPosition(screen.getByLabelText('Ограничения')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'обработку данных ребёнка' })).toHaveAttribute('href', '/privacy')
+    expect(screen.getByRole('link', { name: 'пользовательскому соглашению' })).toHaveAttribute('href', '/terms')
+  })
+
+  it('не даёт завершить анкету младше 18 без согласия представителя', async () => {
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        step: 3,
+        draft: {
+          full_name: 'Анна',
+          goal: 'weight_loss',
+          experience_level: 'beginner',
+          workout_location: 'home',
+          age: 10,
+          gender: 'female',
+        },
+      }),
+    )
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Для возраста младше 18 нужно согласие законного представителя.',
+    )
+    expect(mocks.mutate).not.toHaveBeenCalled()
+  })
+
+  it('после согласия представителя сохраняет возраст 10 и не шлёт саму галочку', async () => {
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        step: 3,
+        draft: {
+          full_name: 'Анна',
+          goal: 'weight_loss',
+          experience_level: 'beginner',
+          workout_location: 'home',
+          age: 10,
+          gender: 'female',
+        },
+      }),
+    )
+    mocks.mutate.mockImplementation((_payload, options) => options?.onSuccess?.())
+    renderPage()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /законный представитель/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledOnce())
+    expect(mocks.mutate.mock.calls[0][0]).toMatchObject({
+      age: 10,
+      limitations: null,
+      medical_notes: null,
+    })
+    expect(mocks.mutate.mock.calls[0][0]).not.toHaveProperty('guardian_consent')
+  })
+
+  it('младше 18 не отправляет здоровье без согласия представителя, даже если отмечено согласие на заметки', async () => {
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        step: 3,
+        draft: {
+          full_name: 'Анна',
+          goal: 'weight_loss',
+          experience_level: 'beginner',
+          workout_location: 'home',
+          age: 16,
+          gender: 'female',
+        },
+      }),
+    )
+    renderPage()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /показ их тренеру/ }))
+    fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: 'травма колена' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/законного представителя/)
+    expect(mocks.mutate).not.toHaveBeenCalled()
+  })
+
+  it('с 18 лет прячет согласие представителя и не мешает завершению', async () => {
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        step: 3,
+        draft: {
+          full_name: 'Анна',
+          goal: 'weight_loss',
+          experience_level: 'beginner',
+          workout_location: 'home',
+          age: 18,
+          gender: 'female',
+        },
+      }),
+    )
+    mocks.mutate.mockImplementation((_payload, options) => options?.onSuccess?.())
+    renderPage()
+
+    expect(screen.queryByRole('checkbox', { name: /законный представитель/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Завершить' }))
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledOnce())
+    expect(mocks.mutate.mock.calls[0][0]).toMatchObject({ age: 18 })
   })
 })
