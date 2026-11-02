@@ -1,4 +1,5 @@
-import { buildUpsertProfileRequest } from '../src/lib/profile-schema'
+import { GUARDIAN_CONSENT_REQUIRED_MESSAGE } from '../src/lib/guardian-consent'
+import { buildUpsertProfileRequest, emptyProfileFormValues, profileSchema } from '../src/lib/profile-schema'
 import type { ProfileResponse } from '../src/types/profile'
 
 const profile: ProfileResponse = {
@@ -121,6 +122,120 @@ describe('profile payload helpers', () => {
       ok: true,
       request: {
         city: 'Казань',
+        limitations: 'травма колена',
+        medical_notes: 'астма',
+      },
+    })
+  })
+
+  it('оставляет минимальный возраст 10', () => {
+    expect(profileSchema.safeParse({ ...emptyProfileFormValues, age: 10 }).success).toBe(true)
+    expect(profileSchema.safeParse({ ...emptyProfileFormValues, age: 17 }).success).toBe(true)
+    const tooYoung = profileSchema.safeParse({ ...emptyProfileFormValues, age: 9 })
+    expect(tooYoung.success).toBe(false)
+    if (!tooYoung.success) {
+      expect(tooYoung.error.issues.some((issue) => issue.message === 'Минимальный возраст — 10')).toBe(true)
+    }
+  })
+
+  it('не сохраняет анкету младше 18 без согласия представителя и не возвращает текст о здоровье', () => {
+    const result = buildUpsertProfileRequest(profile, {
+      age: 16,
+      limitations: 'травма колена',
+      medical_notes: 'астма',
+      health_data_consent: true,
+      guardian_consent: false,
+    })
+    expect(result).toEqual({
+      ok: false,
+      code: 'guardian_consent',
+      message: GUARDIAN_CONSENT_REQUIRED_MESSAGE,
+    })
+    expect(JSON.stringify(result)).not.toContain('травма колена')
+    expect(JSON.stringify(result)).not.toContain('астма')
+  })
+
+  it('принимает возраст 10 вместе с согласием представителя и не шлёт саму галочку', () => {
+    const result = buildUpsertProfileRequest(undefined, {
+      age: 10,
+      full_name: 'Миша',
+      guardian_consent: true,
+      health_data_consent: false,
+    })
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.request).toMatchObject({
+        age: 10,
+        full_name: 'Миша',
+        limitations: null,
+        medical_notes: null,
+      })
+      expect(result.request).not.toHaveProperty('guardian_consent')
+      expect(result.request).not.toHaveProperty('health_data_consent')
+    }
+  })
+
+  it('кладёт здоровье несовершеннолетнего только при обоих согласиях', () => {
+    const saved = buildUpsertProfileRequest(profile, {
+      age: 16,
+      limitations: '  травма колена  ',
+      medical_notes: 'астма',
+      health_data_consent: true,
+      guardian_consent: true,
+    })
+    expect(saved).toMatchObject({
+      ok: true,
+      request: {
+        age: 16,
+        limitations: 'травма колена',
+        medical_notes: 'астма',
+      },
+    })
+    if (saved.ok) expect(saved.request).not.toHaveProperty('guardian_consent')
+
+    const blocked = buildUpsertProfileRequest(profile, {
+      age: 16,
+      limitations: 'травма колена',
+      medical_notes: 'астма',
+      health_data_consent: false,
+      guardian_consent: true,
+    })
+    expect(blocked.ok).toBe(false)
+    if (!blocked.ok) expect(blocked.code).toBe('health_data_consent')
+    expect(JSON.stringify(blocked)).not.toContain('травма колена')
+    expect(JSON.stringify(blocked)).not.toContain('астма')
+  })
+
+  it('с 18 лет не требует согласие представителя и сохраняет здоровье по правилам ADM-L02', () => {
+    expect(
+      buildUpsertProfileRequest(profile, {
+        age: 18,
+        limitations: 'травма колена',
+        medical_notes: 'астма',
+        health_data_consent: true,
+        guardian_consent: false,
+      }),
+    ).toMatchObject({
+      ok: true,
+      request: {
+        age: 18,
+        limitations: 'травма колена',
+        medical_notes: 'астма',
+      },
+    })
+  })
+
+  it('при замене инвентаря несовершеннолетнего не стирает уже сохранённые заметки', () => {
+    expect(
+      buildUpsertProfileRequest(
+        { ...profile, age: 16, limitations: 'травма колена', medical_notes: 'астма' },
+        { limitations: 'новое', medical_notes: 'другое', health_data_consent: false, guardian_consent: false },
+        { preserveHealthFields: true },
+      ),
+    ).toMatchObject({
+      ok: true,
+      request: {
+        age: 16,
         limitations: 'травма колена',
         medical_notes: 'астма',
       },

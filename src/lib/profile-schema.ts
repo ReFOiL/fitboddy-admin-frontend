@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
 import type { ProfileResponse, UpsertProfileRequest } from '../types/profile'
+import {
+  GUARDIAN_CONSENT_REQUIRED_MESSAGE,
+  minorMayIncludeHealthFields,
+  requiresGuardianConsent,
+} from './guardian-consent'
 import { healthFieldsForUpsert } from './health-data-consent'
 
 export function isValidAvatarReference(value: string): boolean {
@@ -36,6 +41,8 @@ export const profileSchema = z.object({
   limitations: z.string().max(1000, 'Максимум 1000 символов').optional(),
   medical_notes: z.string().max(1000, 'Максимум 1000 символов').optional(),
   health_data_consent: z.boolean(),
+  // Только форма. В запрос профиля не входит: отдельного поля API пока нет.
+  guardian_consent: z.boolean(),
 })
 
 export type ProfileFormValues = z.infer<typeof profileSchema>
@@ -53,6 +60,7 @@ export const emptyProfileFormValues: ProfileFormValues = {
   limitations: '',
   medical_notes: '',
   health_data_consent: false,
+  guardian_consent: false,
 }
 
 export function profileToFormValues(profile?: Partial<ProfileResponse> | null): ProfileFormValues {
@@ -70,6 +78,8 @@ export function profileToFormValues(profile?: Partial<ProfileResponse> | null): 
     medical_notes: typeof profile?.medical_notes === 'string' ? profile.medical_notes : '',
     // Never pre-check. A stored health note is not a record of consent.
     health_data_consent: false,
+    // Не восстанавливаем из профиля: галочка не должна быть включена заранее.
+    guardian_consent: false,
   }
 }
 
@@ -78,9 +88,39 @@ function nullableText(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null
 }
 
+export type ProfileUpsertBlockCode = 'guardian_consent' | 'health_data_consent'
+
 export type BuiltProfileUpsert =
   | { ok: true; request: UpsertProfileRequest }
-  | { ok: false; message: string }
+  | { ok: false; code: ProfileUpsertBlockCode; message: string }
+
+type UpsertBlockForm = {
+  setError: (
+    name: ProfileUpsertBlockCode,
+    error: { type: 'manual'; message: string },
+  ) => void
+  clearErrors: (name: ProfileUpsertBlockCode) => void
+}
+
+export function reportProfileUpsertBlock(
+  form: UpsertBlockForm,
+  block: Extract<BuiltProfileUpsert, { ok: false }>,
+): void {
+  switch (block.code) {
+    case 'guardian_consent':
+      form.clearErrors('health_data_consent')
+      form.setError('guardian_consent', { type: 'manual', message: block.message })
+      return
+    case 'health_data_consent':
+      form.clearErrors('guardian_consent')
+      form.setError('health_data_consent', { type: 'manual', message: block.message })
+      return
+    default: {
+      const unreachable: never = block.code
+      return unreachable
+    }
+  }
+}
 
 export function buildUpsertProfileRequest(
   profile: Partial<ProfileResponse> | undefined,
@@ -89,15 +129,30 @@ export function buildUpsertProfileRequest(
 ): BuiltProfileUpsert {
   const current = profileToFormValues(profile)
   const merged = { ...current, ...draft }
+  const age = merged.age ?? null
+  const guardianConsent = merged.guardian_consent === true
+  const preserveHealth = options?.preserveHealthFields === true
+  const healthAllowed = minorMayIncludeHealthFields(age, guardianConsent)
+
+  // Младше 18 анкету без согласия представителя не сохраняем: текст о здоровье в запрос не попадает.
+  // Сохранение инвентаря (preserve) галочку не показывает и профиль заменяет целиком,
+  // поэтому уже лежащие заметки там не стираем и не блокируем.
+  if (!preserveHealth && requiresGuardianConsent(age) && !guardianConsent) {
+    return { ok: false, code: 'guardian_consent', message: GUARDIAN_CONSENT_REQUIRED_MESSAGE }
+  }
+
   const health = healthFieldsForUpsert({
-    preserve: options?.preserveHealthFields === true,
+    preserve: preserveHealth,
     consent: merged.health_data_consent === true,
     limitations: merged.limitations,
     medical_notes: merged.medical_notes,
     storedLimitations: typeof profile?.limitations === 'string' ? profile.limitations : null,
     storedMedicalNotes: typeof profile?.medical_notes === 'string' ? profile.medical_notes : null,
   })
-  if (!health.ok) return health
+  if (!health.ok) return { ok: false, code: 'health_data_consent', message: health.message }
+
+  const healthFields =
+    healthAllowed || preserveHealth ? health.fields : { limitations: null, medical_notes: null }
 
   return {
     ok: true,
@@ -105,7 +160,7 @@ export function buildUpsertProfileRequest(
       full_name: nullableText(merged.full_name),
       city: nullableText(merged.city),
       bio: nullableText(merged.bio),
-      age: merged.age ?? null,
+      age,
       gender: nullableText(merged.gender),
       goal: nullableText(merged.goal),
       experience_level: nullableText(merged.experience_level),
@@ -113,8 +168,8 @@ export function buildUpsertProfileRequest(
       unavailable_equipment: Array.isArray(profile?.unavailable_equipment)
         ? [...profile.unavailable_equipment]
         : [],
-      limitations: health.fields.limitations,
-      medical_notes: health.fields.medical_notes,
+      limitations: healthFields.limitations,
+      medical_notes: healthFields.medical_notes,
     },
   }
 }

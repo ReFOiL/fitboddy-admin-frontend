@@ -63,7 +63,9 @@ function renderPage() {
 
 describe('ProfilePage health consent', () => {
   beforeEach(() => {
+    localStorage.clear()
     mocks.mutate.mockReset()
+    mocks.profile.age = 27
     mocks.profile.limitations = null
     mocks.profile.medical_notes = null
     mocks.profile.city = 'Москва'
@@ -132,5 +134,58 @@ describe('ProfilePage health consent', () => {
       medical_notes: 'астма',
     })
     expect(mocks.mutate.mock.calls[0][0]).not.toHaveProperty('health_data_consent')
+  })
+
+  it('просит согласие представителя, если возраст снижают ниже 18', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(27))
+    expect(screen.queryByRole('checkbox', { name: /законный представитель/i })).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Возраст'), { target: { value: '16' } })
+    const consent = screen.getByRole('checkbox', { name: /законный представитель/i })
+    expect(consent).not.toBeChecked()
+    expect(screen.getByRole('link', { name: 'обработку данных ребёнка' })).toHaveAttribute('href', '/privacy')
+    expect(screen.getByRole('link', { name: 'пользовательскому соглашению' })).toHaveAttribute('href', '/terms')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/законного представителя/)
+    expect(mocks.mutate).not.toHaveBeenCalled()
+
+    fireEvent.click(consent)
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledOnce())
+    expect(mocks.mutate.mock.calls[0][0]).toMatchObject({
+      age: 16,
+      limitations: null,
+      medical_notes: null,
+    })
+    expect(mocks.mutate.mock.calls[0][0]).not.toHaveProperty('guardian_consent')
+  })
+
+  it('с 18 лет сохраняет профиль без согласия представителя', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(27))
+    fireEvent.change(screen.getByLabelText('Возраст'), { target: { value: '18' } })
+    expect(screen.queryByRole('checkbox', { name: /законный представитель/i })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledOnce())
+    expect(mocks.mutate.mock.calls[0][0]).toMatchObject({ age: 18 })
+  })
+
+  it('младше 18 не отправляет здоровье, пока не отмечено согласие представителя', async () => {
+    mocks.profile.age = 16
+    renderPage()
+    await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(16))
+    expect(screen.getByRole('checkbox', { name: /законный представитель/i })).not.toBeChecked()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /показ их тренеру/ }))
+    fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: 'травма колена' } })
+    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Казань' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/законного представителя/)
+    expect(mocks.mutate).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Ограничения')).toHaveValue('травма колена')
   })
 })

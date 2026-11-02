@@ -5,6 +5,7 @@ export function getTrainerPlanComposeBlockReason(input: {
   hasProfileLoadError: boolean
   hasProfile: boolean
   questionnaireReady: boolean
+  guardianConsentMissing?: boolean
 }): string | null {
   if (input.isProfileLoading && !input.hasProfile) {
     return 'Загружаем анкету клиента. Составить план можно после загрузки.'
@@ -19,6 +20,9 @@ export function getTrainerPlanComposeBlockReason(input: {
     return 'Не удалось загрузить анкету клиента. Составить план пока нельзя.'
   }
   if (!input.hasProfile || !input.questionnaireReady) {
+    if (input.guardianConsentMissing) {
+      return 'Анкета клиента неполная. Для возраста младше 18 нужно согласие законного представителя.'
+    }
     return 'Анкета клиента неполная. План можно составить, когда клиент заполнит цель, уровень, место тренировок и возраст.'
   }
   return null

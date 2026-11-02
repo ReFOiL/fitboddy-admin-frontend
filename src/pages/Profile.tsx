@@ -5,12 +5,13 @@ import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 
-import { HealthDataConsentField, NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
+import { GuardianConsentField, HealthDataConsentField, NotificationSettings, ProfileFormField, ProfileSelectField } from '../components/profile'
 import { APP_PATHS } from '../config'
 import { notificationsEnabled } from '../config/features'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
 import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
+import { rememberGuardianConsent, requiresGuardianConsent } from '../lib/guardian-consent'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -23,6 +24,7 @@ import {
   isKnownProfileOption,
   profileSchema,
   profileToFormValues,
+  reportProfileUpsertBlock,
   type ProfileFormValues,
 } from '../lib/profile-schema'
 
@@ -56,6 +58,7 @@ export function ProfilePage() {
   const watchedExperienceLevel = useWatch({ control: form.control, name: 'experience_level' })
   const watchedWorkoutLocation = useWatch({ control: form.control, name: 'workout_location' })
   const healthDataConsent = useWatch({ control: form.control, name: 'health_data_consent' })
+  const guardianConsent = useWatch({ control: form.control, name: 'guardian_consent' })
   const isTrainerOwnProfile = user?.role === 'trainer'
   const questionnaireRequired = !isTrainerOwnProfile
   const isFormDirty = form.formState.isDirty
@@ -103,15 +106,17 @@ export function ProfilePage() {
 
     const built = buildUpsertProfileRequest(profileQuery.data, values)
     if (!built.ok) {
-      form.setError('health_data_consent', { type: 'manual', message: built.message })
+      reportProfileUpsertBlock(form, built)
       return
     }
     upsertMutation.mutate(built.request, {
-      onSuccess: (savedProfile) =>
+      onSuccess: (savedProfile) => {
+        rememberGuardianConsent(targetUserId, values.age, values.guardian_consent === true)
         form.reset({
           ...profileToFormValues(savedProfile),
           health_data_consent: values.health_data_consent,
-        }),
+        })
+      },
     })
   })
 
@@ -230,14 +235,32 @@ export function ProfilePage() {
                   value={watchedAge ?? ''}
                   aria-invalid={Boolean(form.formState.errors.age)}
                   aria-describedby={fieldDescription('age')}
-                  onChange={(event) =>
-                    form.setValue('age', event.target.value === '' ? null : Number(event.target.value), {
+                  onChange={(event) => {
+                    const nextAge = event.target.value === '' ? null : Number(event.target.value)
+                    form.setValue('age', nextAge, {
                       shouldDirty: true,
                       shouldValidate: true,
                     })
-                  }
+                    if (!requiresGuardianConsent(nextAge)) {
+                      form.setValue('guardian_consent', false)
+                      form.clearErrors('guardian_consent')
+                    }
+                  }}
                 />
               </ProfileFormField>
+            ) : null}
+            {!isTrainerOwnProfile && requiresGuardianConsent(watchedAge) ? (
+              <div className="sm:col-span-2">
+                <GuardianConsentField
+                  id="guardian_consent"
+                  checked={guardianConsent === true}
+                  error={form.formState.errors.guardian_consent?.message}
+                  onCheckedChange={(checked) => {
+                    form.setValue('guardian_consent', checked, { shouldDirty: true })
+                    if (checked) form.clearErrors('guardian_consent')
+                  }}
+                />
+              </div>
             ) : null}
           </div>
 

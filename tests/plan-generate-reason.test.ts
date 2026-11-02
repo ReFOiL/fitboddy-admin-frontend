@@ -1,3 +1,4 @@
+import { GUARDIAN_CONSENT_REQUIRED_MESSAGE } from '../src/lib/guardian-consent'
 import {
   clientSystemGenerateBlockReason,
   trainerCatalogGenerateBlockReason,
@@ -28,6 +29,10 @@ function profile(partial: Partial<ProfileResponse>): ProfileResponse {
 }
 
 describe('plan generate reasons', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('names the missing questionnaire field for a trainer catalog build', () => {
     expect(
       trainerCatalogGenerateBlockReason({
@@ -58,6 +63,27 @@ describe('plan generate reasons', () => {
         hasActiveTrainer: false,
       }),
     ).toBe('Проверяем связь с тренером…')
+  })
+
+  it('blocks a minor profile until guardian consent is recorded', () => {
+    expect(
+      clientSystemGenerateBlockReason({
+        isPending: false,
+        profile: profile({ age: 15 }),
+        profileLoading: false,
+        relationLoading: false,
+        hasActiveTrainer: false,
+      }),
+    ).toBe(GUARDIAN_CONSENT_REQUIRED_MESSAGE)
+
+    expect(
+      trainerCatalogGenerateBlockReason({
+        isPending: false,
+        profile: profile({ age: 15 }),
+        profileLoading: false,
+        profileMissing: false,
+      }),
+    ).toBe(GUARDIAN_CONSENT_REQUIRED_MESSAGE)
   })
 
   it('stays quiet while a request is already running or a trainer owns the plan', () => {

@@ -6,7 +6,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { ThemeToggle } from '../components/layout/ThemeToggle'
-import { HealthDataConsentField, ProfileFormField, ProfileSelectField } from '../components/profile'
+import { GuardianConsentField, HealthDataConsentField, ProfileFormField, ProfileSelectField } from '../components/profile'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -16,6 +16,7 @@ import { AlertBanner, QueryState } from '../components/shared'
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import { useProfile } from '../hooks/use-profile'
+import { rememberGuardianConsent, requiresGuardianConsent } from '../lib/guardian-consent'
 import { inviteLandingPath, readPendingInviteCode } from '../lib/invite'
 import {
   buildUpsertProfileRequest,
@@ -23,6 +24,7 @@ import {
   isKnownProfileOption,
   profileSchema,
   profileToFormValues,
+  reportProfileUpsertBlock,
   type ProfileFormValues,
 } from '../lib/profile-schema'
 
@@ -40,9 +42,11 @@ function readStoredState(key: string): StoredOnboardingState {
   try {
     const parsed = JSON.parse(sessionStorage.getItem(key) ?? '') as Partial<StoredOnboardingState>
     const step = parsed.step === 2 || parsed.step === 3 ? parsed.step : 1
+    const draft = parsed.draft && typeof parsed.draft === 'object' ? { ...parsed.draft } : {}
     return {
       step,
-      draft: parsed.draft && typeof parsed.draft === 'object' ? parsed.draft : {},
+      // Галочку представителя не восстанавливаем: она не должна быть включена заранее.
+      draft: { ...draft, guardian_consent: false },
       completed: parsed.completed === true,
     }
   } catch {
@@ -73,6 +77,7 @@ export function ProfileOnboardingPage() {
   const age = useWatch({ control: form.control, name: 'age' })
   const gender = useWatch({ control: form.control, name: 'gender' })
   const healthDataConsent = useWatch({ control: form.control, name: 'health_data_consent' })
+  const guardianConsent = useWatch({ control: form.control, name: 'guardian_consent' })
   const goal = useWatch({ control: form.control, name: 'goal' })
   const level = useWatch({ control: form.control, name: 'experience_level' })
   const location = useWatch({ control: form.control, name: 'workout_location' })
@@ -153,10 +158,10 @@ export function ProfileOnboardingPage() {
     }
     const built = buildUpsertProfileRequest(profileQuery.data, form.getValues())
     if (!built.ok) {
-      form.setError('health_data_consent', { type: 'manual', message: built.message })
+      reportProfileUpsertBlock(form, built)
       return false
     }
-    form.clearErrors('health_data_consent')
+    form.clearErrors(['health_data_consent', 'guardian_consent'])
     return valid
   }
 
@@ -177,13 +182,14 @@ export function ProfileOnboardingPage() {
 
     const built = buildUpsertProfileRequest(profileQuery.data, draft)
     if (!built.ok) {
-      form.setError('health_data_consent', { type: 'manual', message: built.message })
+      reportProfileUpsertBlock(form, built)
       return
     }
     upsertMutation.mutate(built.request, {
       onSuccess: () => {
+        rememberGuardianConsent(userId, draft.age, draft.guardian_consent === true)
         setCompleted(true)
-        saveStoredState(storageKey, { step: 3, draft, completed: true })
+        saveStoredState(storageKey, { step: 3, draft: { ...draft, guardian_consent: false }, completed: true })
       },
     })
   }
@@ -340,31 +346,51 @@ export function ProfileOnboardingPage() {
             {step === 3 ? (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <ProfileFormField id="onboarding_age" label="Возраст" error={form.formState.errors.age?.message}>
-                    <Input
-                      id="onboarding_age"
-                      type="number"
-                      inputMode="numeric"
-                      min={10}
-                      max={100}
-                      value={age ?? ''}
-                      onChange={(event) =>
-                        form.setValue('age', event.target.value === '' ? null : Number(event.target.value), {
-                          shouldValidate: true,
-                        })
-                      }
+                  <div className="order-1">
+                    <ProfileFormField id="onboarding_age" label="Возраст" error={form.formState.errors.age?.message}>
+                      <Input
+                        id="onboarding_age"
+                        type="number"
+                        inputMode="numeric"
+                        min={10}
+                        max={100}
+                        value={age ?? ''}
+                        onChange={(event) => {
+                          const nextAge = event.target.value === '' ? null : Number(event.target.value)
+                          form.setValue('age', nextAge, { shouldValidate: true })
+                          if (!requiresGuardianConsent(nextAge)) {
+                            form.setValue('guardian_consent', false)
+                            form.clearErrors('guardian_consent')
+                          }
+                        }}
+                      />
+                    </ProfileFormField>
+                  </div>
+                  <div className="order-3 sm:order-2">
+                    <ProfileSelectField
+                      id="onboarding_gender"
+                      label="Пол"
+                      value={gender}
+                      options={metaQuery.data?.genders ?? []}
+                      placeholder="Выберите пол..."
+                      disabled={metaQuery.isLoading}
+                      onChange={(value) => form.setValue('gender', value, { shouldValidate: true })}
+                      error={form.formState.errors.gender?.message}
                     />
-                  </ProfileFormField>
-                  <ProfileSelectField
-                    id="onboarding_gender"
-                    label="Пол"
-                    value={gender}
-                    options={metaQuery.data?.genders ?? []}
-                    placeholder="Выберите пол..."
-                    disabled={metaQuery.isLoading}
-                    onChange={(value) => form.setValue('gender', value, { shouldValidate: true })}
-                    error={form.formState.errors.gender?.message}
-                  />
+                  </div>
+                  {requiresGuardianConsent(age) ? (
+                    <div className="order-2 sm:order-3 sm:col-span-2">
+                      <GuardianConsentField
+                        id="onboarding_guardian_consent"
+                        checked={guardianConsent === true}
+                        error={form.formState.errors.guardian_consent?.message}
+                        onCheckedChange={(checked) => {
+                          form.setValue('guardian_consent', checked, { shouldDirty: true })
+                          if (checked) form.clearErrors('guardian_consent')
+                        }}
+                      />
+                    </div>
+                  ) : null}
                 </div>
                 <HealthDataConsentField
                   id="onboarding_health_data_consent"

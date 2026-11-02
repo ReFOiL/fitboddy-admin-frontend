@@ -1,3 +1,4 @@
+export { GuardianConsentField } from './GuardianConsentField'
 export { HealthDataConsentField } from './HealthDataConsentField'
 export { HealthDataTrainerSummary } from './HealthDataTrainerSummary'
 export { NotificationSettings } from './NotificationSettings'
