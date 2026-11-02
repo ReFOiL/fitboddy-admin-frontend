@@ -19,13 +19,6 @@ function LegalBlockView({ block }: { block: LegalBlock }) {
           ))}
         </ul>
       )
-    case 'todo':
-      return (
-        <p className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm leading-relaxed">
-          <span className="font-semibold">TODO для юриста. </span>
-          {block.text}
-        </p>
-      )
     default: {
       const unexpected: never = block
       return unexpected

@@ -1,17 +1,17 @@
-import type { ComponentProps } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 
-import { APP_PATHS } from '../../config'
 import { cn } from '../../lib/utils'
-import { LegalDocLink } from './LegalDocumentLinks'
 
 type RegistrationConsentFieldProps = Omit<ComponentProps<'input'>, 'type'> & {
   error?: string
+  children: ReactNode
 }
 
 export function RegistrationConsentField({
   id = 'registration-consent',
   error,
   className,
+  children,
   ...inputProps
 }: RegistrationConsentFieldProps) {
   const errorId = `${id}-error`
@@ -28,11 +28,7 @@ export function RegistrationConsentField({
           aria-describedby={error ? errorId : undefined}
         />
         <label htmlFor={id} className="text-sm leading-5 text-foreground">
-          Я соглашаюсь с{' '}
-          <LegalDocLink to={APP_PATHS.privacy}>политикой обработки персональных данных</LegalDocLink>
-          {' '}и принимаю{' '}
-          <LegalDocLink to={APP_PATHS.terms}>пользовательское соглашение</LegalDocLink>
-          .
+          {children}
         </label>
       </div>
       {error ? (

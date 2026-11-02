@@ -7,7 +7,8 @@ import { LoginPage } from '../src/pages/Login'
 import { PrivacyPolicyPage, UserAgreementPage } from '../src/pages/LegalDocumentPage'
 import { useAuthStore } from '../src/stores/auth.store'
 
-const CONSENT_ERROR = 'Отметьте согласие с политикой и пользовательским соглашением'
+const PRIVACY_CONSENT_ERROR = 'Отметьте согласие на обработку персональных данных'
+const TERMS_CONSENT_ERROR = 'Отметьте согласие с пользовательским соглашением'
 
 const mocks = vi.hoisted(() => ({
   login: vi.fn(),
@@ -42,30 +43,49 @@ describe('согласие при регистрации', () => {
     mocks.register.mockReset()
   })
 
-  it('не вызывает register(), пока согласие не отмечено, и показывает ошибку', async () => {
+  it('не вызывает register(), пока любое из двух согласий не отмечено', async () => {
     renderLogin('/login?tab=register')
     fillRegistration()
 
+    const privacy = screen.getByRole('checkbox', { name: /согласие на обработку персональных данных/ })
+    const terms = screen.getByRole('checkbox', { name: /пользовательское соглашение \(оферту\)/ })
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
 
-    expect(await screen.findByText(CONSENT_ERROR)).toBeInTheDocument()
+    expect(await screen.findByText(PRIVACY_CONSENT_ERROR)).toBeInTheDocument()
+    expect(screen.getByText(TERMS_CONSENT_ERROR)).toBeInTheDocument()
+    expect(mocks.register).not.toHaveBeenCalled()
+
+    fireEvent.click(privacy)
+    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
+    expect(await screen.findByText(TERMS_CONSENT_ERROR)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText(PRIVACY_CONSENT_ERROR)).not.toBeInTheDocument())
+    expect(mocks.register).not.toHaveBeenCalled()
+
+    fireEvent.click(privacy)
+    fireEvent.click(terms)
+    fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
+    expect(await screen.findByText(PRIVACY_CONSENT_ERROR)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText(TERMS_CONSENT_ERROR)).not.toBeInTheDocument())
     expect(mocks.register).not.toHaveBeenCalled()
   })
 
-  it('вызывает register() после отметки согласия и не шлёт его в запрос', async () => {
+  it('вызывает register() только когда отмечены оба согласия и не шлёт их в запрос', async () => {
     renderLogin('/login?tab=register')
     fillRegistration()
 
-    const policyLink = screen.getByRole('link', { name: 'политикой обработки персональных данных' })
-    const termsLink = screen.getByRole('link', { name: 'пользовательское соглашение' })
+    const policyLink = screen.getByRole('link', { name: 'согласие на обработку персональных данных' })
+    const termsLink = screen.getByRole('link', { name: 'пользовательское соглашение (оферту)' })
     expect(policyLink).toHaveAttribute('href', '/privacy')
     expect(termsLink).toHaveAttribute('href', '/terms')
 
-    const consent = screen.getByRole('checkbox', { name: /политикой обработки персональных данных/ })
+    const privacy = screen.getByRole('checkbox', { name: /согласие на обработку персональных данных/ })
+    const terms = screen.getByRole('checkbox', { name: /пользовательское соглашение \(оферту\)/ })
     fireEvent.click(policyLink)
-    expect(consent).not.toBeChecked()
+    expect(privacy).not.toBeChecked()
+    expect(terms).not.toBeChecked()
 
-    fireEvent.click(consent)
+    fireEvent.click(privacy)
+    fireEvent.click(terms)
     fireEvent.click(screen.getByRole('button', { name: 'Зарегистрироваться' }))
 
     await waitFor(() => expect(mocks.register).toHaveBeenCalledTimes(1))
@@ -83,7 +103,7 @@ describe('согласие при регистрации', () => {
   it('вход существующего пользователя не требует согласия', async () => {
     renderLogin('/login')
 
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
     expect(screen.getByRole('link', { name: 'Политика обработки персональных данных' })).toHaveAttribute('href', '/privacy')
     expect(screen.getByRole('link', { name: 'Пользовательское соглашение' })).toHaveAttribute('href', '/terms')
 
@@ -111,7 +131,8 @@ describe('страницы политики и соглашения', () => {
     expect(screen.getByText(/Уведомления в Telegram/)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Сведения о здоровье' })).toBeInTheDocument()
     expect(screen.getByText(/Перед сохранением таких полей и перед показом их тренеру понадобится отдельное согласие/)).toBeInTheDocument()
-    expect(screen.getAllByText(/TODO для юриста/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/TODO/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/юрист/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ко входу' })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('link', { name: 'Пользовательское соглашение' })).toHaveAttribute('href', '/terms')
   })
@@ -124,10 +145,11 @@ describe('страницы политики и соглашения', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Пользовательское соглашение' })).toBeInTheDocument()
-    expect(screen.getByText(/публичной оферты/)).toBeInTheDocument()
-    expect(screen.getByText(/Вход в уже существующий аккаунт этого согласия не требует/)).toBeInTheDocument()
+    expect(screen.getByText(/Публичная оферта/)).toBeInTheDocument()
+    expect(screen.getByText(/Вход в уже существующий аккаунт этих согласий не требует/)).toBeInTheDocument()
     expect(screen.getByText(/не оказывает медицинские услуги/)).toBeInTheDocument()
-    expect(screen.getAllByText(/TODO для юриста/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/TODO/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/юрист/i)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Политика обработки персональных данных' })).toHaveAttribute('href', '/privacy')
   })
 })
