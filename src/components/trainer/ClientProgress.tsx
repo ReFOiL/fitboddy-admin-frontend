@@ -1,12 +1,51 @@
 import { formatMonthDay, formatWorkoutClock, formatWorkoutDuration, weeksLabel } from '../../lib/dates'
 import { formatDosage } from '../../lib/plan-draft'
-import { formatWeekdayShort } from '../../lib/plan-formatters'
+import { formatWeekday, formatWeekdayShort } from '../../lib/plan-formatters'
 import { isEmptyLeadInDay, isSkippedWorkout } from '../../lib/plan-start'
 import { firstName } from '../../lib/person'
 import { lastCompletedDay, weekProgress } from '../../lib/roster'
-import type { TrainingPlan } from '../../types/plan'
+import type { PlanDay, TrainingPlan } from '../../types/plan'
 import { Button } from '../ui/button'
 import { ScreenHeader, SectionLabel, StickyActionBar } from '../ui/kit'
+
+type ProgressMark = 'done' | 'missed' | 'upcoming'
+
+const MARK_CLASS: Record<ProgressMark, string> = {
+  done: 'border-border bg-primary/15 text-foreground',
+  missed: 'border-border bg-destructive/10 text-foreground',
+  upcoming: 'border-dashed border-border bg-card text-secondary-foreground',
+}
+
+const MARK_SYMBOL: Record<ProgressMark, string> = {
+  done: '✓',
+  missed: '×',
+  upcoming: '·',
+}
+
+const MARK_LEGEND: Record<ProgressMark, string> = {
+  done: 'Сделано',
+  missed: 'Пропуск',
+  upcoming: 'Впереди',
+}
+
+function dayMark(day: PlanDay, todayIso: string, startDate: string): ProgressMark {
+  if (day.is_completed) return 'done'
+  if (
+    isSkippedWorkout(
+      {
+        week: day.week,
+        scheduledFor: day.scheduled_for,
+        exerciseCount: day.exercises.length,
+        isCompleted: Boolean(day.is_completed),
+      },
+      todayIso,
+      startDate,
+    )
+  ) {
+    return 'missed'
+  }
+  return 'upcoming'
+}
 
 export function ClientProgress({
   name,
@@ -27,6 +66,31 @@ export function ClientProgress({
   const last = plan ? lastCompletedDay(plan) : null
   const currentWeek = plan?.days.find((day) => day.scheduled_for.slice(0, 10) >= todayIso)?.week ?? plan?.days.at(-1)?.week
   const previousWeek = currentWeek != null ? currentWeek - 1 : null
+  const weekBlocks = plan
+    ? [currentWeek, previousWeek]
+        .filter((week): week is number => week != null && week > 0)
+        .map((week) => {
+          const visibleDays = plan.days.filter(
+            (day) =>
+              day.week === week &&
+              !isEmptyLeadInDay(
+                { week: day.week, scheduledFor: day.scheduled_for, exerciseCount: day.exercises.length },
+                plan.start_date,
+              ),
+          )
+          if (weekProgress(plan, week).total === 0 || visibleDays.length === 0) return null
+          return { week, visibleDays }
+        })
+        .filter((block): block is { week: number; visibleDays: PlanDay[] } => block != null)
+    : []
+  const counts: Record<ProgressMark, number> = { done: 0, missed: 0, upcoming: 0 }
+  if (plan) {
+    for (const block of weekBlocks) {
+      for (const day of block.visibleDays) {
+        counts[dayMark(day, todayIso, plan.start_date)] += 1
+      }
+    }
+  }
   const recent = plan
     ? [...plan.days]
         .filter((day) => day.scheduled_for.slice(0, 10) <= todayIso)
@@ -60,57 +124,44 @@ export function ClientProgress({
               <div className="mt-2 text-[15px]">последняя тренировка</div>
             </div>
           </div>
-          {[currentWeek, previousWeek].filter((week): week is number => week != null && week > 0).map((week) => {
-            const progress = weekProgress(plan, week)
-            const visibleDays = plan.days.filter(
-              (day) =>
-                day.week === week &&
-                !isEmptyLeadInDay(
-                  { week: day.week, scheduledFor: day.scheduled_for, exerciseCount: day.exercises.length },
-                  plan.start_date,
-                ),
-            )
-            if (progress.total === 0 || visibleDays.length === 0) return null
-            return (
-              <section key={week} className="mt-6">
-                <SectionLabel>
-                  Неделя {week}
-                  {week === currentWeek ? ' · сейчас' : ''}
-                </SectionLabel>
-                <div className="mt-2 grid grid-cols-3 gap-3 text-center text-[13px] font-semibold">
-                  {visibleDays
-                    .map((day) => {
-                      const missed = isSkippedWorkout(
-                        {
-                          week: day.week,
-                          scheduledFor: day.scheduled_for,
-                          exerciseCount: day.exercises.length,
-                          isCompleted: Boolean(day.is_completed),
-                        },
-                        todayIso,
-                        plan.start_date,
-                      )
-                      return (
-                        <div key={day.day_id}>
-                          <div>{formatWeekdayShort(day.day_of_week)}</div>
-                          <div
-                            className={`mt-1 flex h-12 items-center justify-center rounded-xl border ${
-                              missed
-                                ? 'border-destructive bg-card text-destructive'
-                                : day.is_completed
-                                  ? 'border-primary bg-primary text-primary-foreground'
-                                  : 'border-border bg-card'
-                            }`}
-                          >
-                            {day.is_completed ? '✓' : missed ? '×' : ''}
-                          </div>
-                        </div>
-                      )
-                    })}
-                </div>
-              </section>
-            )
-          })}
+          {weekBlocks.length > 0 ? (
+            <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2" aria-label="Обозначения">
+              {(['done', 'missed', 'upcoming'] as const).map((mark) => (
+                <li key={mark} className="inline-flex items-center gap-2 text-[13px] font-semibold">
+                  <span aria-hidden className={`flex h-8 w-8 items-center justify-center rounded-lg border ${MARK_CLASS[mark]}`}>
+                    {MARK_SYMBOL[mark]}
+                  </span>
+                  <span>
+                    {MARK_LEGEND[mark]} · {counts[mark]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {weekBlocks.map((block) => (
+            <section key={block.week} className="mt-6">
+              <SectionLabel>
+                Неделя {block.week}
+                {block.week === currentWeek ? ' · сейчас' : ''}
+              </SectionLabel>
+              <div className="mt-2 grid grid-cols-3 gap-3 text-center text-[13px] font-semibold">
+                {block.visibleDays.map((day) => {
+                  const mark = dayMark(day, todayIso, plan.start_date)
+                  return (
+                    <div key={day.day_id}>
+                      <div>{formatWeekdayShort(day.day_of_week)}</div>
+                      <div
+                        aria-label={`${formatWeekday(day.day_of_week)}, ${MARK_LEGEND[mark].toLowerCase()}`}
+                        className={`mt-1 flex h-12 items-center justify-center rounded-xl border ${MARK_CLASS[mark]}`}
+                      >
+                        {MARK_SYMBOL[mark]}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
           <section className="mt-6">
             <SectionLabel>Последние</SectionLabel>
             {recent.map((day) => {

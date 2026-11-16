@@ -11,20 +11,26 @@ export function PlanDayChip({
   active,
   disclosure,
   expanded = false,
+  title,
+  describedBy,
   onClick,
 }: {
   label: string
   active: boolean
   disclosure: boolean
   expanded?: boolean
+  title?: string
+  describedBy?: string
   onClick: () => void
 }) {
   return (
     <Chip
       active={active}
+      title={title}
+      aria-describedby={describedBy}
       aria-expanded={disclosure ? expanded : undefined}
       aria-haspopup={disclosure ? 'dialog' : undefined}
-      className={disclosure ? 'gap-1 border-primary bg-primary text-primary-foreground' : undefined}
+      className={disclosure ? 'shrink-0 gap-1 border-primary bg-primary text-primary-foreground' : 'shrink-0'}
       onClick={onClick}
     >
       {label}

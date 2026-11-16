@@ -9,12 +9,13 @@ import { APP_PATHS } from '../../config'
 import { useAuth } from '../../hooks/use-auth'
 import { useUnsavedChangesGuard } from '../../hooks/use-unsaved-changes-guard'
 import { useManualPlan } from '../../hooks/use-manual-plan'
-import { useClientLoads, usePlans } from '../../hooks/use-plans'
+import { usePlans } from '../../hooks/use-plans'
 import { useProfile } from '../../hooks/use-profile'
 import { useTrainerRelations } from '../../hooks/use-relations'
 import { formatMonthDay, localTodayIso } from '../../lib/dates'
 import { formatEquipmentLabel } from '../../lib/equipment'
-import { formatWeekday, formatWeekdayShort } from '../../lib/plan-formatters'
+import { assembleReplacementCopy } from '../../lib/plan-archive-copy'
+import { formatWeekdayShort } from '../../lib/plan-formatters'
 import { WEEKDAYS, weekdaySlots, type WeekdaySlot } from '../../lib/plan-weekday'
 import { dirtyDayIndexes, draftsFromPlan, formatDosage, type DayDraft, type DraftSlot } from '../../lib/plan-draft'
 import {
@@ -25,7 +26,6 @@ import {
   planStartRequest,
   type PlanStartChoice,
 } from '../../lib/plan-start'
-import { formatWorkoutCategory } from '../../lib/muscles'
 import { muscleBucket } from '../../lib/muscle-bucket'
 import { clientDisplayName } from '../../lib/person'
 import { lastCompletedDay } from '../../lib/roster'
@@ -33,11 +33,8 @@ import { getProfileOnboardingStep, isProfileCompleted, profileLacksGuardianConse
 import { getTrainerPlanComposeBlockReason } from '../../lib/trainer-plan-compose'
 import type { TrainerExercise } from '../../types/exercise'
 import type { CopyDayMode } from '../../types/plan'
-import { GenerateBlockNote } from '../plan/GenerateBlockNote'
-import { SlotPhotoPreview } from '../media/ExerciseMedia'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Textarea } from '../ui/textarea'
 import {
   Chip,
   ConfirmSheet,
@@ -46,16 +43,19 @@ import {
   Row,
   ScreenHeader,
   Sheet,
-  Stepper,
   StickyActionBar,
   type OverflowItem,
 } from '../ui/kit'
 import { HealthDataTrainerSummary } from '../profile/HealthDataTrainerSummary'
 import { ClientProgress } from './ClientProgress'
+import { EmptyPlanChoices } from './EmptyPlanChoices'
+import { ExerciseSlotSheet } from './ExerciseSlotSheet'
 import { PlanStartCard } from './PlanStartCard'
+import { WorkingWeights } from './WorkingWeights'
 import { PlanDayChip, WeekdayMenu, WeekdaySwapSheet } from './WeekdayChange'
+import { WeekSwitcher } from './WeekSwitcher'
 
-type StudioScreen = 'plan' | 'progress' | 'add' | 'edit' | 'weights' | 'questionnaire'
+type StudioScreen = 'plan' | 'progress' | 'add' | 'weights' | 'questionnaire'
 type Picker = 'none' | 'copy-day' | 'copy-week' | 'add-day'
 
 const MUSCLE_CHIPS = [
@@ -66,6 +66,7 @@ const MUSCLE_CHIPS = [
   { id: 'shoulders', label: 'Плечи' },
   { id: 'arms', label: 'Руки' },
   { id: 'core', label: 'Корпус' },
+  { id: 'other', label: 'Без группы' },
 ] as const
 
 export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: string; initialScreen: StudioScreen }) {
@@ -120,11 +121,12 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const [copyDow, setCopyDow] = useState(0)
   const [copyMode, setCopyMode] = useState<CopyDayMode>('overwrite')
   const [addTime, setAddTime] = useState('')
+  const [addDow, setAddDow] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [muscle, setMuscle] = useState<(typeof MUSCLE_CHIPS)[number]['id']>('all')
   const [picked, setPicked] = useState<string[]>([])
-  const [restOpen, setRestOpen] = useState(false)
   const [confirm, setConfirm] = useState<'assemble' | 'delete-day' | 'leave' | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [weekdayOpen, setWeekdayOpen] = useState(false)
   const [swapWith, setSwapWith] = useState<number | null>(null)
 
@@ -263,6 +265,33 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     )
   }
 
+  const selectWeek = (item: number) => {
+    setWeek(item)
+    setWeekdayOpen(false)
+    setLineKey(null)
+    const inWeek = draft.filter((day) => day.week === item)
+    const first =
+      inWeek.find(
+        (day) =>
+          !isEmptyLeadInDay(
+            { week: day.week, scheduledFor: day.scheduledFor, exerciseCount: day.slots.length },
+            chosenStart,
+          ),
+      ) ?? inWeek[0]
+    if (first) setDayIndex(first.dayIndex)
+  }
+
+  const createManual = () => {
+    if (manual.createEmptyMutation.isPending) return
+    const profile = profileQuery.data
+    manual.createEmptyMutation.mutate({
+      goal: profile?.goal ?? undefined,
+      level: profile?.experience_level ?? undefined,
+      day_count: 1,
+      start_date: todayIso,
+    })
+  }
+
   const assemble = () => {
     if (composeBlockReason) {
       window.alert(composeBlockReason)
@@ -381,37 +410,8 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     )
   }
 
-  if (screen === 'edit' && selectedDay) {
-    const slot = selectedDay.slots.find((item) => item.key === lineKey)
-    if (!slot) {
-      return (
-        <ScreenHeader title={formatWeekdayShort(selectedDay.dayOfWeek)} onBack={() => setScreen('plan')} />
-      )
-    }
-    return (
-      <EditSlotScreen
-        dayLabel={formatWeekday(selectedDay.dayOfWeek)}
-        slot={slot}
-        media={media.get(slot.exerciseId)}
-        restOpen={restOpen}
-        onToggleRest={() => setRestOpen((current) => !current)}
-        onChange={(next) =>
-          updateDay(selectedDay.dayIndex, (day) => ({
-            ...day,
-            slots: day.slots.map((item) => (item.key === slot.key ? next : item)),
-          }))
-        }
-        onDelete={() => {
-          updateDay(selectedDay.dayIndex, (day) => ({ ...day, slots: day.slots.filter((item) => item.key !== slot.key) }))
-          setScreen('plan')
-        }}
-        onBack={() => setScreen('plan')}
-      />
-    )
-  }
-
   if (screen === 'weights') {
-    return <WeightsScreen clientUserId={clientUserId} trainerUserId={trainerUserId} catalog={catalog} onBack={() => setScreen('plan')} />
+    return <WorkingWeights clientUserId={clientUserId} trainerUserId={trainerUserId} catalog={catalog} onBack={() => setScreen('plan')} />
   }
 
   if (screen === 'questionnaire') {
@@ -427,6 +427,9 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
 
   const canChangeWeekday = !readOnly && Boolean(editablePlan)
   const last = plan ? lastCompletedDay(plan) : null
+  const editingSlot = selectedDay?.slots.find((item) => item.key === lineKey) ?? null
+  const planDates = plan ? `${formatMonthDay(plan.start_date)} — ${formatMonthDay(plan.end_date)}` : ''
+  const freeWeekdays = WEEKDAYS.filter((day) => !weekDays.some((item) => item.dayOfWeek === day))
 
   return (
     <div className="mx-auto w-full max-w-lg pb-28">
@@ -441,87 +444,71 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
           />
         }
       />
-      <div className="mt-4 flex items-center justify-between gap-3 text-[15px]">
-        <span>{last ? `Последняя тренировка: ${formatWeekdayShort(last.day_of_week).toLowerCase()}, ${formatMonthDay(last.scheduled_for)}` : 'Тренировок пока нет'}</span>
-        <button type="button" className="font-semibold underline" onClick={() => setScreen('progress')}>
-          Прогресс
-        </button>
-      </div>
-      {readOnly ? <p className="mt-3 text-[15px] text-secondary-foreground">Этот план нельзя править по слотам. Собрать новый можно из меню.</p> : null}
-
-      {weeks.length > 1 ? (
-        <div className="mt-4 grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1">
-          {weeks.map((item) => (
-            <button
-              key={item}
-              type="button"
-              className={`h-12 rounded-xl text-[17px] font-semibold ${item === activeWeek ? 'bg-card text-foreground shadow-sm' : 'text-secondary-foreground'}`}
-              onClick={() => {
-                setWeek(item)
-                setWeekdayOpen(false)
-                const inWeek = draft.filter((day) => day.week === item)
-                const first =
-                  inWeek.find(
-                    (day) =>
-                      !isEmptyLeadInDay(
-                        { week: day.week, scheduledFor: day.scheduledFor, exerciseCount: day.slots.length },
-                        chosenStart,
-                      ),
-                  ) ?? inWeek[0]
-                if (first) setDayIndex(first.dayIndex)
-              }}
-            >
-              Неделя {item}
-            </button>
-          ))}
+      {plan && weeks.length > 0 ? (
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="min-w-0 text-[15px] leading-snug text-secondary-foreground">{planDates}</p>
+          <WeekSwitcher weeks={weeks} active={activeWeek} onChange={selectWeek} />
         </div>
       ) : null}
 
-      {canChangeWeekday ? <p className="mt-4 text-[13px] font-semibold text-secondary-foreground">День недели</p> : null}
-      <div className={`relative z-30 ${canChangeWeekday ? 'mt-2' : 'mt-4'} flex gap-2 overflow-x-auto`}>
-        {daysForWeek.map((day) => {
-          const isActive = selectedDay?.dayId === day.dayId
-          return (
-            <PlanDayChip
-              key={day.dayId}
-              label={formatWeekdayShort(day.dayOfWeek)}
-              active={isActive}
-              disclosure={isActive && canChangeWeekday}
-              expanded={isActive && weekdayOpen}
-              onClick={() => {
-                if (!isActive) {
+      {daysForWeek.length > 0 ? (
+        <>
+          <p id="weekday-chip-hint" className="sr-only">
+            Сменить день недели
+          </p>
+          <p className="mt-3 text-[13px] font-semibold text-secondary-foreground">День недели</p>
+          <div className="relative z-30 mt-2 flex gap-2 overflow-x-auto">
+            {daysForWeek.map((day) => {
+              const isActive = selectedDay?.dayId === day.dayId
+              const canOpen = isActive && canChangeWeekday
+              return (
+                <PlanDayChip
+                  key={day.dayId}
+                  label={formatWeekdayShort(day.dayOfWeek)}
+                  active={isActive}
+                  disclosure={canOpen}
+                  expanded={isActive && weekdayOpen}
+                  title={canOpen ? 'Сменить день недели' : 'Открыть день'}
+                  describedBy={canOpen ? 'weekday-chip-hint' : undefined}
+                  onClick={() => {
+                    if (!isActive) {
+                      setWeekdayOpen(false)
+                      setLineKey(null)
+                      setDayIndex(day.dayIndex)
+                      return
+                    }
+                    if (!canChangeWeekday) return
+                    if (weekdayOpen) {
+                      setWeekdayOpen(false)
+                      return
+                    }
+                    if (!requireCleanDraft()) return
+                    setSwapWith(null)
+                    setWeekdayOpen(true)
+                  }}
+                />
+              )
+            })}
+            {canChangeWeekday ? (
+              <button
+                type="button"
+                aria-label="Добавить день"
+                title="Добавить день"
+                className="inline-flex h-12 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/50 bg-secondary px-4 text-[15px] font-semibold text-foreground"
+                onClick={() => {
+                  if (!requireCleanDraft()) return
                   setWeekdayOpen(false)
-                  setDayIndex(day.dayIndex)
-                  return
-                }
-                if (!canChangeWeekday) return
-                if (weekdayOpen) {
-                  setWeekdayOpen(false)
-                  return
-                }
-                if (!requireCleanDraft()) return
-                setSwapWith(null)
-                setWeekdayOpen(true)
-              }}
-            />
-          )
-        })}
-        {canChangeWeekday ? (
-          <button
-            type="button"
-            aria-label="Добавить день"
-            className="inline-flex h-12 min-w-12 items-center justify-center rounded-full border border-dashed border-primary/50 bg-secondary px-4 text-[17px] font-semibold text-foreground"
-            onClick={() => {
-              if (!requireCleanDraft()) return
-              setWeekdayOpen(false)
-              setAddTime('')
-              setPicker('add-day')
-            }}
-          >
-            +
-          </button>
-        ) : null}
-      </div>
+                  setAddTime('')
+                  setAddDow(null)
+                  setPicker('add-day')
+                }}
+              >
+                + День
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
       {weekdayOpen && canChangeWeekday && selectedDay ? (
         <>
           <button
@@ -538,35 +525,6 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
         </>
       ) : null}
 
-      {!readOnly && editablePlan && draft.length > 0 ? (
-        <PlanStartCard choice={startChoice} todayIso={todayIso} dayOfWeeks={dayOfWeeks} onChange={setStartChoice} />
-      ) : null}
-
-      {!readOnly && selectedDay ? (
-        <label className="mt-4 grid gap-2 text-[17px] font-semibold" htmlFor="plan-day-time">
-          Время
-          <Input
-            id="plan-day-time"
-            type="time"
-            value={selectedDay.scheduledTime ?? ''}
-            onChange={(event) => {
-              const value = event.target.value
-              updateDay(selectedDay.dayIndex, (day) => ({ ...day, scheduledTime: value || null }))
-            }}
-          />
-        </label>
-      ) : null}
-
-      {!plan ? (
-        <div className="px-1 py-10 text-center">
-          <p className="text-[22px] font-bold">Плана ещё нет</p>
-          <p className="mt-2 text-[17px] text-secondary-foreground">Соберите программу из каталога.</p>
-          <div className="mt-3">
-            <GenerateBlockNote reason={composeBlockReason} />
-          </div>
-        </div>
-      ) : null}
-
       <div className="mt-2">
         {selectedDay?.slots.map((slot) => {
           const exercise = media.get(slot.exerciseId)
@@ -574,49 +532,99 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
             <Row
               key={slot.key}
               title={slot.exerciseName}
-              subtitle={formatDosage(slot, { includeRest: false })}
+              subtitle={formatDosage(slot)}
               leading={<ExerciseThumb imageUrl={exercise?.start_image_url} hasVideo={Boolean(exercise?.video_url)} />}
-              onClick={
-                readOnly
-                  ? undefined
-                  : () => {
-                      setLineKey(slot.key)
-                      setRestOpen(false)
-                      setScreen('edit')
-                    }
-              }
+              onClick={readOnly ? undefined : () => setLineKey(slot.key)}
             />
           )
         })}
-      </div>
-
-      <div className="mt-4 divide-y divide-border border-y border-border">
-        <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('weights')}>
-          Рабочие веса
-        </button>
-        <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('questionnaire')}>
-          Анкета
-        </button>
-        <Link to={APP_PATHS.planRules} className="flex min-h-12 items-center text-[17px]">
-          Настройки плана
-        </Link>
       </div>
 
       {!readOnly && selectedDay ? (
         <Button
           type="button"
           variant="secondary"
-          className="mt-4 w-full"
+          className="mt-3 w-full"
           onClick={() => {
             setSearch('')
             setMuscle('all')
             setPicked([])
+            setLineKey(null)
             setScreen('add')
           }}
         >
           + Добавить упражнение
         </Button>
       ) : null}
+
+      {!plan ? (
+        <EmptyPlanChoices
+          catalogPending={generatePlanMutation.isPending}
+          manualPending={manual.createEmptyMutation.isPending}
+          blockReason={composeBlockReason}
+          onCatalog={assemble}
+          onManual={createManual}
+        />
+      ) : (
+        <div className="mt-4 border-t border-border">
+          <button
+            type="button"
+            className="flex min-h-12 w-full items-center text-left text-[17px] font-semibold"
+            aria-expanded={detailsOpen}
+            onClick={() => setDetailsOpen((current) => !current)}
+          >
+            Подробнее о плане
+            <span aria-hidden className="ml-auto text-secondary-foreground">
+              {detailsOpen ? '▴' : '▾'}
+            </span>
+          </button>
+          {detailsOpen ? (
+            <div className="pb-2">
+              <div className="flex items-center justify-between gap-3 text-[15px]">
+                <span>
+                  {last
+                    ? `Последняя тренировка: ${formatWeekdayShort(last.day_of_week).toLowerCase()}, ${formatMonthDay(last.scheduled_for)}`
+                    : 'Тренировок пока нет'}
+                </span>
+                <button type="button" className="font-semibold underline" onClick={() => setScreen('progress')}>
+                  Прогресс
+                </button>
+              </div>
+              {readOnly ? (
+                <p className="mt-3 text-[15px] text-secondary-foreground">Этот план нельзя править по слотам. Собрать новый можно из меню.</p>
+              ) : null}
+              {!readOnly && editablePlan && draft.length > 0 ? (
+                <PlanStartCard choice={startChoice} todayIso={todayIso} dayOfWeeks={dayOfWeeks} onChange={setStartChoice} />
+              ) : null}
+              {!readOnly && selectedDay ? (
+                <label className="mt-4 grid gap-2 text-[17px] font-semibold" htmlFor="plan-day-time">
+                  Время
+                  <Input
+                    id="plan-day-time"
+                    type="time"
+                    value={selectedDay.scheduledTime ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      updateDay(selectedDay.dayIndex, (day) => ({ ...day, scheduledTime: value || null }))
+                    }}
+                  />
+                </label>
+              ) : null}
+              <div className="mt-2 divide-y divide-border border-y border-border">
+                <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('weights')}>
+                  Рабочие веса
+                </button>
+                <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('questionnaire')}>
+                  Анкета
+                </button>
+                <Link to={APP_PATHS.planRules} className="flex min-h-12 items-center text-[17px]">
+                  Настройки плана
+                </Link>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {!readOnly && selectedDay ? (
         <StickyActionBar>
@@ -631,40 +639,58 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
           </Button>
         </StickyActionBar>
       ) : null}
-      {!plan ? (
-        <StickyActionBar>
-          <Button type="button" size="lg" className="w-full" disabled={generatePlanMutation.isPending} onClick={assemble}>
-            {generatePlanMutation.isPending ? 'Собираем…' : 'Собрать из каталога'}
-          </Button>
-        </StickyActionBar>
-      ) : null}
-
       {picker === 'add-day' ? (
         <Sheet title="Добавить день" onClose={() => setPicker('none')}>
-          <label className="grid gap-2 text-[17px] font-semibold" htmlFor="new-day-time">
-            Время
-            <Input id="new-day-time" type="time" value={addTime} onChange={(event) => setAddTime(event.target.value)} />
-          </label>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {WEEKDAYS.filter((day) => !weekDays.some((item) => item.dayOfWeek === day)).map((day) => (
-              <Chip
-                key={day}
-                disabled={structureBusy}
-                onClick={() => {
-                  manual.addDayMutation.mutate(
-                    { week: activeWeek, day_of_week: day, scheduled_time: addTime || null },
-                    { onSuccess: () => setPicker('none') },
-                  )
-                }}
-              >
+          <p className="text-[15px] text-secondary-foreground">Сначала выберите свободный день. Время можно не указывать.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {freeWeekdays.map((day) => (
+              <Chip key={day} active={addDow === day} disabled={structureBusy} onClick={() => setAddDow(day)}>
                 {formatWeekdayShort(day)}
               </Chip>
             ))}
           </div>
-          {WEEKDAYS.every((day) => weekDays.some((item) => item.dayOfWeek === day)) ? (
-            <p className="mt-3 text-[17px]">В этой неделе уже есть все дни.</p>
-          ) : null}
+          {freeWeekdays.length === 0 ? <p className="mt-3 text-[17px]">В этой неделе уже есть все дни.</p> : null}
+          <label className="mt-4 grid gap-2 text-[17px] font-semibold" htmlFor="new-day-time">
+            Время, если нужно
+            <Input id="new-day-time" type="time" value={addTime} onChange={(event) => setAddTime(event.target.value)} />
+          </label>
+          <Button
+            type="button"
+            size="lg"
+            className="mt-4 w-full"
+            disabled={addDow == null || structureBusy}
+            onClick={() => {
+              if (addDow == null) return
+              manual.addDayMutation.mutate(
+                { week: activeWeek, day_of_week: addDow, scheduled_time: addTime || null },
+                { onSuccess: () => setPicker('none') },
+              )
+            }}
+          >
+            {structureBusy ? 'Добавляем…' : 'Добавить'}
+          </Button>
         </Sheet>
+      ) : null}
+
+      {editingSlot && selectedDay ? (
+        <ExerciseSlotSheet
+          slot={editingSlot}
+          media={media.get(editingSlot.exerciseId)}
+          onChange={(next) =>
+            updateDay(selectedDay.dayIndex, (day) => ({
+              ...day,
+              slots: day.slots.map((item) => (item.key === editingSlot.key ? next : item)),
+            }))
+          }
+          onDelete={() => {
+            updateDay(selectedDay.dayIndex, (day) => ({
+              ...day,
+              slots: day.slots.filter((item) => item.key !== editingSlot.key),
+            }))
+            setLineKey(null)
+          }}
+          onClose={() => setLineKey(null)}
+        />
       ) : null}
 
       {picker === 'copy-day' && selectedDay ? (
@@ -719,7 +745,15 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
       {confirm === 'assemble' ? (
         <ConfirmSheet
           title="Собрать из каталога"
-          body="Собрать из каталога? Текущий план будет заменён."
+          body={
+            plan
+              ? assembleReplacementCopy(
+                  plan.days.length,
+                  plan.days.reduce((sum, day) => sum + day.exercises.length, 0),
+                  isDirty,
+                )
+              : 'Текущий план будет заменён.'
+          }
           confirmLabel="Собрать"
           pending={generatePlanMutation.isPending}
           tone="danger"
@@ -825,6 +859,7 @@ const GROUP_LABEL: Record<string, string> = {
   shoulders: 'Плечи',
   arms: 'Руки',
   core: 'Корпус',
+  other: 'Без группы',
 }
 
 function AddExerciseScreen({
@@ -862,9 +897,15 @@ function AddExerciseScreen({
       <div className="mt-4">
         <Input value={search} aria-label="Поиск упражнения" placeholder="Поиск" onChange={(event) => onSearch(event.target.value)} />
       </div>
-      <div className="mt-3 flex gap-2 overflow-x-auto">
+      <div className="mt-3 flex flex-nowrap gap-2 overflow-x-auto">
         {MUSCLE_CHIPS.map((item) => (
-          <Chip key={item.id} active={muscle === item.id} onClick={() => onMuscle(item.id)}>
+          <Chip
+            key={item.id}
+            active={muscle === item.id}
+            aria-pressed={muscle === item.id}
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => onMuscle(item.id)}
+          >
             {item.label}
           </Chip>
         ))}
@@ -872,18 +913,14 @@ function AddExerciseScreen({
       <div className="mt-2">
         {visible.map((exercise) => {
           const selected = picked.includes(exercise.row_id)
-          const group = GROUP_LABEL[muscleBucket(exercise)] ?? formatWorkoutCategory(exercise.workout_category)
+          const group = GROUP_LABEL[muscleBucket(exercise)] ?? 'Без группы'
           return (
             <Row
               key={exercise.row_id}
               title={exercise.exercise_name}
               subtitle={`${group} · ${formatEquipmentLabel(exercise.equipment).toLowerCase()}`}
               leading={<ExerciseThumb imageUrl={exercise.start_image_url} hasVideo={Boolean(exercise.video_url)} />}
-              trailing={
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'}`}>
-                  {selected ? '✓' : '+'}
-                </span>
-              }
+              trailing={selected ? <span aria-hidden className="text-[17px] font-semibold text-accent-ink">✓</span> : null}
               onClick={() => onToggle(exercise.row_id)}
             />
           )
@@ -894,161 +931,6 @@ function AddExerciseScreen({
           Готово · добавлено {picked.length}
         </Button>
       </StickyActionBar>
-    </div>
-  )
-}
-
-function EditSlotScreen({
-  dayLabel,
-  slot,
-  media,
-  restOpen,
-  onToggleRest,
-  onChange,
-  onDelete,
-  onBack,
-}: {
-  dayLabel: string
-  slot: DraftSlot
-  media?: TrainerExercise
-  restOpen: boolean
-  onToggleRest: () => void
-  onChange: (next: DraftSlot) => void
-  onDelete: () => void
-  onBack: () => void
-}) {
-  const hold = Boolean(slot.durationSeconds && slot.durationSeconds > 0 && !slot.reps)
-  return (
-    <div className="mx-auto w-full max-w-lg pb-28">
-      <ScreenHeader title={dayLabel} onBack={onBack} />
-      <h2 className="mt-4 text-[28px] font-bold">{slot.exerciseName}</h2>
-      <div className="mt-4">
-        <SlotPhotoPreview startUrl={media?.start_image_url} endUrl={media?.end_image_url} />
-      </div>
-      {media ? (
-        <a className="mt-2 inline-flex text-[15px] underline" href={`/exercises/${encodeURIComponent(media.row_id)}`}>
-          Изменить фото и видео
-        </a>
-      ) : null}
-      <div className="mt-4 divide-y divide-border">
-        <Stepper label="Подходы" value={slot.sets} min={1} max={10} onChange={(sets) => onChange({ ...slot, sets })} />
-        {hold ? (
-          <Stepper
-            label="Секунды"
-            value={slot.durationSeconds ?? 30}
-            min={5}
-            max={600}
-            step={5}
-            onChange={(durationSeconds) => onChange({ ...slot, durationSeconds, reps: null })}
-          />
-        ) : (
-          <Stepper
-            label="Повторы"
-            value={slot.reps ?? 1}
-            min={1}
-            max={100}
-            onChange={(reps) => onChange({ ...slot, reps, durationSeconds: null })}
-          />
-        )}
-        <Stepper
-          label="Вес, кг"
-          value={slot.weightKg ?? 0}
-          min={0}
-          max={500}
-          step={2.5}
-          onChange={(weightKg) => onChange({ ...slot, weightKg })}
-        />
-      </div>
-      <button type="button" className="mt-2 flex min-h-12 w-full items-center justify-between text-[17px]" onClick={onToggleRest}>
-        <span>
-          Ещё: отдых {slot.restSeconds ?? 0} с{slot.note.trim() ? ', заметка' : ''}
-        </span>
-        <span>{restOpen ? '▴' : '▾'}</span>
-      </button>
-      {restOpen ? (
-        <div className="grid gap-3">
-          <Stepper
-            label="Отдых, с"
-            value={slot.restSeconds ?? 0}
-            min={0}
-            max={600}
-            step={15}
-            onChange={(restSeconds) => onChange({ ...slot, restSeconds })}
-          />
-          <label className="grid gap-2 text-[17px] font-semibold" htmlFor="slot-note">
-            Заметка
-            <Textarea
-              id="slot-note"
-              maxLength={500}
-              value={slot.note}
-              placeholder="Как выполнять"
-              onChange={(event) => onChange({ ...slot, note: event.target.value.slice(0, 500) })}
-            />
-          </label>
-        </div>
-      ) : null}
-      <Button type="button" variant="destructive" className="mt-6 w-full" onClick={onDelete}>
-        Удалить из плана
-      </Button>
-      <StickyActionBar>
-        <Button type="button" size="lg" className="w-full" onClick={onBack}>
-          К плану
-        </Button>
-      </StickyActionBar>
-    </div>
-  )
-}
-
-function WeightsScreen({
-  clientUserId,
-  trainerUserId,
-  catalog,
-  onBack,
-}: {
-  clientUserId: string
-  trainerUserId: string
-  catalog: TrainerExercise[]
-  onBack: () => void
-}) {
-  const { loadsQuery, upsertLoadMutation } = useClientLoads(clientUserId, trainerUserId)
-  const weighted = catalog.filter((item) => item.default_weight_kg != null && item.default_weight_kg > 0)
-  const loads = new Map((loadsQuery.data ?? []).map((item) => [item.exercise_row_id, item.working_weight_kg]))
-  const [draft, setDraft] = useState<Record<string, string>>({})
-  return (
-    <div className="mx-auto w-full max-w-lg">
-      <ScreenHeader title="Рабочие веса" onBack={onBack} />
-      {weighted.map((exercise) => (
-        <div key={exercise.row_id} className="flex min-h-16 items-center gap-3 border-b border-border py-3">
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[17px] font-semibold">{exercise.exercise_name}</div>
-            <div className="text-[15px] text-secondary-foreground">Сейчас {loads.get(exercise.row_id) ?? '—'} кг</div>
-          </div>
-          <Input
-            className="h-12 w-24"
-            inputMode="decimal"
-            aria-label={`Вес ${exercise.exercise_name}`}
-            value={draft[exercise.row_id] ?? ''}
-            onChange={(event) => setDraft((current) => ({ ...current, [exercise.row_id]: event.target.value }))}
-          />
-          <Button
-            type="button"
-            className="h-12 px-3"
-            disabled={upsertLoadMutation.isPending}
-            onClick={() => {
-              const raw = (draft[exercise.row_id] ?? '').trim().replace(',', '.')
-              const value = Number(raw)
-              if (!raw || !Number.isFinite(value) || value <= 0) {
-                toast.error('Укажите вес больше нуля.')
-                return
-              }
-              upsertLoadMutation.mutate({ exerciseRowId: exercise.row_id, payload: { working_weight_kg: value } })
-            }}
-          >
-            Ок
-          </Button>
-        </div>
-      ))}
-      {weighted.length === 0 ? <p className="py-6 text-[17px]">В каталоге нет упражнений с весом.</p> : null}
     </div>
   )
 }

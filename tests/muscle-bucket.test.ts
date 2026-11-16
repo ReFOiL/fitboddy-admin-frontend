@@ -9,6 +9,12 @@ describe('muscleBucket', () => {
     expect(muscleBucket({ primary_muscles: [], workout_category: 'core' })).toBe('core')
   })
 
+  it('упражнения без мышц не попадают в грудь', () => {
+    expect(muscleBucket({ primary_muscles: [], workout_category: 'upper' })).toBe('other')
+    expect(muscleBucket({ primary_muscles: ['  '], workout_category: 'upper' })).toBe('other')
+    expect(muscleBucket({ primary_muscles: ['neck'], workout_category: 'upper' })).toBe('other')
+  })
+
   it('не путает дельты с широчайшими из-за куска названия', () => {
     expect(muscleBucket({ primary_muscles: ['lateral_deltoid'], workout_category: 'upper' })).toBe('shoulders')
     expect(muscleBucket({ primary_muscles: ['biceps'], workout_category: 'upper' })).toBe('arms')

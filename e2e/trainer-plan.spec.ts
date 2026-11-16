@@ -15,12 +15,17 @@ function stepperValue(page: Page, label: string) {
 }
 
 test('тренер собирает план: день, упражнение, дозировка, заметка, сохранение', async ({ page }) => {
+  // 1 ноября 2026 — воскресенье. Ближайшая тренировка 2 ноября, поэтому новый вторник не считается пустым днём до старта.
+  await page.clock.install({ time: new Date('2026-11-01T12:00:00Z') })
   await openAnna(page)
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
 
   await page.getByRole('button', { name: 'Добавить день' }).click()
   const addDay = page.getByRole('dialog', { name: 'Добавить день' })
   await addDay.getByRole('button', { name: 'Вт' }).click()
+  await expect(addDay).toBeVisible()
+  await expect(page.getByText('День добавлен')).toHaveCount(0)
+  await addDay.getByRole('button', { name: 'Добавить' }).click()
   await expect(page.getByText('День добавлен')).toBeVisible()
   await expect(addDay).toBeHidden()
 
@@ -37,7 +42,7 @@ test('тренер собирает план: день, упражнение, д
   await expect(stepperValue(page, 'Подходы')).toHaveText('4')
   await expect(stepperValue(page, 'Повторы')).toHaveText('9')
   await expect(stepperValue(page, 'Вес, кг')).toHaveText('42.5')
-  await page.getByRole('button', { name: /Ещё: отдых/ }).click()
+  await expect(page.getByRole('button', { name: 'Больше: Отдых, с' })).toBeVisible()
   await page.getByLabel('Заметка').fill('Лопатки свести, не отрывать таз')
   await page.getByRole('button', { name: 'К плану' }).click()
 
@@ -53,7 +58,7 @@ test('тренер собирает план: день, упражнение, д
   await page.getByRole('button', { name: 'Вт', exact: true }).click()
   await expect(page.getByRole('button', { name: /Тяга верхнего блока/ })).toContainText('42.5 кг')
   await page.getByRole('button', { name: /Тяга верхнего блока/ }).click()
-  await page.getByRole('button', { name: /Ещё: отдых/ }).click()
+  await expect(page.getByRole('button', { name: 'Больше: Отдых, с' })).toBeVisible()
   await expect(page.getByLabel('Заметка')).toHaveValue('Лопатки свести, не отрывать таз')
   await expect(stepperValue(page, 'Подходы')).toHaveText('4')
   await expect(stepperValue(page, 'Повторы')).toHaveText('9')
@@ -83,7 +88,7 @@ test('копирует день и неделю на сервере, после 
   await expect(page.getByText('Неделя скопирована')).toBeVisible()
   await expect(weekDialog).toBeHidden()
 
-  await page.getByRole('button', { name: 'Неделя 2' }).click()
+  await page.getByRole('button', { name: 'Следующая неделя' }).click()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Скручивания/ })).toHaveCount(0)
 
@@ -92,7 +97,7 @@ test('копирует день и неделю на сервере, после 
   await page.getByRole('button', { name: 'Вт', exact: true }).click()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Приседания со штангой/ })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Неделя 2' }).click()
+  await page.getByRole('button', { name: 'Следующая неделя' }).click()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Скручивания/ })).toHaveCount(0)
 })
@@ -110,6 +115,9 @@ test('сборка из каталога спрашивает подтвержд
   await page.getByRole('menuitem', { name: /Собрать из каталога/ }).click()
   const dismissed = page.getByRole('dialog', { name: 'Собрать из каталога' })
   await expect(dismissed).toContainText('Текущий план будет заменён')
+  await expect(dismissed).toContainText('4 дня')
+  await expect(dismissed).toContainText('3 упражнения')
+  await expect(dismissed).toContainText('Ручные правки будут архивированы')
   await dismissed.getByRole('button', { name: 'Оставить' }).click()
   await expect(dismissed).toBeHidden()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
@@ -117,7 +125,7 @@ test('сборка из каталога спрашивает подтвержд
   await page.getByRole('button', { name: 'Ещё' }).click()
   await page.getByRole('menuitem', { name: /Собрать из каталога/ }).click()
   const accepted = page.getByRole('dialog', { name: 'Собрать из каталога' })
-  await expect(accepted).toContainText('Текущий план будет заменён')
+  await expect(accepted).toContainText('4 дня и 3 упражнения')
   await accepted.getByRole('button', { name: 'Собрать' }).click()
   await expect(page.getByRole('button', { name: /Отжимания на брусьях/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toHaveCount(0)

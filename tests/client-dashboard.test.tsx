@@ -250,7 +250,8 @@ describe('client Dashboard', () => {
     mocks.user.role = 'trainer'
     renderDashboard()
 
-    expect(screen.getAllByRole('link', { name: 'Пригласить' })[0]).toHaveAttribute('href', '/clients/invite')
+    expect(screen.getByRole('link', { name: /Пригласить клиента/ })).toHaveAttribute('href', '/clients/invite')
+    expect(screen.getByRole('button', { name: /Создать план/ })).toBeInTheDocument()
     expect(screen.getByText(/Тренируются сегодня/)).toBeInTheDocument()
   })
 })

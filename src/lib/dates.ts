@@ -1,3 +1,5 @@
+import { plural } from './plural'
+
 const WEEKDAY_TITLE = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 const WEEKDAY_LOWER = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота']
 const WEEKDAY_SHORT_JS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
@@ -66,16 +68,10 @@ export function messageCountLabel(count: number): string {
   return `${count} сообщений`
 }
 
+/** Без рода: «4 пропущенные тренировки», а не «Пропустил 4 тренировки». */
 export function missedWorkoutsLabel(count: number): string {
-  const mod10 = count % 10
-  const mod100 = count % 100
-  const noun =
-    mod10 === 1 && mod100 !== 11
-      ? 'тренировку'
-      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
-        ? 'тренировки'
-        : 'тренировок'
-  return `Пропустил ${count} ${noun}`
+  const phrase = plural(count, 'пропущенная тренировка', 'пропущенные тренировки', 'пропущенных тренировок')
+  return `${count} ${phrase}`
 }
 
 export function formatWorkoutClock(iso: string): string {
