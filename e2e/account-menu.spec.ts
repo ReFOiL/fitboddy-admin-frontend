@@ -16,16 +16,18 @@ test('экран «Ещё» показывает разделы тренера',
   await expect(page).toHaveURL(/\/more$/)
   await expect(page.getByRole('heading', { name: 'Ещё' })).toBeVisible()
 
-  for (const name of ['Как это работает', 'Аналитика', 'Настройки плана', 'Пригласить клиента', 'Профиль']) {
+  for (const name of ['Как это работает', 'Аналитика', 'Правила генератора', 'Пригласить клиента', 'Профиль']) {
     await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
   }
-  await expect(page.getByRole('switch', { name: 'Показывать в каталоге' })).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Видимость в каталоге' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Выйти' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Включить тёмную тему' })).toBeVisible()
 
   await page.getByRole('link', { name: /Аналитика/ }).click()
   await expect(page).toHaveURL(/\/analytics$/)
   await expect(page.getByRole('heading', { name: 'Аналитика' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Приглашены → Приняли → Активны' })).toBeVisible()
+  await expect(page.getByText('75 %')).toBeVisible()
 })
 
 test('меню клиента остаётся под именем', async ({ page }) => {

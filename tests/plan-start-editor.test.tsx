@@ -12,7 +12,7 @@ import {
 } from '../src/api'
 import { PlanStartCard } from '../src/components/trainer/PlanStartCard'
 import { PlanStudio } from '../src/components/trainer/PlanStudio'
-import { addIsoDays, formatMonthDay, localTodayIso } from '../src/lib/dates'
+import { addIsoDays, formatCalendarDate, localTodayIso } from '../src/lib/dates'
 import { formatPlanStartSubtitle, nextWeekMonday, nextWorkoutDate, type PlanStartChoice } from '../src/lib/plan-start'
 import type { PlanDay, PlanExercise, TrainingPlan } from '../src/types/plan'
 
@@ -222,7 +222,7 @@ describe('Когда начать', () => {
     expect(screen.getByRole('button', { name: 'Сохранить план' })).toBeDisabled()
 
     fireEvent.change(screen.getByLabelText('Дата старта'), { target: { value: '2026-11-03' } })
-    expect(screen.getByRole('radio', { name: /С даты/ })).toHaveTextContent('Вт, 3 ноя')
+    expect(screen.getByRole('radio', { name: /С даты/ })).toHaveTextContent('вт, 3 нояб.')
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить план' }))
 
     await waitFor(() => {
@@ -244,8 +244,10 @@ describe('Когда начать', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Прогресс' }))
 
     expect(await screen.findByText(/пропущена/)).toBeInTheDocument()
-    expect(screen.getByText(new RegExp(formatMonthDay(addIsoDays(today, -2))))).toBeInTheDocument()
-    expect(screen.queryByText(new RegExp(formatMonthDay(addIsoDays(today, -4))))).not.toBeInTheDocument()
+    const shown = new RegExp(formatCalendarDate(addIsoDays(today, -2), 'short').replaceAll('.', '\\.'))
+    const hidden = new RegExp(formatCalendarDate(addIsoDays(today, -4), 'short').replaceAll('.', '\\.'))
+    expect(screen.getByText(shown)).toBeInTheDocument()
+    expect(screen.queryByText(hidden)).not.toBeInTheDocument()
     expect(screen.getAllByLabelText(/, пропуск$/)).toHaveLength(1)
     expect(screen.getByText(/Сделано ·/)).toBeInTheDocument()
     expect(screen.getByText(/Пропуск ·/)).toBeInTheDocument()
@@ -258,8 +260,8 @@ describe('Когда начать', () => {
 
     const nearest = screen.getByRole('radio', { name: /С ближайшей тренировки/ })
     const monday = screen.getByRole('radio', { name: /С понедельника следующей недели/ })
-    expect(nearest).toHaveTextContent('Пт, 23 окт')
-    expect(monday).toHaveTextContent('Пн, 26 окт')
+    expect(nearest).toHaveTextContent('пт, 23 окт.')
+    expect(monday).toHaveTextContent('пн, 26 окт.')
     expect(nearest).toBeChecked()
 
     fireEvent.click(monday)
@@ -270,7 +272,7 @@ describe('Когда начать', () => {
 
     expect(screen.queryByRole('radio', { name: /С понедельника следующей недели/ })).not.toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toBeChecked()
-    expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toHaveTextContent('Пн, 26 окт')
+    expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toHaveTextContent('пн, 26 окт.')
     await waitFor(() => {
       expect(screen.getByTestId('start-mode')).toHaveTextContent('next_workout')
     })
@@ -279,8 +281,8 @@ describe('Когда начать', () => {
   it('в понедельник с понедельником в плане подписи не совпадают', () => {
     render(<StartHarness todayIso="2026-10-19" initialDays={[0, 2, 4]} initialChoice={{ mode: 'next_workout' }} />)
 
-    expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toHaveTextContent('Пн, 19 окт')
-    expect(screen.getByRole('radio', { name: /С понедельника следующей недели/ })).toHaveTextContent('Пн, 26 окт')
+    expect(screen.getByRole('radio', { name: /С ближайшей тренировки/ })).toHaveTextContent('пн, 19 окт.')
+    expect(screen.getByRole('radio', { name: /С понедельника следующей недели/ })).toHaveTextContent('пн, 26 окт.')
   })
 
   it('сохранённый next_monday в субботу становится ближайшей тренировкой', async () => {
@@ -289,7 +291,7 @@ describe('Когда начать', () => {
     expect(screen.queryByRole('radio', { name: /С понедельника следующей недели/ })).not.toBeInTheDocument()
     const nearest = screen.getByRole('radio', { name: /С ближайшей тренировки/ })
     expect(nearest).toBeChecked()
-    expect(nearest).toHaveTextContent('Пн, 26 окт')
+    expect(nearest).toHaveTextContent('пн, 26 окт.')
     await waitFor(() => {
       expect(screen.getByTestId('start-mode')).toHaveTextContent('next_workout')
     })

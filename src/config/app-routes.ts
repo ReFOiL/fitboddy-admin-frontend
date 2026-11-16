@@ -143,7 +143,7 @@ const TITLE_RULES: TitleRule[] = [
     matches: (pathname, role) => pathname === APP_PATHS.exercises || (pathname === APP_PATHS.catalogAlias && role === 'trainer'),
   },
   {
-    title: 'Правила планов',
+    title: 'Правила генератора',
     matches: (pathname) => pathname === APP_PATHS.planRules,
   },
   {

@@ -3,7 +3,8 @@ import { pluralPhrase } from './plural'
 const WEEKDAY_TITLE = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 const WEEKDAY_LOWER = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота']
 const WEEKDAY_SHORT_JS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-const MONTH_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+const WEEKDAY_TINY = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']
+const MONTH_ABBR = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июня', 'июля', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.']
 const MONTH_GENITIVE = [
   'января',
   'февраля',
@@ -44,8 +45,25 @@ export function addIsoDays(iso: string, days: number): string {
   return toIsoDate(date)
 }
 
+function asCalendarDate(value: Date | string): Date | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  return parseIsoDate(value)
+}
+
+/**
+ * Одна форма даты на всё приложение.
+ * long — «16 ноября», short — «пн, 16 нояб.».
+ */
+export function formatCalendarDate(value: Date | string, style: 'long' | 'short' = 'long'): string {
+  const date = asCalendarDate(value)
+  if (!date) return typeof value === 'string' ? value : ''
+  const day = date.getDate()
+  if (style === 'long') return `${day} ${MONTH_GENITIVE[date.getMonth()]}`
+  return `${WEEKDAY_TINY[date.getDay()]}, ${day} ${MONTH_ABBR[date.getMonth()]}`
+}
+
 export function formatHeadingDate(date: Date): string {
-  return `${WEEKDAY_TITLE[date.getDay()]}, ${date.getDate()} ${MONTH_SHORT[date.getMonth()]}`
+  return `${WEEKDAY_TITLE[date.getDay()]}, ${formatCalendarDate(date, 'long')}`
 }
 
 export function formatLowerWeekday(date: Date): string {
@@ -53,20 +71,18 @@ export function formatLowerWeekday(date: Date): string {
 }
 
 export function formatMonthDay(iso: string): string {
-  const date = parseIsoDate(iso)
-  if (!date) return iso
-  return `${date.getDate()} ${MONTH_SHORT[date.getMonth()]}`
+  return formatCalendarDate(iso, 'long')
 }
 
 export function formatJsWeekdayShort(date: Date): string {
   return WEEKDAY_SHORT_JS[date.getDay()]
 }
 
-/** «Тренировка · Пн, 16 ноября» — одна строка, без полного названия дня. */
+/** «Тренировка · пн, 16 нояб.» — одна строка, без полного названия дня. */
 export function formatWorkoutSessionTitle(scheduledFor: string): string {
   const date = parseIsoDate(scheduledFor)
   if (!date) return 'Тренировка'
-  return `Тренировка · ${formatJsWeekdayShort(date)}, ${date.getDate()} ${MONTH_GENITIVE[date.getMonth()]}`
+  return `Тренировка · ${formatCalendarDate(date, 'short')}`
 }
 
 export function calendarWeek(today: Date): Date[] {

@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { formatEquipmentLabel } from '../lib/equipment'
 import { formatWorkoutCategory } from '../lib/muscles'
+import { QueryState } from '../components/shared'
 import { Button } from '../components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
@@ -145,7 +146,13 @@ export function ExercisesPage() {
         </div>
       ) : null}
       {trainerCatalogQuery.isError ? (
-        <span className="text-sm text-destructive">Не удалось загрузить каталог упражнений.</span>
+        <QueryState
+          isError
+          errorTitle="Не удалось загрузить каталог упражнений"
+          onRetry={() => void trainerCatalogQuery.refetch()}
+        >
+          {null}
+        </QueryState>
       ) : null}
       {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError ? (
         <div className="space-y-3">

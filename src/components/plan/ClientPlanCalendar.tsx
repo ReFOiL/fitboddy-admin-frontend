@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { calendarWeek, formatJsWeekdayShort, formatMonthDay, parseIsoDate, toIsoDate } from '../../lib/dates'
+import { calendarWeek, formatCalendarDate, formatJsWeekdayShort, parseIsoDate, toIsoDate } from '../../lib/dates'
 import { CLIENT_DAY_MARK_SYMBOL, clientDayMark, clientDayMarkLabel } from '../../lib/client-plan-summary'
 import { pluralPhrase, EXERCISE_FORMS, WORKOUT_FORMS } from '../../lib/plural'
 import { cn } from '../../lib/utils'
@@ -86,7 +86,7 @@ export function ClientPlanCalendar({ plan, todayIso, trainerUserId, onStartToday
               type="button"
               disabled={!day}
               aria-pressed={selectedDay}
-              aria-label={[formatJsWeekdayShort(date), String(date.getDate()), isToday ? 'сегодня' : '', markLabel]
+              aria-label={[formatCalendarDate(date, 'short'), isToday ? 'сегодня' : '', markLabel]
                 .filter(Boolean)
                 .join(', ')}
               onClick={() => day && setSelectedDayId(day.day_id)}
@@ -112,7 +112,7 @@ export function ClientPlanCalendar({ plan, todayIso, trainerUserId, onStartToday
       {selected ? (
         <div className="rounded-3xl border border-border bg-card p-4">
           <h3 className="text-[17px] font-semibold">
-            {formatJsWeekdayShort(parseIsoDate(selected.scheduled_for) ?? new Date())}, {formatMonthDay(selected.scheduled_for)}
+            {formatCalendarDate(selected.scheduled_for, 'short')}
             {selected.scheduled_for.slice(0, 10) === todayIso ? ' · сегодня' : ''}
           </h3>
           {selected.exercises.length === 0 ? (

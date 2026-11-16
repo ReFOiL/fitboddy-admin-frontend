@@ -6,7 +6,9 @@ import { toast } from 'sonner'
 import { getPlatformExercise, getTrainerExercise, listMuscles, queryKeys, replacePlanExercise } from '../api'
 import { ExerciseHeroMedia } from '../components/media/ExerciseMedia'
 import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
+import { QueryState } from '../components/shared'
 import { Button } from '../components/ui/button'
+import { PageSkeleton, Skeleton } from '../components/ui/skeleton'
 import { ConfirmSheet, OverflowMenu, ScreenHeader, StickyActionBar } from '../components/ui/kit'
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
@@ -141,20 +143,30 @@ export function ClientExerciseDetailsPage() {
           ) : undefined
         }
       />
-      <h1 className="mt-4 text-[28px] font-bold">{exercise?.exercise_name ?? 'Упражнение'}</h1>
+      {exerciseQuery.isLoading ? <PageSkeleton /> : null}
+      {exerciseQuery.isError ? (
+        <QueryState
+          isError
+          errorTitle="Не удалось загрузить упражнение"
+          onRetry={() => void exerciseQuery.refetch()}
+        >
+          {null}
+        </QueryState>
+      ) : null}
 
-      {exerciseQuery.isLoading ? <p className="mt-4 text-[17px]">Загрузка…</p> : null}
-      {exerciseQuery.isError ? <p className="mt-4 text-[17px] text-destructive">Не удалось загрузить упражнение.</p> : null}
+      {exercise && !exerciseQuery.isError ? (
+        <>
+      <h1 className="mt-4 text-[28px] font-bold">{exercise.exercise_name}</h1>
 
       <div className="mt-4">
         <ExerciseHeroMedia
-          videoUrl={exercise?.video_url}
-          startUrl={exercise?.start_image_url}
-          endUrl={exercise?.end_image_url}
+          videoUrl={exercise.video_url}
+          startUrl={exercise.start_image_url}
+          endUrl={exercise.end_image_url}
         />
       </div>
 
-      {exercise?.description?.trim() ? (
+      {exercise.description?.trim() ? (
         <p className="mt-4 text-[17px]">
           <span className="font-semibold">Техника: </span>
           {exercise.description}
@@ -177,11 +189,15 @@ export function ClientExerciseDetailsPage() {
         />
       ) : null}
 
-      {hasMuscleTargets && exercise ? (
+      {hasMuscleTargets ? (
         <div className="mt-6">
           <h2 className="text-[13px] font-bold uppercase">Мышцы</h2>
           {musclesQuery.isLoading ? (
-            <p className="mt-2 text-[15px]">Загрузка…</p>
+            <Skeleton className="mt-2 h-40 w-full rounded-2xl" />
+          ) : musclesQuery.isError ? (
+            <QueryState isError errorTitle="Не удалось загрузить мышцы" onRetry={() => void musclesQuery.refetch()}>
+              {null}
+            </QueryState>
           ) : (
             <MuscleTargetPicker
               muscles={musclesQuery.data ?? []}
@@ -192,6 +208,8 @@ export function ClientExerciseDetailsPage() {
             />
           )}
         </div>
+      ) : null}
+        </>
       ) : null}
 
       {replaceOpen ? (
@@ -346,14 +364,20 @@ function SetRunner({
             Пропустить отдых
           </Button>
         ) : null}
-        <Button type="button" size="lg" className="h-12 w-full" onClick={onPrimary} disabled={resting || finishing}>
-          {finishing ? 'Сохраняем…' : completeDay ? 'Завершить тренировку' : 'Готово'}
-        </Button>
-        {resting ? (
-          <p className="mt-2 text-center text-[15px] text-secondary-foreground">
-            Отдых — ещё {formatRestClock(restLeft ?? 0)}
-          </p>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {resting ? (
+            <p className="text-[15px] text-secondary-foreground">Отдых — ещё {formatRestClock(restLeft ?? 0)}</p>
+          ) : null}
+          <Button
+            type="button"
+            size="lg"
+            className={resting ? 'ml-auto h-12 min-w-28 flex-1' : 'h-12 w-full'}
+            onClick={onPrimary}
+            disabled={resting || finishing}
+          >
+            {finishing ? 'Сохраняем…' : completeDay ? 'Завершить тренировку' : 'Готово'}
+          </Button>
+        </div>
       </StickyActionBar>
     </div>
   )

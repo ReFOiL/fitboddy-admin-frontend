@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 
-import { calendarWeek, formatJsWeekdayShort, parseIsoDate, toIsoDate } from '../../lib/dates'
+import { calendarWeek, formatCalendarDate, formatJsWeekdayShort, parseIsoDate, toIsoDate } from '../../lib/dates'
 import { cn } from '../../lib/utils'
 import type { PlanDay } from '../../types/plan'
 
@@ -26,8 +26,7 @@ export function WeekStrip({ days, focusedDayId, todayIso, onSelectDay }: WeekStr
         const isToday = iso === todayIso
         const isSelected = Boolean(planDay && planDay.day_id === focusedDayId)
         const label = [
-          formatJsWeekdayShort(date),
-          String(date.getDate()),
+          formatCalendarDate(date, 'short'),
           isToday ? 'сегодня' : '',
           isDone ? 'выполнено' : hasWorkout ? 'есть тренировка' : '',
         ]

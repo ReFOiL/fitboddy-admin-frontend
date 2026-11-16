@@ -36,7 +36,7 @@ const exercise = (overrides: Partial<PlanExercise> = {}): PlanExercise => ({
 
 describe('plan-formatters', () => {
   it('formats dates, weekdays and missing text', () => {
-    expect(formatPlanDate('2026-08-06')).toBe('6.08')
+    expect(formatPlanDate('2026-08-06')).toBe('6 августа')
     expect(formatPlanDate('not-a-date')).toBe('not-a-date')
     expect(formatWeekdayShort(0)).toBe('Пн')
     expect(formatWeekday(6)).toBe('Воскресенье')
@@ -51,7 +51,7 @@ describe('plan-formatters', () => {
       'Подход 1 · 30 сек · отдых 60 сек',
     )
     expect(formatExerciseSummary(exercise())).toBe('3× 10 повт. 20 кг')
-    expect(formatExerciseSummary(exercise({ sets: null, reps: null, weight_kg: null }))).toBe('По программе')
+    expect(formatExerciseSummary(exercise({ sets: null, reps: null, weight_kg: null }))).toBe('По плану')
   })
 
   it('detects progression between sets', () => {

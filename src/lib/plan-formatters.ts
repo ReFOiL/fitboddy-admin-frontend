@@ -1,3 +1,4 @@
+import { formatCalendarDate } from './dates'
 import type { PlanExercise, SetPrescription } from '../types/plan'
 
 export function textOrFallback(value: string | null | undefined): string {
@@ -6,15 +7,7 @@ export function textOrFallback(value: string | null | undefined): string {
 }
 
 export function formatPlanDate(value: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
-  if (match) {
-    return `${Number(match[3])}.${match[2]}`
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const day = date.getDate()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  return `${day}.${month}`
+  return formatCalendarDate(value, 'long')
 }
 
 export function formatWeekdayShort(dayOfWeek: number): string {
@@ -63,5 +56,5 @@ export function formatExerciseSummary(exercise: PlanExercise): string {
     parts.push(`${exercise.reps} повт.`)
   }
   if (exercise.weight_kg != null && exercise.weight_kg > 0) parts.push(`${exercise.weight_kg} кг`)
-  return parts.length > 0 ? parts.join(' ') : 'По программе'
+  return parts.length > 0 ? parts.join(' ') : 'По плану'
 }

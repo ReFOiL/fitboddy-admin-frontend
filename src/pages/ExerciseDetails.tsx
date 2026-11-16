@@ -20,6 +20,7 @@ import {
 } from '../components/exercises/exercise-form'
 import { ThemeToggle } from '../components/layout/ThemeToggle'
 import { StickySaveBar } from '../components/plan/StickySaveBar'
+import { QueryState } from '../components/shared'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
 import { useProfile } from '../hooks/use-profile'
@@ -150,7 +151,15 @@ export function ExerciseDetailsPage() {
           <Skeleton className="h-14 w-full rounded-2xl" />
         </div>
       ) : null}
-      {trainerCatalogQuery.isError ? <span className="text-sm text-destructive">Не удалось загрузить каталог упражнений.</span> : null}
+      {trainerCatalogQuery.isError ? (
+        <QueryState
+          isError
+          errorTitle="Не удалось загрузить каталог упражнений"
+          onRetry={() => void trainerCatalogQuery.refetch()}
+        >
+          {null}
+        </QueryState>
+      ) : null}
       {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError && !exercise ? (
         <span className="text-sm text-secondary-foreground">Упражнение не найдено.</span>
       ) : null}
@@ -237,7 +246,7 @@ export function ExerciseDetailsPage() {
           <StickySaveBar ariaLabel="Сохранение упражнения">
             <div className="mx-auto flex max-w-6xl items-center gap-3">
               <span className={dirty ? 'text-sm font-medium text-foreground' : 'text-sm text-secondary-foreground'} aria-live="polite">
-                {dirty ? 'Есть изменения' : 'Сохранено'}
+                {dirty ? 'Есть изменения' : 'Нет изменений'}
               </span>
               {!dirty ? <CheckCircle2 size={17} className="text-accent-ink" aria-hidden /> : null}
               <Button type="submit" size="lg" className="ml-auto min-w-40" disabled={!dirty || saving}>

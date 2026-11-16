@@ -21,13 +21,13 @@ export function TrainerVisibilityCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Eye size={18} className="text-accent-ink" />
-          Видимость профиля
+          Видимость в каталоге
         </CardTitle>
-        <CardDescription>Вы можете в любой момент публиковать профиль для поиска и скрывать его обратно.</CardDescription>
+        <CardDescription>Вы можете в любой момент открыть профиль в каталоге тренеров и снова скрыть его.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-          <span className="mb-3 block text-sm">Статус тренера в поиске: {visibilityLabel}</span>
+          <span className="mb-3 block text-sm">Видимость в каталоге тренеров: {visibilityLabel}</span>
           <Button size="sm" onClick={onToggle} disabled={disabled}>
             {selfVisibleAsTrainer ? 'Скрыть профиль тренера' : 'Опубликовать профиль тренера'}
           </Button>

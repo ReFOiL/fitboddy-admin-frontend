@@ -14,11 +14,11 @@ export function EmptyPlanChoices({ catalogPending, manualPending, blockReason, o
     <div className="mt-4 grid gap-3">
       <div>
         <p className="text-[22px] font-bold">Плана ещё нет</p>
-        <p className="mt-1 text-[15px] text-secondary-foreground">Выберите, как составить первую программу.</p>
+        <p className="mt-1 text-[15px] text-secondary-foreground">Выберите, как составить первый план.</p>
       </div>
       <button type="button" className={cardClass} disabled={catalogPending} onClick={onCatalog}>
         <span className="block text-[17px] font-semibold">Собрать из каталога</span>
-        <span className="mt-1 block text-[15px] text-secondary-foreground">Подберём программу по анкете.</span>
+        <span className="mt-1 block text-[15px] text-secondary-foreground">Подберём план по анкете и правилам генератора.</span>
         {blockReason ? <span className="mt-2 block text-[15px] text-secondary-foreground">{blockReason}</span> : null}
       </button>
       <button type="button" className={cardClass} disabled={manualPending} onClick={onManual}>

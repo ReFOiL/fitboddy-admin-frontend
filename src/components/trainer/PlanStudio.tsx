@@ -12,7 +12,7 @@ import { useManualPlan } from '../../hooks/use-manual-plan'
 import { usePlans } from '../../hooks/use-plans'
 import { useProfile } from '../../hooks/use-profile'
 import { useTrainerRelations } from '../../hooks/use-relations'
-import { formatMonthDay, localTodayIso } from '../../lib/dates'
+import { formatCalendarDate, formatMonthDay, localTodayIso } from '../../lib/dates'
 import { formatEquipmentLabel } from '../../lib/equipment'
 import { assembleReplacementCopy } from '../../lib/plan-archive-copy'
 import { formatWeekdayShort } from '../../lib/plan-formatters'
@@ -33,7 +33,9 @@ import { getProfileOnboardingStep, isProfileCompleted, profileLacksGuardianConse
 import { getTrainerPlanComposeBlockReason } from '../../lib/trainer-plan-compose'
 import type { TrainerExercise } from '../../types/exercise'
 import type { CopyDayMode } from '../../types/plan'
+import { QueryState } from '../shared'
 import { Button } from '../ui/button'
+import { PageSkeleton } from '../ui/skeleton'
 import { Input } from '../ui/input'
 import {
   Chip,
@@ -354,17 +356,14 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   ]
 
   if (manual.planQuery.isLoading || (manual.isMissing && activePlanQuery.isLoading)) {
-    return <p className="py-8 text-[17px]">Загрузка…</p>
+    return <PageSkeleton />
   }
 
   if (manual.planQuery.isError && !manual.isMissing) {
     return (
-      <div className="space-y-4 py-6">
-        <p className="text-[17px]">Не удалось загрузить план.</p>
-        <Button type="button" variant="secondary" onClick={() => void manual.planQuery.refetch()}>
-          Повторить
-        </Button>
-      </div>
+      <QueryState isError errorTitle="Не удалось загрузить план" onRetry={() => void manual.planQuery.refetch()}>
+        {null}
+      </QueryState>
     )
   }
 
@@ -583,10 +582,14 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
               <div className="flex items-center justify-between gap-3 text-[15px]">
                 <span>
                   {last
-                    ? `Последняя тренировка: ${formatWeekdayShort(last.day_of_week).toLowerCase()}, ${formatMonthDay(last.scheduled_for)}`
+                    ? `Последняя тренировка: ${formatCalendarDate(last.scheduled_for, 'short')}`
                     : 'Тренировок пока нет'}
                 </span>
-                <button type="button" className="font-semibold underline" onClick={() => setScreen('progress')}>
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 font-semibold underline"
+                  onClick={() => setScreen('progress')}
+                >
                   Прогресс
                 </button>
               </div>
@@ -617,8 +620,8 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
                 <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('questionnaire')}>
                   Анкета
                 </button>
-                <Link to={APP_PATHS.planRules} className="flex min-h-12 items-center text-[17px]">
-                  Настройки плана
+                <Link to={APP_PATHS.planRules} className="flex min-h-11 items-center text-[17px]">
+                  Правила генератора
                 </Link>
               </div>
             </div>
@@ -628,15 +631,20 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
 
       {!readOnly && selectedDay ? (
         <StickyActionBar>
-          <Button
-            type="button"
-            size="lg"
-            className="w-full"
-            disabled={!isDirty || startNeedsDate || manual.saveMutation.isPending}
-            onClick={save}
-          >
-            {manual.saveMutation.isPending ? 'Сохраняем…' : 'Сохранить план'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[15px] text-secondary-foreground" aria-live="polite">
+              {startNeedsDate ? 'Укажите дату начала' : isDirty ? 'Есть изменения' : 'Нет изменений'}
+            </span>
+            <Button
+              type="button"
+              size="lg"
+              className="ml-auto h-12 min-w-36 flex-1"
+              disabled={!isDirty || startNeedsDate || manual.saveMutation.isPending}
+              onClick={save}
+            >
+              {manual.saveMutation.isPending ? 'Сохраняем…' : 'Сохранить план'}
+            </Button>
+          </div>
         </StickyActionBar>
       ) : null}
       {picker === 'add-day' ? (

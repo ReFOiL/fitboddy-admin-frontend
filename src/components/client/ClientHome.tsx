@@ -23,6 +23,7 @@ import { WorkoutSession } from '../plan/WorkoutSession'
 import { Button } from '../ui/button'
 import { QueryState } from '../shared'
 import { Avatar } from '../ui/kit'
+import { Skeleton } from '../ui/skeleton'
 
 export function ClientHome({ user }: { user: AuthUser }) {
   const model = useClientPlanModel(user)
@@ -124,12 +125,17 @@ export function ClientHome({ user }: { user: AuthUser }) {
           ) : null}
         </Link>
       ) : null}
-      {initialLoading ? <p className="mt-6 text-[17px]">Загрузка…</p> : null}
+      {initialLoading ? (
+        <div className="mt-6 space-y-3" aria-busy="true" aria-label="Загрузка страницы">
+          <Skeleton className="h-28 w-full rounded-3xl" />
+          <Skeleton className="h-28 w-full rounded-3xl" />
+        </div>
+      ) : null}
 
       {model.hasNoProfile || (model.profile && !model.questionnaireReady) ? (
         <div className="mt-6 border-y border-border py-4">
           <p className="text-[17px] font-semibold">Заполните анкету</p>
-          <p className="mt-1 text-[15px] text-secondary-foreground">Так тренер сможет составить программу.</p>
+          <p className="mt-1 text-[15px] text-secondary-foreground">Так тренер сможет составить план.</p>
           <GenerateBlockNote reason={systemGenerateReason} />
           <Button asChild size="lg" className="mt-4 w-full">
             <Link to={APP_PATHS.profileOnboarding}>Продолжить заполнение</Link>
@@ -244,7 +250,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
       {model.questionnaireReady && !model.hasActivePlan && !model.activePlanQuery.isLoading ? (
         model.hasActiveTrainer ? (
           <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
-            <h2 className="text-[28px] font-bold">Тренер ещё составляет программу</h2>
+            <h2 className="text-[28px] font-bold">Тренер ещё составляет план</h2>
             <p className="mt-3 text-[17px] text-secondary-foreground">Напишем, когда план будет готов</p>
           </div>
         ) : (

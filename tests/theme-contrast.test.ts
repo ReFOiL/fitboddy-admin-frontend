@@ -75,4 +75,9 @@ describe('контраст палитры', () => {
     expectText(light, 'светлая')
     expectText(dark, 'тёмная')
   })
+
+  it('выключенная основная кнопка читается в обеих темах', () => {
+    expect(contrast(light.disabled, light['disabled-foreground']), 'светлая: текст выключенной кнопки').toBeGreaterThanOrEqual(3)
+    expect(contrast(dark.disabled, dark['disabled-foreground']), 'тёмная: текст выключенной кнопки').toBeGreaterThanOrEqual(3)
+  })
 })

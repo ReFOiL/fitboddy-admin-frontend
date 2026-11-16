@@ -42,9 +42,7 @@ export function MuscleTargetPicker({
     return muscles
       .filter((item) => {
         if (!needle) return true
-        return (
-          item.name_ru.toLocaleLowerCase('ru-RU').includes(needle) || item.slug.includes(needle)
-        )
+        return item.name_ru.toLocaleLowerCase('ru-RU').includes(needle)
       })
       .sort((a, b) => a.sort_order - b.sort_order)
   }, [muscles, query])
@@ -100,7 +98,7 @@ export function MuscleTargetPicker({
               key={value}
               type="button"
               className={[
-                'rounded-full px-3 py-1.5 text-sm',
+                'inline-flex min-h-11 items-center rounded-full px-4 text-sm',
                 roleMode === value
                   ? 'bg-primary/20 text-foreground ring-1 ring-primary'
                   : 'border border-border bg-background hover:bg-secondary/40',
@@ -135,10 +133,10 @@ export function MuscleTargetPicker({
                     key={`p-${slug}`}
                     type="button"
                     disabled={readOnly}
-                    className="rounded-full bg-primary px-3 py-1 text-sm text-primary-foreground disabled:opacity-100"
+                    className="inline-flex min-h-11 items-center rounded-full bg-primary px-4 text-sm text-primary-foreground disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100"
                     onClick={() => toggleSlug(slug, 'primary')}
                   >
-                    {nameBySlug.get(slug) ?? slug}
+                    {nameBySlug.get(slug) ?? 'Мышца'}
                     {!readOnly ? ' ×' : ''}
                   </button>
                 ))}
@@ -154,10 +152,10 @@ export function MuscleTargetPicker({
                     key={`s-${slug}`}
                     type="button"
                     disabled={readOnly}
-                    className="rounded-full bg-primary/25 px-3 py-1 text-sm disabled:opacity-100"
+                    className="inline-flex min-h-11 items-center rounded-full bg-primary/25 px-4 text-sm disabled:opacity-100"
                     onClick={() => toggleSlug(slug, 'secondary')}
                   >
-                    {nameBySlug.get(slug) ?? slug}
+                    {nameBySlug.get(slug) ?? 'Мышца'}
                     {!readOnly ? ' ×' : ''}
                   </button>
                 ))}
@@ -185,7 +183,7 @@ export function MuscleTargetPicker({
                   key={item.slug}
                   type="button"
                   className={[
-                    'rounded-full border px-3 py-1.5 text-sm',
+                    'inline-flex min-h-11 items-center rounded-full border px-4 text-sm',
                     selectedPrimary
                       ? 'border-primary bg-primary text-primary-foreground'
                       : selectedSecondary

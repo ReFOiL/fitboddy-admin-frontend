@@ -18,19 +18,17 @@ export function RegistrationConsentField({
 
   return (
     <div className={cn('grid gap-1.5', className)}>
-      <div className="flex items-start gap-3">
+      <label htmlFor={id} className="flex min-h-11 cursor-pointer items-start gap-3 py-2">
         <input
           {...inputProps}
           id={id}
           type="checkbox"
-          className="mt-0.5 size-5 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
+          className="mt-0.5 size-6 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           aria-invalid={Boolean(error) || undefined}
           aria-describedby={error ? errorId : undefined}
         />
-        <label htmlFor={id} className="text-sm leading-5 text-foreground">
-          {children}
-        </label>
-      </div>
+        <span className="text-sm leading-5 text-foreground">{children}</span>
+      </label>
       {error ? (
         <span id={errorId} className="text-xs text-destructive">
           {error}

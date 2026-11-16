@@ -444,7 +444,8 @@ export class ApiMock {
         invites_accepted: 3,
         invites_declined: 0,
         active_clients: 1,
-        invite_acceptance_rate: 0.75,
+        // Сервер отдаёт проценты, не долю: 75 → «75 %», а не 0.75.
+        invite_acceptance_rate: 75,
       })
     }
 

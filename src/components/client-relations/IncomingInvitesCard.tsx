@@ -59,8 +59,11 @@ export function IncomingInvitesCard({
                     <Users size={16} className="text-accent-ink" />
                     <span className="font-medium">
                       Тренер:{' '}
-                      {invite.trainer_display_name?.trim() ||
-                        formatRelationIdentity({ login: invite.trainer_login, userId: invite.trainer_user_id })}
+                      {formatRelationIdentity({
+                        name: invite.trainer_display_name,
+                        login: invite.trainer_login,
+                        fallback: 'Тренер',
+                      })}
                     </span>
                   </div>
                   <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-accent-ink">

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-do
 
 import { ProtectedRoute, RoleRoute, RouteErrorBoundary } from './components'
 import { MainLayout } from './components/layout/MainLayout'
+import { PageSkeleton } from './components/ui/skeleton'
 import { APP_PATHS, clientProfilePath, type AppRole, resolveCatalogPath, resolveDocumentTitle, resolveRelationsPath } from './config'
 import { useAuth } from './hooks/use-auth'
 
@@ -61,7 +62,7 @@ function App() {
 
   return (
     <RouteErrorBoundary>
-      <Suspense fallback={<div className="py-10 text-center text-sm text-secondary-foreground">Загрузка страницы...</div>}>
+      <Suspense fallback={<PageSkeleton />}>
         <Routes>
           <Route path={APP_PATHS.login} element={<LoginPage />} />
           <Route path={APP_PATHS.privacy} element={<PrivacyPolicyPage />} />

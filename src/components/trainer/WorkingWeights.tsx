@@ -105,9 +105,20 @@ export function WorkingWeights({ clientUserId, trainerUserId, catalog, onBack }:
       {weighted.length === 0 ? <p className="py-6 text-[17px]">В каталоге нет упражнений с весом.</p> : null}
       {weighted.length > 0 ? (
         <StickyActionBar>
-          <Button type="button" size="lg" className="w-full" disabled={filled.length === 0 || saveMutation.isPending} onClick={save}>
-            {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить веса'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[15px] text-secondary-foreground">
+              {filled.length === 0 ? 'Нет изменений' : 'Есть изменения'}
+            </span>
+            <Button
+              type="button"
+              size="lg"
+              className="ml-auto h-12 min-w-36 flex-1"
+              disabled={filled.length === 0 || saveMutation.isPending}
+              onClick={save}
+            >
+              {saveMutation.isPending ? 'Сохраняем…' : 'Сохранить веса'}
+            </Button>
+          </div>
         </StickyActionBar>
       ) : null}
     </div>

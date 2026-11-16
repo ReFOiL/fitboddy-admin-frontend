@@ -1,3 +1,4 @@
+import { formatCalendarDate } from './dates'
 import type { ChatConversation, ChatMessage } from '../types/message'
 
 export type ChatPeerInfo = {
@@ -29,10 +30,7 @@ export function formatChatListTime(value: string | null): string {
 
   if (dayDiff === 0) return formatChatClock(value)
   if (dayDiff === 1) return 'вчера'
-  if (dayDiff > 1 && dayDiff < 7) {
-    return new Intl.DateTimeFormat('ru-RU', { weekday: 'short' }).format(date)
-  }
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(date)
+  return formatCalendarDate(date, 'short')
 }
 
 export function formatChatMessageTime(value: string): string {
@@ -47,7 +45,7 @@ export function formatChatMessageTime(value: string): string {
 
   if (dayDiff === 0) return clock
   if (dayDiff === 1) return `вчера, ${clock}`
-  return `${new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' }).format(date)}, ${clock}`
+  return `${formatCalendarDate(date, 'short')}, ${clock}`
 }
 
 export function formatChatDateLabel(value: string): string {
@@ -61,7 +59,8 @@ export function formatChatDateLabel(value: string): string {
 
   if (dayDiff === 0) return 'Сегодня'
   if (dayDiff === 1) return 'Вчера'
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(date)
+  const long = formatCalendarDate(date, 'long')
+  return date.getFullYear() === now.getFullYear() ? long : `${long} ${date.getFullYear()}`
 }
 
 export function isSameChatDate(left: string, right: string): boolean {

@@ -19,9 +19,9 @@ const friday = '2026-10-30'
 describe('plan start dates', () => {
   it('берёт ближайший слот, включая сегодня', () => {
     expect(nextWorkoutDate([0, 2, 3, 5], friday)).toBe('2026-10-31')
-    expect(formatPlanStartSubtitle('2026-10-31')).toBe('Сб, 31 окт')
+    expect(formatPlanStartSubtitle('2026-10-31')).toBe('сб, 31 окт.')
     expect(nextWorkoutDate([0], friday)).toBe('2026-11-02')
-    expect(formatPlanStartSubtitle('2026-11-02')).toBe('Пн, 2 ноя')
+    expect(formatPlanStartSubtitle('2026-11-02')).toBe('пн, 2 нояб.')
     expect(nextWorkoutDate([4], friday)).toBe(friday)
     expect(nextWorkoutDate([], friday)).toBeNull()
   })
@@ -30,7 +30,7 @@ describe('plan start dates', () => {
     expect(nextWeekMonday(friday)).toBe('2026-11-02')
     expect(nextWeekMonday('2026-10-26')).toBe('2026-11-02')
     expect(nextWeekMonday('2026-11-01')).toBe('2026-11-02')
-    expect(formatPlanStartSubtitle('2026-11-03')).toBe('Вт, 3 ноя')
+    expect(formatPlanStartSubtitle('2026-11-03')).toBe('вт, 3 нояб.')
   })
 
   it('пн–пт для пн/ср/пт даты и подписи различаются', () => {
@@ -49,8 +49,8 @@ describe('plan start dates', () => {
 
     expect(nextWorkoutDate([0], '2026-10-19')).toBe('2026-10-19')
     expect(nextWeekMonday('2026-10-19')).toBe('2026-10-26')
-    expect(formatPlanStartSubtitle('2026-10-19')).toBe('Пн, 19 окт')
-    expect(formatPlanStartSubtitle('2026-10-26')).toBe('Пн, 26 окт')
+    expect(formatPlanStartSubtitle('2026-10-19')).toBe('пн, 19 окт.')
+    expect(formatPlanStartSubtitle('2026-10-26')).toBe('пн, 26 окт.')
   })
 
   it('сб/вс и пн/ср/пт — один понедельник, выбор схлопывается в ближайшую', () => {
@@ -58,7 +58,7 @@ describe('plan start dates', () => {
     for (const today of ['2026-10-24', '2026-10-25']) {
       expect(nextWorkoutDate(slots, today)).toBe('2026-10-26')
       expect(nextWeekMonday(today)).toBe('2026-10-26')
-      expect(formatPlanStartSubtitle('2026-10-26')).toBe('Пн, 26 окт')
+      expect(formatPlanStartSubtitle('2026-10-26')).toBe('пн, 26 окт.')
       expect(planStartAnchorsCoincide(slots, today)).toBe(true)
       expect(nextMondayOptionRepeatsWorkout(slots, today)).toBe(true)
       expect(planStartChoiceForSlots({ mode: 'next_monday' }, slots, today)).toEqual({ mode: 'next_workout' })

@@ -160,7 +160,7 @@ function SectionShell({
       <StickyActionBar>
         <div className="flex items-center gap-3">
           <span className={editor.isFormDirty ? 'text-sm font-medium' : 'text-sm text-secondary-foreground'} aria-live="polite">
-            {editor.isFormDirty ? 'Есть изменения' : 'Сохранено'}
+            {editor.isFormDirty ? 'Есть изменения' : 'Нет изменений'}
           </span>
           {!editor.isFormDirty ? <CheckCircle2 size={17} className="text-accent-ink" aria-hidden /> : null}
           <Button

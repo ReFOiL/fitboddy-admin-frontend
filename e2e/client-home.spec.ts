@@ -21,7 +21,7 @@ test('клиент начинает тренировку, отмечает по�
   await expect(page.getByRole('heading', { name: 'Привет, Анна' })).toBeVisible()
   await expect(page.getByText('Марина Соколова')).toBeVisible()
   await expect(page.getByText('marina.sokolova')).toHaveCount(0)
-  const sunday = page.getByRole('button', { name: /Вс/ }).first()
+  const sunday = page.getByRole('button', { name: /^вс,/ }).first()
   await expect(sunday).toBeVisible()
   if (test.info().project.name === 'mobile') {
     const box = await sunday.boundingBox()

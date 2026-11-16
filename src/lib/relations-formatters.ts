@@ -1,7 +1,13 @@
+import { formatCalendarDate } from './dates'
 import type { TrainerClientRelation } from '../types/relation'
 
-export function formatRelationIdentity(params: { login?: string | null; userId: string }): string {
-  return params.login?.trim() ? params.login : params.userId
+/** Имя для человека. Сырой идентификатор на экран не выводим. */
+export function formatRelationIdentity(params: {
+  name?: string | null
+  login?: string | null
+  fallback: string
+}): string {
+  return params.name?.trim() || params.login?.trim() || params.fallback
 }
 
 export function formatTrainerClientCardTitle(relation: TrainerClientRelation): string {
@@ -19,5 +25,5 @@ export function formatTrainerClientCardSubtitle(relation: TrainerClientRelation)
 export function formatRussianDate(value: string, fallback = 'Дата неизвестна'): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return fallback
-  return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+  return `${formatCalendarDate(date, 'long')} ${date.getFullYear()}`
 }
