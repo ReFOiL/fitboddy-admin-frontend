@@ -1,4 +1,4 @@
-import { Dumbbell, House, List, Mail, Menu, Smile, type LucideIcon } from 'lucide-react'
+import { Dumbbell, Ellipsis, House, List, MessageCircle, UserRound, Users, type LucideIcon } from 'lucide-react'
 
 import { APP_PATHS, type AppRole } from './app-routes'
 
@@ -36,10 +36,10 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'clients',
     label: 'Клиенты',
     path: APP_PATHS.clients,
-    icon: Menu,
+    icon: Users,
     roles: ['trainer'],
     surfaces: ['desktop', 'mobile'],
-    activePaths: [APP_PATHS.clientProfile, APP_PATHS.clientPlan, APP_PATHS.trainerInvite],
+    activePaths: [APP_PATHS.clientProfile, APP_PATHS.clientPlan],
   },
   {
     id: 'plan',
@@ -57,13 +57,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Dumbbell,
     roles: ['trainer'],
     surfaces: ['desktop', 'mobile'],
-    activePaths: [APP_PATHS.exerciseDetails],
+    activePaths: [APP_PATHS.exerciseNew, APP_PATHS.exerciseDetails],
   },
   {
     id: 'chat',
     label: 'Чат',
     path: APP_PATHS.messages,
-    icon: Mail,
+    icon: MessageCircle,
     roles: ['trainer', 'client'],
     surfaces: ['desktop', 'mobile'],
     activePaths: [APP_PATHS.messageThread],
@@ -72,10 +72,28 @@ export const NAV_ITEMS: NavItem[] = [
     id: 'profile',
     label: 'Профиль',
     path: APP_PATHS.profile,
-    icon: Smile,
+    icon: UserRound,
     roles: ['client'],
     surfaces: ['desktop', 'mobile'],
-    activePaths: [APP_PATHS.profileOnboarding, APP_PATHS.profileTraining, APP_PATHS.trainers, APP_PATHS.trainerProfile],
+    activePaths: [
+      APP_PATHS.profilePersonal,
+      APP_PATHS.profileGoals,
+      APP_PATHS.profileHealth,
+      APP_PATHS.profileNotifications,
+      APP_PATHS.profileOnboarding,
+      APP_PATHS.profileTraining,
+      APP_PATHS.trainers,
+      APP_PATHS.trainerProfile,
+    ],
+  },
+  {
+    id: 'trainer-more',
+    label: 'Ещё',
+    path: APP_PATHS.more,
+    icon: Ellipsis,
+    roles: ['trainer'],
+    surfaces: ['desktop', 'mobile'],
+    activePaths: [APP_PATHS.analytics, APP_PATHS.planRules, APP_PATHS.trainerInvite, APP_PATHS.profile, APP_PATHS.howItWorks],
   },
 ]
 

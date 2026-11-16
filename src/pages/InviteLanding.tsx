@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { getTrainerProfilePreview } from '../api/profile'
 import { acceptInviteCode, getPublicInvite } from '../api/relations'
 import { queryKeys } from '../api/queryKeys'
 import { BrandLogo } from '../components/brand/BrandLogo'
@@ -12,6 +13,7 @@ import { LegalDocumentLinks } from '../components/legal/LegalDocumentLinks'
 import { QueryState } from '../components/shared'
 import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
+import { Avatar } from '../components/ui/kit'
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import {
@@ -20,10 +22,14 @@ import {
   loginPath,
   normalizeInviteCode,
   savePendingInviteCode,
+  trainerInviteAvatar,
+  trainerInviteBio,
   trainerInviteName,
   trainerInviteTitle,
+  trainerSwitchCopy,
   type InviteAcceptFailure,
 } from '../lib/invite'
+import type { PublicInvite } from '../types/relation'
 
 function InviteFrame({ children }: { children: ReactNode }) {
   return (
@@ -50,10 +56,30 @@ function InviteCard({ title, body, children }: { title: string; body?: string; c
   )
 }
 
-function GuestInvite({ title }: { title: string }) {
+function TrainerInviteSummary({ invite }: { invite: PublicInvite }) {
+  const name = trainerInviteName(invite) || 'Тренер'
+  const bio = trainerInviteBio(invite)
+  const avatar = trainerInviteAvatar(invite)
+  return (
+    <div className="flex items-start gap-3">
+      {avatar ? (
+        <img src={avatar} alt="" className="h-14 w-14 shrink-0 rounded-full object-cover" />
+      ) : (
+        <Avatar name={name} />
+      )}
+      <div className="min-w-0">
+        <p className="text-[17px] font-semibold">{name}</p>
+        {bio ? <p className="mt-1 text-[15px] text-secondary-foreground">{bio}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function GuestInvite({ invite }: { invite: PublicInvite }) {
   return (
     <InviteFrame>
-      <InviteCard title={title} body="Создайте аккаунт или войдите, чтобы тренироваться вместе.">
+      <InviteCard title={trainerInviteTitle(invite)} body="Создайте аккаунт или войдите, чтобы тренироваться вместе.">
+        <TrainerInviteSummary invite={invite} />
         <Button asChild size="lg" className="h-14 w-full">
           <Link to={loginPath('register')}>Зарегистрироваться</Link>
         </Button>
@@ -116,6 +142,14 @@ export function InviteLandingPage() {
     acceptInvite(false)
   }, [acceptInvite, code, inviteQuery.isSuccess, user])
 
+  const currentTrainerId = failure?.kind === 'already_linked' ? failure.currentTrainerUserId : null
+  const currentTrainerQuery = useQuery({
+    queryKey: ['profiles', 'trainer-preview', currentTrainerId ?? 'none'],
+    queryFn: () => getTrainerProfilePreview(currentTrainerId!),
+    enabled: Boolean(currentTrainerId),
+    retry: false,
+  })
+
   const leaveWithCurrentTrainer = () => {
     clearPendingInviteCode()
     navigate(APP_PATHS.home, { replace: true })
@@ -162,7 +196,7 @@ export function InviteLandingPage() {
   const title = trainerInviteTitle(invite)
   const name = trainerInviteName(invite)
 
-  if (!isAuthenticated) return <GuestInvite title={title} />
+  if (!isAuthenticated) return <GuestInvite invite={invite} />
 
   if (meQuery.isPending) {
     return (
@@ -174,15 +208,16 @@ export function InviteLandingPage() {
     )
   }
 
-  if (!user) return <GuestInvite title={title} />
+  if (!user) return <GuestInvite invite={invite} />
 
   if (failure?.kind === 'already_linked') {
-    const prompt = name
-      ? `Вы уже занимаетесь с другим тренером. Перейти к ${name}?`
-      : 'Вы уже занимаетесь с другим тренером. Перейти к этому тренеру?'
+    const copy = trainerSwitchCopy(currentTrainerQuery.data?.full_name ?? null, name)
     return (
       <InviteFrame>
-        <InviteCard title={title} body={prompt}>
+        <InviteCard title="У вас уже есть тренер">
+          <TrainerInviteSummary invite={invite} />
+          <p className="text-[17px]">{copy.currentLine}</p>
+          <p className="text-[17px] text-secondary-foreground">{copy.consequence}</p>
           <Button
             type="button"
             size="lg"
@@ -190,7 +225,7 @@ export function InviteLandingPage() {
             disabled={acceptMutation.isPending}
             onClick={() => acceptMutation.mutate(true)}
           >
-            {acceptMutation.isPending ? 'Переходим…' : 'Перейти'}
+            {acceptMutation.isPending ? 'Переходим…' : copy.switchLabel}
           </Button>
           <Button
             type="button"

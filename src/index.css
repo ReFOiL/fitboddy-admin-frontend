@@ -29,6 +29,8 @@
   --media: #141a21;
   --media-foreground: #e3e8ee;
   --overlay: rgb(24 29 36 / 45%);
+  /* Подсказки в полях светлее введённого текста, чтобы не читались как значение. */
+  --placeholder: #9aa3ad;
 }
 
 [data-theme='dark'] {
@@ -54,6 +56,7 @@
   --media: #141a21;
   --media-foreground: #e3e8ee;
   --overlay: rgb(8 10 14 / 62%);
+  --placeholder: #6a7682;
 }
 
 @theme inline {
@@ -77,6 +80,7 @@
   --color-media: var(--media);
   --color-media-foreground: var(--media-foreground);
   --color-overlay: var(--overlay);
+  --color-placeholder: var(--placeholder);
 }
 
 @layer base {

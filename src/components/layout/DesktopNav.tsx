@@ -15,7 +15,7 @@ export function DesktopNav({ role, unreadCount }: DesktopNavProps) {
   const items = getNavItems(role, 'desktop')
 
   return (
-    <nav aria-label="Основная навигация" className="hidden items-center gap-6 text-[17px] md:flex">
+    <nav aria-label="Основная навигация" className="hidden min-w-0 items-center gap-4 text-[15px] md:flex lg:gap-6 lg:text-[17px]">
       {items.map((item) => {
         const active = isNavItemActive(item, location.pathname)
         const isMessages = item.path === APP_PATHS.messages

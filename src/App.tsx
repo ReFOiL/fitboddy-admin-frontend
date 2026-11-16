@@ -38,6 +38,9 @@ const TrainerClientProfilePage = lazy(async () => ({
 }))
 const MessagesPage = lazy(async () => ({ default: (await import('./pages/Messages')).MessagesPage }))
 const MorePage = lazy(async () => ({ default: (await import('./pages/More')).MorePage }))
+const TrainerHowItWorksPage = lazy(async () => ({
+  default: (await import('./pages/TrainerHowItWorks')).TrainerHowItWorksPage,
+}))
 
 // Старый адрес редактора из #4/#5. Студия плана живёт в профиле клиента.
 function LegacyClientPlanRedirect() {
@@ -201,8 +204,16 @@ function App() {
             <Route
               path={APP_PATHS.more.slice(1)}
               element={
-                <RoleRoute currentRole={role} allowedRoles={['client']} fallbackTo={isTrainer ? APP_PATHS.clients : APP_PATHS.home}>
+                <RoleRoute currentRole={role} allowedRoles={['trainer', 'client']} fallbackTo={APP_PATHS.home}>
                   <MorePage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.howItWorks.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <TrainerHowItWorksPage />
                 </RoleRoute>
               }
             />

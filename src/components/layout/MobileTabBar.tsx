@@ -45,7 +45,7 @@ export function MobileTabBar({ role, unreadCount, hidden = false }: MobileTabBar
                 <Icon size={22} strokeWidth={active ? 2.4 : 1.8} />
                 {isMessages ? <UnreadBadge count={unreadCount} className="absolute -right-3 -top-2" /> : null}
               </span>
-              <span className="mt-0.5">{label}</span>
+              <span className="mt-0.5 max-w-full truncate px-0.5 text-center text-[11px] leading-tight">{label}</span>
             </Link>
           )
         })}

@@ -26,6 +26,7 @@ export const APP_PATHS = {
   messages: '/messages',
   messageThread: '/messages/:conversationId',
   more: '/more',
+  howItWorks: '/how-it-works',
   profile: '/profile',
   profilePersonal: '/profile/personal',
   profileGoals: '/profile/goals',
@@ -80,6 +81,10 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Сообщения',
     matches: (pathname) => Boolean(matchPath(APP_PATHS.messageThread, pathname) || pathname === APP_PATHS.messages),
+  },
+  {
+    title: 'Как это работает',
+    matches: (pathname) => pathname === APP_PATHS.howItWorks,
   },
   {
     title: 'Ещё',

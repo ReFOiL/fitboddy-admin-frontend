@@ -12,6 +12,7 @@ type ProfileSelectFieldProps = {
   placeholder: string
   error?: string
   disabled?: boolean
+  onBlur?: () => void
 }
 
 export function ProfileSelectField({
@@ -23,6 +24,7 @@ export function ProfileSelectField({
   placeholder,
   error,
   disabled,
+  onBlur,
 }: ProfileSelectFieldProps) {
   return (
     <ProfileFormField id={id} label={label} error={error}>
@@ -36,6 +38,7 @@ export function ProfileSelectField({
         onChange={(nextValue) => onChange(nextValue || null)}
         className={error ? 'border-destructive/60' : undefined}
         disabled={disabled}
+        onBlur={onBlur}
       />
     </ProfileFormField>
   )

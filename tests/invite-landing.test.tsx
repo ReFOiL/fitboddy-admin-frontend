@@ -9,6 +9,7 @@ import { PENDING_INVITE_CODE_KEY } from '../src/lib/invite'
 const mocks = vi.hoisted(() => ({
   getPublicInvite: vi.fn(),
   acceptInviteCode: vi.fn(),
+  getTrainerProfilePreview: vi.fn(),
   user: null as { role: string; user_id: string } | null,
   isAuthenticated: false,
   mePending: false,
@@ -17,6 +18,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../src/api/relations', () => ({
   getPublicInvite: mocks.getPublicInvite,
   acceptInviteCode: mocks.acceptInviteCode,
+}))
+
+vi.mock('../src/api/profile', () => ({
+  getTrainerProfilePreview: mocks.getTrainerProfilePreview,
 }))
 
 vi.mock('../src/hooks/use-auth', () => ({
@@ -32,6 +37,8 @@ const invite = {
   trainer_user_id: 'trainer-1',
   trainer_display_name: 'Марина Соколова',
   trainer_login: 'marina',
+  trainer_avatar_url: 'https://cdn.example/marina.png',
+  trainer_bio: 'Силовые и восстановление.',
 }
 
 function axiosError(status: number, data: unknown) {
@@ -64,12 +71,21 @@ describe('InviteLandingPage', () => {
     mocks.acceptInviteCode.mockReset()
     mocks.getPublicInvite.mockResolvedValue(invite)
     mocks.acceptInviteCode.mockResolvedValue({ relation_id: 'rel-1' })
+    mocks.getTrainerProfilePreview.mockResolvedValue({
+      user_id: 'trainer-2',
+      full_name: 'Олег Крылов',
+      avatar_url: null,
+      city: null,
+      bio: null,
+    })
   })
 
   it('показывает тренера и ведёт на регистрацию или вход', async () => {
     renderLanding()
 
     expect(await screen.findByRole('heading', { name: 'Тренер Марина Соколова приглашает вас' })).toBeInTheDocument()
+    expect(document.querySelector('img[src="https://cdn.example/marina.png"]')).toBeInTheDocument()
+    expect(screen.getByText('Силовые и восстановление.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Зарегистрироваться' })).toHaveAttribute('href', '/login?tab=register')
     expect(screen.getByRole('link', { name: 'Войти' })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('link', { name: 'Политика обработки персональных данных' })).toHaveAttribute('href', '/privacy')
@@ -103,8 +119,10 @@ describe('InviteLandingPage', () => {
 
     renderLanding()
 
-    expect(await screen.findByText('Вы уже занимаетесь с другим тренером. Перейти к Марина Соколова?')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Перейти' }))
+    expect(await screen.findByRole('heading', { name: 'У вас уже есть тренер' })).toBeInTheDocument()
+    expect(await screen.findByText('Сейчас ваш тренер — Олег Крылов.')).toBeInTheDocument()
+    expect(screen.getByText('План от текущего тренера останется у вас без изменений.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Перейти к Марина Соколова' }))
 
     await waitFor(() => expect(mocks.acceptInviteCode).toHaveBeenLastCalledWith('AB3K9Z', true))
     expect(await screen.findByText('Главная клиента')).toBeInTheDocument()

@@ -23,9 +23,8 @@ describe('LoginPage mobile-first', () => {
       </MemoryRouter>,
     )
 
-    const authCard = screen.getByRole('heading', { name: 'Вход в аккаунт' }).closest('[data-slot="card"]')
-      ?? screen.getByRole('heading', { name: 'Вход в аккаунт' }).parentElement?.parentElement
-    expect(authCard).toHaveClass('order-1')
+    expect(screen.queryByRole('heading', { name: 'Тренировки с тренером' })).not.toBeInTheDocument()
+    expect(screen.getByText('Войдите в существующий аккаунт или создайте новый.')).toBeInTheDocument()
 
     expect(DEFAULT_REGISTRATION_ROLE).toBe('client')
     expect(screen.getByRole('img', { name: 'Fitboddy' }).getAttribute('src')).toContain('logo-wordmark')

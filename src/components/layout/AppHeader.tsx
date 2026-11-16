@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom'
 
 import { APP_BRAND_NAME, APP_PATHS, type AppRole } from '../../config'
 import { messageCountLabel } from '../../lib/dates'
+import { firstName } from '../../lib/person'
 import { BrandLogo } from '../brand/BrandLogo'
 import { AccountMenu } from './AccountMenu'
 import { DesktopNav } from './DesktopNav'
-import { ThemeToggle } from './ThemeToggle'
 
 type AppHeaderProps = {
   role: AppRole
@@ -14,9 +14,6 @@ type AppHeaderProps = {
   logoutPending: boolean
   onLogout: () => void
   hiddenOnMobile?: boolean
-  published?: boolean
-  publicationPending?: boolean
-  onTogglePublication?: () => void
 }
 
 export function AppHeader({
@@ -26,11 +23,9 @@ export function AppHeader({
   logoutPending,
   onLogout,
   hiddenOnMobile = false,
-  published,
-  publicationPending,
-  onTogglePublication,
 }: AppHeaderProps) {
   const isTrainer = role === 'trainer'
+  const name = firstName(displayName) || 'Профиль'
 
   return (
     <header
@@ -53,16 +48,13 @@ export function AppHeader({
               {messageCountLabel(unreadCount)}
             </Link>
           ) : null}
-          <ThemeToggle />
-          <AccountMenu
-            role={role}
-            name={displayName}
-            logoutPending={logoutPending}
-            onLogout={onLogout}
-            published={published}
-            publicationPending={publicationPending}
-            onTogglePublication={onTogglePublication}
-          />
+          {isTrainer ? (
+            <Link to={APP_PATHS.profile} className="inline-flex h-12 items-center text-[15px] font-semibold">
+              {name}
+            </Link>
+          ) : (
+            <AccountMenu name={displayName} logoutPending={logoutPending} onLogout={onLogout} />
+          )}
         </div>
       </div>
     </header>
