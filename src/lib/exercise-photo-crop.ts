@@ -26,7 +26,7 @@ export const EXERCISE_PHOTO_SHORT_LABELS: Record<ExercisePhotoPosition, string> 
 }
 
 export const EXERCISE_PHOTO_CROP_HINT =
-  'Перетащи фото и масштабируй — в кадр попадёт только то, что внутри рамки.'
+  'Перетащите фото и масштабируйте его — в кадр попадёт только то, что внутри рамки.'
 
 export const EXERCISE_PHOTO_ASPECT_HINT =
   'Кадр всегда 4:3 — в каталоге и у клиента фото не раздувает экран.'

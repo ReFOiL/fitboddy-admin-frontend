@@ -35,6 +35,8 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
   const [minZoom, setMinZoom] = useState(1)
   const [cropPixels, setCropPixels] = useState<ExercisePhotoPixelCrop | null>(null)
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
+  const confirmRef = useRef<() => void>(() => {})
   const title = EXERCISE_PHOTO_CROP_TITLES[position]
   const minZoomRef = useRef(1)
   const zoomRef = useRef(1)
@@ -97,9 +99,34 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || busy) return
-      event.preventDefault()
-      onCancel()
+      if (event.key === 'Escape') {
+        if (busyRef.current) return
+        event.preventDefault()
+        onCancel()
+        return
+      }
+      if (event.key === 'Enter' && !busyRef.current && cropPixels) {
+        // Кнопки сами обрабатывают Enter, иначе кадр подтвердится дважды.
+        if (event.target instanceof HTMLButtonElement) return
+        event.preventDefault()
+        confirmRef.current()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const root = dialogRef.current
+      if (!root) return
+      const focusable = [...root.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [href]')]
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || !root.contains(active))) {
+        event.preventDefault()
+        last?.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first?.focus()
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     dialogRef.current?.focus()
@@ -107,10 +134,11 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [busy, onCancel])
+  }, [cropPixels, onCancel])
 
   const confirmCrop = async () => {
-    if (!cropPixels || busy) return
+    if (!cropPixels || busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     try {
       const image = await loadExercisePhoto(imageUrl)
@@ -118,13 +146,21 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
       onComplete(file)
     } catch {
       toast.error(EXERCISE_PHOTO_CROP_FAILED_MESSAGE)
+      busyRef.current = false
       setBusy(false)
     }
   }
 
+  useEffect(() => {
+    confirmRef.current = () => {
+      void confirmCrop()
+    }
+  })
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-stretch justify-center bg-media text-media-foreground md:items-center md:bg-overlay md:p-6"
+      style={{ colorScheme: 'dark' }}
       role="presentation"
       onClick={() => {
         if (!busy) onCancel()
@@ -140,21 +176,10 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
         className="flex h-full w-full flex-col bg-media text-media-foreground outline-none md:h-[min(760px,calc(100dvh-3rem))] md:max-w-lg md:overflow-hidden md:rounded-3xl md:border md:border-white/10"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="grid shrink-0 grid-cols-[auto_1fr_auto] items-center pt-[max(0.25rem,env(safe-area-inset-top))]">
-          <button
-            type="button"
-            className="h-12 px-4 text-[17px] text-media-foreground disabled:opacity-50"
-            onClick={onCancel}
-            disabled={busy}
-          >
-            Отмена
-          </button>
+        <header className="flex shrink-0 items-center justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <h2 id={titleId} className="truncate text-center text-[17px] font-semibold">
             {title}
           </h2>
-          <span className="invisible h-12 px-4 text-[17px]" aria-hidden>
-            Отмена
-          </span>
         </header>
 
         <div className={`relative min-h-0 flex-1 ${busy ? 'pointer-events-none opacity-70' : ''}`}>
@@ -202,34 +227,50 @@ export function ExercisePhotoCropDialog({ imageUrl, position, onCancel, onComple
           <p id={hintId} className="text-center text-[15px] leading-snug text-media-foreground/80">
             {EXERCISE_PHOTO_CROP_HINT}
           </p>
-          <input
-            type="range"
-            className="photo-crop-zoom"
-            min={minZoom}
-            max={maxZoom}
-            step={EXERCISE_PHOTO_ZOOM_STEP}
-            value={zoom}
-            aria-label="Масштаб"
-            disabled={busy}
-            onChange={(event) => {
-              const next = Number(event.target.value)
-              if (Number.isFinite(next)) commitZoom(next)
-            }}
-          />
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between text-[13px] text-media-foreground/80">
+              <span>Меньше</span>
+              <span className="font-semibold text-media-foreground">Масштаб</span>
+              <span>Больше</span>
+            </div>
+            <input
+              type="range"
+              className="photo-crop-zoom"
+              min={minZoom}
+              max={maxZoom}
+              step={EXERCISE_PHOTO_ZOOM_STEP}
+              value={zoom}
+              aria-label="Масштаб"
+              disabled={busy}
+              onChange={(event) => {
+                const next = Number(event.target.value)
+                if (Number.isFinite(next)) commitZoom(next)
+              }}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Button
               type="button"
               variant="secondary"
-              className="border-transparent bg-white/10 text-media-foreground hover:bg-white/15"
-              onClick={reset}
+              className="border-white/25 bg-white/10 text-media-foreground hover:bg-white/15"
+              onClick={onCancel}
               disabled={busy}
             >
-              Сбросить
+              Отмена
             </Button>
             <Button type="button" onClick={() => void confirmCrop()} disabled={busy || cropPixels == null}>
               {busy ? 'Сохраняем…' : 'Готово'}
             </Button>
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="border-transparent bg-white/10 text-media-foreground hover:bg-white/15"
+            onClick={reset}
+            disabled={busy}
+          >
+            Сбросить
+          </Button>
         </div>
       </div>
     </div>,

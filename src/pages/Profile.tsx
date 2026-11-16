@@ -15,6 +15,7 @@ import { rememberGuardianConsent, requiresGuardianConsent } from '../lib/guardia
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
+import { StyledUpload } from '../components/media/StyledUpload'
 import { Skeleton } from '../components/ui/skeleton'
 import { Textarea } from '../components/ui/textarea'
 import { AlertBanner, QueryState } from '../components/shared'
@@ -178,37 +179,31 @@ export function ProfilePage() {
             />
           </ProfileFormField>
 
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-            <ProfileFormField
+          <div className="grid gap-1.5">
+            <p className="text-sm font-medium">Фото профиля</p>
+            <StyledUpload
+              kind="avatar"
               id="avatar_upload"
-              label="Фото профиля"
-              hint="JPG, PNG или WebP, до 5 МБ."
-              error={form.formState.errors.avatar_url?.message}
-            >
-              <Input
-                id="avatar_upload"
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp"
-                aria-describedby={form.formState.errors.avatar_url ? 'avatar_upload-error' : 'avatar_upload-hint'}
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (!file || !targetUserId) return
-                  uploadAvatarMutation.mutate(file, {
-                    onSuccess: (payload) => {
-                      form.setValue('avatar_url', payload.avatar_url, { shouldDirty: false, shouldValidate: true })
-                    },
-                  })
-                  event.currentTarget.value = ''
-                }}
-                disabled={!targetUserId || uploadAvatarMutation.isPending}
-              />
-            </ProfileFormField>
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt="Текущее фото профиля"
-                className="h-20 w-20 rounded-full object-cover ring-2 ring-primary/30"
-              />
+              accept=".jpg,.jpeg,.png,.webp"
+              previewUrl={avatarUrl}
+              describedBy={form.formState.errors.avatar_url ? 'avatar_upload-error' : 'avatar_upload-hint'}
+              disabled={!targetUserId || uploadAvatarMutation.isPending}
+              onFile={(file) => {
+                if (!targetUserId) return
+                uploadAvatarMutation.mutate(file, {
+                  onSuccess: (payload) => {
+                    form.setValue('avatar_url', payload.avatar_url, { shouldDirty: false, shouldValidate: true })
+                  },
+                })
+              }}
+            />
+            <span id="avatar_upload-hint" className="text-xs text-secondary-foreground">
+              JPG, PNG или WebP, до 5 МБ.
+            </span>
+            {form.formState.errors.avatar_url?.message ? (
+              <span id="avatar_upload-error" className="text-xs text-destructive" role="alert">
+                {form.formState.errors.avatar_url.message}
+              </span>
             ) : null}
           </div>
 

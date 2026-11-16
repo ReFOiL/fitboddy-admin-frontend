@@ -153,7 +153,7 @@ test('тренер кадрирует вертикальное фото в 4:3, 
   await page.getByLabel('Заменить фото').setInputFiles(ORIGINAL_PATH)
   const dialog = page.getByRole('dialog', { name: 'Кадр старта' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByText('Перетащи фото и масштабируй — в кадр попадёт только то, что внутри рамки.')).toBeVisible()
+  await expect(dialog.getByText('Перетащите фото и масштабируйте его — в кадр попадёт только то, что внутри рамки.')).toBeVisible()
   await expect(dialog.getByText('4 : 3')).toBeVisible()
   const done = dialog.getByRole('button', { name: 'Готово' })
   await expect(done).toBeEnabled()

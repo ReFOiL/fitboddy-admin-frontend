@@ -381,7 +381,7 @@ export function syncSummaryParts(summary: CatalogSyncSummary): { added: string; 
   const mediaWord = ruPlural(summary.media_update_count, 'обновление', 'обновления', 'обновлений')
   return {
     added: `+${summary.new_count} новых`,
-    media: `~${summary.media_update_count} ${mediaWord} медиа`,
+    media: `${summary.media_update_count} ${mediaWord} медиа`,
     unchanged: `${summary.unchanged_count} без изменений`,
   }
 }

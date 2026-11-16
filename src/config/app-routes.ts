@@ -19,6 +19,7 @@ export const APP_PATHS = {
   planGeneration: '/plan-generation',
   analytics: '/analytics',
   exercises: '/exercises',
+  exerciseNew: '/exercises/new',
   exerciseDetails: '/exercises/:rowId',
   clientExerciseDetails: '/plan/exercises/:rowId',
   planRules: '/plan-rules',
@@ -107,6 +108,10 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Аналитика',
     matches: (pathname) => pathname === APP_PATHS.analytics,
+  },
+  {
+    title: 'Новое упражнение',
+    matches: (pathname) => pathname === APP_PATHS.exerciseNew,
   },
   {
     title: 'Каталог упражнений',

@@ -3,9 +3,10 @@ import { useEffect, useId, useState, type ButtonHTMLAttributes, type ReactNode }
 import { Link } from 'react-router-dom'
 
 import { ExercisePhotoFrame } from '../media/ExercisePhotoFrame'
-import { CATALOG_THUMB_SRC, VIDEO_PLACEHOLDER_SRC } from '../../lib/media-placeholders'
+import { catalogThumbForTheme, videoPlaceholderForTheme } from '../../lib/media-placeholders'
 import { personInitials } from '../../lib/person'
 import { cn } from '../../lib/utils'
+import { useTheme } from '../../hooks/use-theme'
 import { ThemeToggle } from '../layout/ThemeToggle'
 import { Button } from './button'
 
@@ -281,8 +282,11 @@ export function DoneMark() {
 }
 
 export function ExerciseThumb({ imageUrl, hasVideo }: { imageUrl?: string | null; hasVideo?: boolean }) {
-  const src = imageUrl?.trim() ? imageUrl : hasVideo ? VIDEO_PLACEHOLDER_SRC : CATALOG_THUMB_SRC
-  const showPlay = Boolean(hasVideo && imageUrl?.trim())
+  const { theme } = useTheme()
+  const photo = imageUrl?.trim() ? imageUrl : null
+  // Без своего кадра не подставляем светлый jpg: в тёмной теме плитка остаётся белой.
+  const src = photo ?? (hasVideo ? videoPlaceholderForTheme(theme) : catalogThumbForTheme(theme))
+  const showPlay = Boolean(hasVideo && photo)
   return (
     <ExercisePhotoFrame src={src} alt="" className="h-12 w-16 shrink-0 rounded-lg">
       {showPlay ? (

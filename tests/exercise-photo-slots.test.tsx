@@ -69,8 +69,8 @@ describe('ExercisePhotoSlots', () => {
       />,
     )
 
-    expect(screen.getByLabelText('Заменить фото')).toBeInTheDocument()
-    expect(screen.getByLabelText('Загрузить фото')).toBeInTheDocument()
+    expect(screen.getByLabelText('Заменить фото')).toHaveClass('sr-only')
+    expect(screen.getByLabelText('Загрузить фото')).toHaveClass('sr-only')
     expect(screen.getAllByText('Поддерживаются JPG, PNG и WEBP, до 15 МБ.')).toHaveLength(2)
     expect(screen.getByText('Финиш')).toBeInTheDocument()
     expect(screen.getByText('Кадр всегда 4:3 — в каталоге и у клиента фото не раздувает экран.')).toBeInTheDocument()
@@ -79,9 +79,12 @@ describe('ExercisePhotoSlots', () => {
     fireEvent.change(screen.getByLabelText('Заменить фото'), { target: { files: [startFile] } })
 
     expect(await screen.findByRole('dialog', { name: 'Кадр старта' })).toBeInTheDocument()
-    expect(screen.getByText('Перетащи фото и масштабируй — в кадр попадёт только то, что внутри рамки.')).toBeInTheDocument()
+    expect(screen.getByText('Перетащите фото и масштабируйте его — в кадр попадёт только то, что внутри рамки.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Сбросить' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Готово' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Отмена' })).toBeInTheDocument()
+    expect(screen.getByText('Меньше')).toBeInTheDocument()
+    expect(screen.getByText('Больше')).toBeInTheDocument()
     expect(screen.getByRole('slider', { name: 'Масштаб' })).toBeInTheDocument()
     expect(onUpload).not.toHaveBeenCalled()
 
