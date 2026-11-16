@@ -159,6 +159,10 @@ function StartHarness({
   )
 }
 
+async function openPlanDetails() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Подробнее о плане' }))
+}
+
 describe('Когда начать', () => {
   afterEach(() => {
     cleanup()
@@ -170,6 +174,7 @@ describe('Когда начать', () => {
     const plan = buildPlan(today)
     const weekdays = plan.days.map((item) => item.day_of_week)
     renderStudio(plan)
+    await openPlanDetails()
 
     const nearest = await screen.findByRole('radio', { name: /С ближайшей тренировки/ })
     expect(nearest).toBeChecked()
@@ -206,6 +211,7 @@ describe('Когда начать', () => {
     const today = localTodayIso()
     const plan = buildPlan(today)
     renderStudio(plan)
+    await openPlanDetails()
 
     await screen.findByRole('radio', { name: /С ближайшей тренировки/ })
     fireEvent.change(screen.getByLabelText('Время'), { target: { value: '18:00' } })
@@ -232,6 +238,7 @@ describe('Когда начать', () => {
     const today = localTodayIso()
     const plan = buildPlan(today)
     renderStudio(plan)
+    await openPlanDetails()
 
     await screen.findByRole('heading', { name: 'Анна' })
     fireEvent.click(screen.getByRole('button', { name: 'Прогресс' }))
@@ -239,7 +246,10 @@ describe('Когда начать', () => {
     expect(await screen.findByText(/пропущена/)).toBeInTheDocument()
     expect(screen.getByText(new RegExp(formatMonthDay(addIsoDays(today, -2))))).toBeInTheDocument()
     expect(screen.queryByText(new RegExp(formatMonthDay(addIsoDays(today, -4))))).not.toBeInTheDocument()
-    expect(screen.getAllByText('×')).toHaveLength(1)
+    expect(screen.getAllByLabelText(/, пропуск$/)).toHaveLength(1)
+    expect(screen.getByText(/Сделано ·/)).toBeInTheDocument()
+    expect(screen.getByText(/Пропуск ·/)).toBeInTheDocument()
+    expect(screen.getByText(/Впереди ·/)).toBeInTheDocument()
   })
 
   it('прячет понедельник следующей недели, когда подпись совпала бы с ближайшей', async () => {

@@ -1,16 +1,23 @@
+import { ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { APP_PATHS } from '../../config'
+import { APP_PATHS, clientProfilePath } from '../../config'
 import { useAuth } from '../../hooks/use-auth'
 import { useTrainerRoster } from '../../hooks/use-trainer-roster'
 import { formatHeadingDate, localTodayIso } from '../../lib/dates'
 import { clientDisplayName } from '../../lib/person'
 import { attentionSubtitle, clientListSubtitle, todayPlanDay, trainingTodaySubtitle } from '../../lib/roster'
-import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Avatar, DoneMark, PageTitle, Row, SectionLabel, StatusPill } from '../ui/kit'
 import { QueryState } from '../shared'
+
+function createPlanHint(clientCount: number, missingCount: number): string {
+  if (clientCount === 0) return 'Сначала пригласите клиента'
+  if (missingCount === 1) return 'У одного клиента ещё нет плана'
+  if (missingCount > 1) return 'Несколько клиентов без плана'
+  return 'Открыть клиента и составить план'
+}
 
 export function TrainerHome() {
   const navigate = useNavigate()
@@ -23,6 +30,7 @@ export function TrainerHome() {
 
   const training = rows.filter((row) => row.planState === 'ready' && todayPlanDay(row.plan, todayIso))
   const attention = rows.filter((row) => attentionSubtitle({ ...row, todayIso, createdAt: row.relation.created_at }))
+  const missing = rows.filter((row) => row.planState === 'missing')
   const visibleClients = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('ru-RU')
     if (!query) return rows
@@ -35,17 +43,44 @@ export function TrainerHome() {
     navigate(`${APP_PATHS.clientProfile}?${params.toString()}`)
   }
 
+  const openCreatePlan = () => {
+    if (missing.length === 1) {
+      navigate(clientProfilePath(missing[0].relation.client_user_id))
+      return
+    }
+    const filter = missing.length > 1 ? '?filter=no-plan' : ''
+    navigate(`${APP_PATHS.clients}${filter}`)
+  }
+
   return (
-    <div className="mx-auto w-full max-w-6xl pb-24 md:pb-0">
-      <div className="mb-6 hidden items-start justify-between gap-4 md:flex">
-        <PageTitle>{todayLabel}</PageTitle>
-        <Button asChild size="lg">
-          <Link to={APP_PATHS.trainerInvite}>Пригласить</Link>
-        </Button>
-      </div>
-      <div className="md:hidden">
-        <PageTitle>{todayLabel}</PageTitle>
-      </div>
+    <div className="mx-auto w-full max-w-6xl pb-8">
+      <PageTitle>{todayLabel}</PageTitle>
+
+      <section className="mt-4 grid gap-2 sm:grid-cols-2">
+        <Link
+          to={APP_PATHS.trainerInvite}
+          className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-[17px] font-semibold">Пригласить клиента</span>
+            <span className="mt-0.5 block text-[15px] text-secondary-foreground">Ссылка, которой вы делитесь</span>
+          </span>
+          <ChevronRight aria-hidden size={18} className="shrink-0 text-secondary-foreground" />
+        </Link>
+        <button
+          type="button"
+          className="flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          onClick={openCreatePlan}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-[17px] font-semibold">Создать план</span>
+            <span className="mt-0.5 block text-[15px] text-secondary-foreground">
+              {createPlanHint(rows.length, missing.length)}
+            </span>
+          </span>
+          <ChevronRight aria-hidden size={18} className="shrink-0 text-secondary-foreground" />
+        </button>
+      </section>
 
       {clientsQuery.isLoading ? <p className="mt-6 text-[17px]">Загрузка…</p> : null}
       {clientsQuery.isError ? (
@@ -80,6 +115,9 @@ export function TrainerHome() {
 
           <section className="space-y-1">
             <SectionLabel>Нужно внимание · {attention.length}</SectionLabel>
+            {attention.length === 0 && !clientsQuery.isLoading ? (
+              <p className="px-1 py-4 text-[17px]">Нет пропусков и клиентов без плана</p>
+            ) : null}
             {attention.map((row) => {
               const name = clientDisplayName(row.relation)
               const missed = row.planState === 'ready' && row.plan ? attentionSubtitle({ ...row, todayIso, createdAt: row.relation.created_at }) : null
@@ -119,18 +157,12 @@ export function TrainerHome() {
                     createdAt: row.relation.created_at,
                   })}
                   leading={<Avatar name={name} />}
-                  onClick={() => openClient(row.relation.client_user_id, row.planState === 'missing' ? 'plan' : 'plan')}
+                  onClick={() => openClient(row.relation.client_user_id)}
                 />
               )
             })}
           </div>
         </section>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-20 border-t border-border bg-card px-4 py-3 md:hidden">
-        <Button asChild size="lg" className="w-full">
-          <Link to={APP_PATHS.trainerInvite}>Пригласить</Link>
-        </Button>
       </div>
     </div>
   )

@@ -40,10 +40,12 @@ export function lastCompletedDay(plan: TrainingPlan): PlanDay | null {
 }
 
 export function trainingTodaySubtitle(day: PlanDay): string {
-  const time = day.scheduled_time ? ` · ${day.scheduled_time}` : ''
+  const time = day.scheduled_time ? ` · ${day.scheduled_time.slice(0, 5)}` : ''
   if (day.is_completed) return `День ${day.day_index}${time} · сделано`
-  const count = day.exercises.length
-  return `День ${day.day_index}${time} · ${count} упр.`
+  const names = day.exercises.slice(0, 2).map((item) => item.exercise_name)
+  const extra = day.exercises.length > names.length ? ` +${day.exercises.length - names.length}` : ''
+  if (names.length > 0) return `День ${day.day_index}${time} · ${names.join(', ')}${extra}`
+  return `День ${day.day_index}${time} · нет упражнений`
 }
 
 function addedLabel(createdAt: string, todayIso: string): string {

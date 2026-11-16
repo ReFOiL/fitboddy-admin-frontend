@@ -58,7 +58,7 @@ describe('plan editor follow-ups', () => {
       scheduled_time: '18:00',
       exercises: [],
     } satisfies PlanDay
-    expect(trainingTodaySubtitle(planDay)).toBe('День 2 · 18:00 · 0 упр.')
+    expect(trainingTodaySubtitle(planDay)).toBe('День 2 · 18:00 · нет упражнений')
   })
 
   it('считает длительность только если известны оба момента', () => {

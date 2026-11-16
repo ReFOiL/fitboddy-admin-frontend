@@ -1,7 +1,7 @@
 import type { Request as PlaywrightRequest } from '@playwright/test'
 
 import type { AuthUser } from '../../src/types/auth'
-import type { TrainerExercise } from '../../src/types/exercise'
+import type { ClientExerciseLoad, TrainerExercise } from '../../src/types/exercise'
 import type { GenerationPolicy } from '../../src/types/generation-policy'
 import type { NotificationSettings } from '../../src/types/notifications'
 import type { PlanDay, PlanExercise, PlanSlotWrite, TodayWorkout, TrainingPlan } from '../../src/types/plan'
@@ -178,6 +178,7 @@ export class ApiMock {
   private readonly usersByToken = new Map<string, AuthUser>()
   private readonly profiles = new Map<string, ProfileResponse>()
   private readonly plans = new Map<string, TrainingPlan>()
+  private readonly loads = new Map<string, ClientExerciseLoad>()
   private readonly catalog: TrainerExercise[]
   private policy: GenerationPolicy
   private notifications: NotificationSettings
@@ -502,8 +503,24 @@ export class ApiMock {
       return this.deleteDay(decodeURIComponent(dayItem[1]), Number(dayItem[3]))
     }
 
+    const loadItem = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/loads\/([^/]+)$/.exec(path)
+    if (loadItem && method === 'PUT') {
+      return this.upsertLoad(
+        decodeURIComponent(loadItem[1]),
+        decodeURIComponent(loadItem[2]),
+        decodeURIComponent(loadItem[3]),
+        readBody(request),
+      )
+    }
+
     const loads = /^\/api\/v1\/plans\/clients\/([^/]+)\/trainers\/([^/]+)\/loads$/.exec(path)
-    if (loads && method === 'GET') return this.json(200, [])
+    if (loads && method === 'GET') {
+      const clientUserId = decodeURIComponent(loads[1])
+      return this.json(
+        200,
+        [...this.loads.values()].filter((item) => item.client_user_id === clientUserId),
+      )
+    }
 
     console.error(`e2e mock: нет обработчика ${method} ${path}`)
     return this.json(404, { detail: `not mocked: ${method} ${path}` })
@@ -537,6 +554,22 @@ export class ApiMock {
       added_ids: [...addIds],
       updated_ids: [...updateIds],
     })
+  }
+
+  private upsertLoad(clientUserId: string, trainerUserId: string, exerciseRowId: string, body: unknown): MockResponse {
+    const weight = Number(asRecord(body).working_weight_kg)
+    if (!Number.isFinite(weight) || weight <= 0) return this.json(422, { detail: 'weight' })
+    const saved: ClientExerciseLoad = {
+      load_id: `load-${exerciseRowId}`,
+      client_user_id: clientUserId,
+      exercise_scope: 'trainer',
+      trainer_user_id: trainerUserId,
+      exercise_row_id: exerciseRowId,
+      working_weight_kg: weight,
+      updated_at: STAMP,
+    }
+    this.loads.set(`${clientUserId}:${exerciseRowId}`, saved)
+    return this.json(200, saved)
   }
 
   private json(status: number, data: unknown, headers?: Record<string, string>): MockResponse {

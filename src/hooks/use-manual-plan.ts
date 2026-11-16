@@ -7,6 +7,7 @@ import {
   changePlanDayWeekday,
   copyPlanDay,
   copyPlanWeek,
+  createEmptyPlan,
   deletePlanDay,
   getTrainerClientPlan,
   patchPlanDayTime,
@@ -17,7 +18,13 @@ import {
 import { isSlotsDirty, isTimeDirty, slotsToWrite, type DayDraft } from '../lib/plan-draft'
 import { weekdayOutcomeMessage } from '../lib/plan-weekday'
 import { getUserErrorMessage } from '../lib/user-error-message'
-import type { AddPlanDayRequest, CopyPlanDayRequest, CopyPlanWeekRequest, SetPlanStartRequest } from '../types/plan'
+import type {
+  AddPlanDayRequest,
+  CopyPlanDayRequest,
+  CopyPlanWeekRequest,
+  CreateEmptyPlanRequest,
+  SetPlanStartRequest,
+} from '../types/plan'
 
 export function useManualPlan(clientUserId: string, trainerUserId: string) {
   const queryClient = useQueryClient()
@@ -54,6 +61,15 @@ export function useManualPlan(clientUserId: string, trainerUserId: string) {
       toast.success('План сохранён')
     },
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось сохранить план.')),
+  })
+
+  const createEmptyMutation = useMutation({
+    mutationFn: async (payload: CreateEmptyPlanRequest) => createEmptyPlan(clientUserId, trainerUserId, payload),
+    onSuccess: async () => {
+      await refreshPlan()
+      toast.success('Пустой план создан')
+    },
+    onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось создать план.')),
   })
 
   const addDayMutation = useMutation({
@@ -111,6 +127,7 @@ export function useManualPlan(clientUserId: string, trainerUserId: string) {
   return {
     planQuery,
     saveMutation,
+    createEmptyMutation,
     addDayMutation,
     deleteDayMutation,
     copyDayMutation,
