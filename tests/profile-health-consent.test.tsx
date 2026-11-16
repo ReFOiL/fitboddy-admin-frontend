@@ -56,8 +56,14 @@ vi.mock('../src/hooks/use-profile', () => ({
   }),
 }))
 
-function renderPage() {
-  const router = createMemoryRouter([{ path: '*', element: <ProfilePage /> }])
+function renderPage(path = '/profile/health') {
+  const router = createMemoryRouter(
+    [
+      { path: '/profile', element: <ProfilePage /> },
+      { path: '/profile/:section', element: <ProfilePage /> },
+    ],
+    { initialEntries: [path] },
+  )
   return render(<RouterProvider router={router} />)
 }
 
@@ -80,7 +86,7 @@ describe('ProfilePage health consent', () => {
   })
 
   it('сохраняет остальные поля без согласия, если текст о здоровье пуст', async () => {
-    renderPage()
+    renderPage('/profile/personal')
     await waitFor(() => expect(screen.getByLabelText('Город')).toHaveValue('Москва'))
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Казань' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
@@ -96,8 +102,8 @@ describe('ProfilePage health consent', () => {
   })
 
   it('не сохраняет профиль, если введён текст о здоровье без согласия', async () => {
-    renderPage()
-    await waitFor(() => expect(screen.getByLabelText('Город')).toHaveValue('Москва'))
+    renderPage('/profile/health')
+    await waitFor(() => expect(screen.getByLabelText('Ограничения')).toBeInTheDocument())
     fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: 'травма колена' } })
     fireEvent.change(screen.getByLabelText('Медицинские заметки'), { target: { value: 'астма' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
@@ -109,10 +115,10 @@ describe('ProfilePage health consent', () => {
   it('не даёт пересохранить уже лежащий текст без согласия', async () => {
     mocks.profile.limitations = 'старая травма'
     mocks.profile.medical_notes = 'астма'
-    renderPage()
+    renderPage('/profile/health')
 
     await waitFor(() => expect(screen.getByLabelText('Ограничения')).toHaveValue('старая травма'))
-    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Казань' } })
+    fireEvent.change(screen.getByLabelText('Медицинские заметки'), { target: { value: 'астма, уточнение' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/очистите/))
@@ -120,9 +126,26 @@ describe('ProfilePage health consent', () => {
     expect(screen.getByLabelText('Ограничения')).toHaveValue('старая травма')
   })
 
-  it('отправляет текст о здоровье после согласия', async () => {
-    renderPage()
+  it('при сохранении личных данных не стирает уже лежащие заметки', async () => {
+    mocks.profile.limitations = 'старая травма'
+    mocks.profile.medical_notes = 'астма'
+    renderPage('/profile/personal')
+
     await waitFor(() => expect(screen.getByLabelText('Город')).toHaveValue('Москва'))
+    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Казань' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+
+    await waitFor(() => expect(mocks.mutate).toHaveBeenCalledOnce())
+    expect(mocks.mutate.mock.calls[0][0]).toMatchObject({
+      city: 'Казань',
+      limitations: 'старая травма',
+      medical_notes: 'астма',
+    })
+  })
+
+  it('отправляет текст о здоровье после согласия', async () => {
+    renderPage('/profile/health')
+    await waitFor(() => expect(screen.getByLabelText('Ограничения')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('checkbox', { name: /показ их тренеру/ }))
     fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: 'травма колена' } })
     fireEvent.change(screen.getByLabelText('Медицинские заметки'), { target: { value: 'астма' } })
@@ -137,7 +160,7 @@ describe('ProfilePage health consent', () => {
   })
 
   it('просит согласие представителя, если возраст снижают ниже 18', async () => {
-    renderPage()
+    renderPage('/profile/personal')
     await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(27))
     expect(screen.queryByRole('checkbox', { name: /законный представитель/i })).not.toBeInTheDocument()
 
@@ -163,7 +186,7 @@ describe('ProfilePage health consent', () => {
   })
 
   it('с 18 лет сохраняет профиль без согласия представителя', async () => {
-    renderPage()
+    renderPage('/profile/personal')
     await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(27))
     fireEvent.change(screen.getByLabelText('Возраст'), { target: { value: '18' } })
     expect(screen.queryByRole('checkbox', { name: /законный представитель/i })).not.toBeInTheDocument()
@@ -175,13 +198,12 @@ describe('ProfilePage health consent', () => {
 
   it('младше 18 не отправляет здоровье, пока не отмечено согласие представителя', async () => {
     mocks.profile.age = 16
-    renderPage()
-    await waitFor(() => expect(screen.getByLabelText('Возраст')).toHaveValue(16))
+    renderPage('/profile/health')
+    await waitFor(() => expect(screen.getByLabelText('Ограничения')).toBeInTheDocument())
     expect(screen.getByRole('checkbox', { name: /законный представитель/i })).not.toBeChecked()
 
     fireEvent.click(screen.getByRole('checkbox', { name: /показ их тренеру/ }))
     fireEvent.change(screen.getByLabelText('Ограничения'), { target: { value: 'травма колена' } })
-    fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Казань' } })
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/законного представителя/)

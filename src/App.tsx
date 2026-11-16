@@ -195,6 +195,7 @@ function App() {
                 </RoleRoute>
               }
             />
+            <Route path={`${APP_PATHS.profile.slice(1)}/:section`} element={<ProfilePage />} />
             <Route path={APP_PATHS.messages.slice(1)} element={<MessagesPage />} />
             <Route path={APP_PATHS.messageThread.slice(1)} element={<MessagesPage />} />
             <Route

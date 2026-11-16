@@ -45,14 +45,23 @@ export function IncomingInvitesCard({
             <Skeleton className="h-24 w-full rounded-xl" />
             <Skeleton className="h-24 w-full rounded-xl" />
           </div>}
-          emptyFallback={<EmptyState className="py-7" title="Новых приглашений пока нет" />}
+          emptyFallback={
+            <EmptyState
+              className="py-7"
+              title="Попросите у тренера ссылку-приглашение или код из 6 символов"
+            />
+          }
         >
           <div className="space-y-3">
             {invites.map((invite) => (
                 <div key={invite.relation_id} className="rounded-xl border border-border/70 bg-secondary/30 px-4 py-4 text-sm">
                   <div className="mb-1 flex items-center gap-2">
                     <Users size={16} className="text-accent-ink" />
-                    <span className="font-medium">Тренер: {formatRelationIdentity({ login: invite.trainer_login, userId: invite.trainer_user_id })}</span>
+                    <span className="font-medium">
+                      Тренер:{' '}
+                      {invite.trainer_display_name?.trim() ||
+                        formatRelationIdentity({ login: invite.trainer_login, userId: invite.trainer_user_id })}
+                    </span>
                   </div>
                   <div className="mb-3 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-accent-ink">
                     Статус: приглашение

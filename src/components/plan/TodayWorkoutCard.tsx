@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { CalendarDays, CheckCircle2, Play } from 'lucide-react'
 
+import { estimateWorkoutMinutes, trainerNotes } from '../../lib/client-plan-summary'
+import { EXERCISE_FORMS, pluralPhrase } from '../../lib/plural'
 import { formatExerciseSummary, formatPlanDate, formatWeekday } from '../../lib/plan-formatters'
 import type { PlanDaySelection } from '../../lib/plan-day-selector'
 import type { TodayWorkout } from '../../types/plan'
@@ -46,7 +48,7 @@ export function TodayWorkoutCard({
             <RestIcon />
             <div>
               <div className="text-lg font-semibold">Нет активного плана</div>
-              <p className="mt-1 text-sm text-secondary-foreground">Создай план, чтобы увидеть ближайшую тренировку.</p>
+              <p className="mt-1 text-sm text-secondary-foreground">Создайте план, чтобы увидеть ближайшую тренировку.</p>
             </div>
             {noPlanAction}
           </div>
@@ -85,8 +87,16 @@ export function TodayWorkoutCard({
               </div>
               <div className="text-2xl font-semibold tracking-tight">{formatWeekday(focusedDay.day_of_week)}</div>
               <div className="text-sm text-secondary-foreground">
-                {formatPlanDate(focusedDay.scheduled_for)} · {planSourceLabel} · {focusedDay.exercises.length} упр.
+                {formatPlanDate(focusedDay.scheduled_for)} · {planSourceLabel} ·{' '}
+                {pluralPhrase(focusedDay.exercises.length, EXERCISE_FORMS)}
+                {focusedDay.scheduled_time ? ` · ${focusedDay.scheduled_time}` : ''}
+                {estimateWorkoutMinutes(focusedDay.exercises) != null
+                  ? ` · около ${estimateWorkoutMinutes(focusedDay.exercises)} мин`
+                  : ''}
               </div>
+              {trainerNotes(focusedDay.exercises).length > 0 ? (
+                <p className="text-sm">Заметка тренера: {trainerNotes(focusedDay.exercises).join(' · ')}</p>
+              ) : null}
             </div>
 
             {focusedDay.is_completed ? (

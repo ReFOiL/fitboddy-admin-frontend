@@ -18,7 +18,10 @@ export function SectionLabel({ children }: { children: ReactNode }) {
   return <h2 className="px-1 text-[13px] font-bold uppercase tracking-wide">{children}</h2>
 }
 
-export function Avatar({ name, className }: { name: string; className?: string }) {
+export function Avatar({ name, src, className }: { name: string; src?: string | null; className?: string }) {
+  if (src) {
+    return <img src={src} alt="" className={cn('h-12 w-12 shrink-0 rounded-full object-cover', className)} />
+  }
   return (
     <span
       aria-hidden

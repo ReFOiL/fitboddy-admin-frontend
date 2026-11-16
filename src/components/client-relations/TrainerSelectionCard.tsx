@@ -55,7 +55,12 @@ export function TrainerSelectionCard({
             <Skeleton className="h-24 w-full rounded-xl" />
             <Skeleton className="h-24 w-full rounded-xl" />
           </div>}
-          emptyFallback={<EmptyState className="py-7" title="Доступных тренеров пока нет" />}
+          emptyFallback={
+            <EmptyState
+              className="py-7"
+              title="Попросите у тренера ссылку-приглашение или код из 6 символов"
+            />
+          }
         >
           <div className="space-y-3">
             {trainers.map((trainer) => {

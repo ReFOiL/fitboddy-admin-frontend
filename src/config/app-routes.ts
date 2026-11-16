@@ -27,6 +27,10 @@ export const APP_PATHS = {
   messageThread: '/messages/:conversationId',
   more: '/more',
   profile: '/profile',
+  profilePersonal: '/profile/personal',
+  profileGoals: '/profile/goals',
+  profileHealth: '/profile/health',
+  profileNotifications: '/profile/notifications',
   profileTraining: '/profile/training',
   profileOnboarding: '/profile/onboarding',
   dashboardAlias: '/dashboard',
@@ -88,6 +92,22 @@ const TITLE_RULES: TitleRule[] = [
   {
     title: 'Настройка профиля',
     matches: (pathname) => pathname === APP_PATHS.profileOnboarding,
+  },
+  {
+    title: 'Личные данные',
+    matches: (pathname) => pathname === APP_PATHS.profilePersonal,
+  },
+  {
+    title: 'Цели и уровень',
+    matches: (pathname) => pathname === APP_PATHS.profileGoals,
+  },
+  {
+    title: 'Здоровье',
+    matches: (pathname) => pathname === APP_PATHS.profileHealth,
+  },
+  {
+    title: 'Уведомления',
+    matches: (pathname) => pathname === APP_PATHS.profileNotifications,
   },
   {
     title: 'Профиль',

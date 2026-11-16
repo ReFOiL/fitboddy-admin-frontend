@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   clearActiveWorkoutDay,
@@ -17,6 +17,39 @@ type SessionDraft = {
   ids: Set<string>
 }
 
+/** Экран не гаснет, пока идёт тренировка. Нет API или отказ браузера — просто продолжаем. */
+export function useWorkoutWakeLock(active: boolean): void {
+  useEffect(() => {
+    if (!active || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return
+    let cancelled = false
+    let sentinel: WakeLockSentinel | null = null
+    const request = () => {
+      void navigator.wakeLock
+        .request('screen')
+        .then((lock) => {
+          if (cancelled) {
+            void lock.release().catch(() => undefined)
+            return
+          }
+          sentinel = lock
+        })
+        .catch(() => {
+          // Скрытая вкладка или нет разрешения — тренировка от этого не ломается.
+        })
+    }
+    request()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && !sentinel) request()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
+      void sentinel?.release().catch(() => undefined)
+    }
+  }, [active])
+}
+
 export function useWorkoutSession(workout: TodayWorkout | undefined) {
   const [draft, setDraft] = useState<SessionDraft | null>(null)
   const dayId = workout?.day_id
@@ -30,6 +63,7 @@ export function useWorkoutSession(workout: TodayWorkout | undefined) {
   }
   const storedActive = Boolean(dayId && loadActiveWorkoutDay() === dayId)
   const active = manualActive ?? storedActive
+  useWorkoutWakeLock(Boolean(active && workout && !workout.is_completed))
 
   const checkedLineIds = useMemo(() => {
     if (!dayId) return new Set<string>()

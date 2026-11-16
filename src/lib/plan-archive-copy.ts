@@ -1,4 +1,4 @@
-import { plural } from './plural'
+import { pluralPhrase } from './plural'
 
 /**
  * Текст подтверждения «Собрать из каталога».
@@ -6,8 +6,8 @@ import { plural } from './plural'
  * Вернуть архив из приложения пока нельзя — это отдельная серверная задача.
  */
 export function assembleReplacementCopy(days: number, exercises: number, unsaved: boolean): string {
-  const daysLabel = `${days} ${plural(days, 'день', 'дня', 'дней')}`
-  const exercisesLabel = `${exercises} ${plural(exercises, 'упражнение', 'упражнения', 'упражнений')}`
+  const daysLabel = pluralPhrase(days, ['день', 'дня', 'дней'])
+  const exercisesLabel = pluralPhrase(exercises, ['упражнение', 'упражнения', 'упражнений'])
   const unsavedLine = unsaved ? ' Несохранённые правки на этом экране тоже пропадут.' : ''
   return `Текущий план будет заменён. В архив уйдут ${daysLabel} и ${exercisesLabel}. Ручные правки будут архивированы.${unsavedLine} Вернуть план из приложения пока нельзя.`
 }

@@ -1,32 +1,18 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import { useClientPlanModel } from '../hooks/use-client-plan-model'
-import { PlanSchedule } from '../components/plan/PlanSchedule'
-import { WeekStrip } from '../components/plan/WeekStrip'
+import { ClientPlanCalendar } from '../components/plan/ClientPlanCalendar'
 import { Button } from '../components/ui/button'
 import { Skeleton } from '../components/ui/skeleton'
 import { QueryState } from '../components/shared'
-import { selectPlanDay } from '../lib/plan-day-selector'
 
 export function PlanGenerationPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const isClient = user?.role === 'client'
   const model = useClientPlanModel(user)
-  const [selectedDayId, setSelectedDayId] = useState<string | null>(null)
-
-  const daySelection = useMemo(
-    () =>
-      selectPlanDay({
-        plan: model.activePlan,
-        todayIso: model.todayIso,
-        selectedDayId,
-        todayWorkout: model.todayWorkout,
-      }),
-    [model.activePlan, model.todayIso, model.todayWorkout, selectedDayId],
-  )
 
   if (!isClient) {
     return <p className="py-8 text-[17px]">Этот раздел доступен только клиентам.</p>
@@ -89,20 +75,14 @@ export function PlanGenerationPage() {
             </p>
           ) : null}
 
-          <WeekStrip
-            days={daySelection.weekDays}
-            focusedDayId={daySelection.focusedDayId}
-            todayIso={model.todayIso}
-            onSelectDay={setSelectedDayId}
-          />
-
-          <PlanSchedule
-            days={daySelection.sortedDays}
-            todayIso={model.todayIso}
-            trainerUserId={model.activePlan?.trainer_user_id}
-            alwaysOpen
-            focusedDayId={daySelection.focusedDayId}
-          />
+          {model.activePlan ? (
+            <ClientPlanCalendar
+              plan={model.activePlan}
+              todayIso={model.todayIso}
+              trainerUserId={model.activePlan.trainer_user_id}
+              onStartToday={() => navigate(APP_PATHS.home, { state: { startWorkout: true } })}
+            />
+          ) : null}
         </>
       ) : null}
     </div>

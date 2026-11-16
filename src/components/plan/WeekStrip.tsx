@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 
-import { formatPlanDate, formatWeekdayShort } from '../../lib/plan-formatters'
+import { calendarWeek, formatJsWeekdayShort, parseIsoDate, toIsoDate } from '../../lib/dates'
 import { cn } from '../../lib/utils'
 import type { PlanDay } from '../../types/plan'
 
@@ -12,22 +12,37 @@ type WeekStripProps = {
 }
 
 export function WeekStrip({ days, focusedDayId, todayIso, onSelectDay }: WeekStripProps) {
-  if (days.length === 0) return null
+  const anchor = parseIsoDate(todayIso) ?? parseIsoDate(days[0]?.scheduled_for ?? '')
+  if (!anchor) return null
+  const week = calendarWeek(anchor)
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {days.map((day) => {
-        const isToday = day.scheduled_for === todayIso
-        const isSelected = day.day_id === focusedDayId
+    <div className="grid w-full grid-cols-7 gap-1">
+      {week.map((date) => {
+        const iso = toIsoDate(date)
+        const planDay = days.find((day) => day.scheduled_for.slice(0, 10) === iso)
+        const hasWorkout = Boolean(planDay && planDay.exercises.length > 0)
+        const isDone = Boolean(planDay?.is_completed && hasWorkout)
+        const isToday = iso === todayIso
+        const isSelected = Boolean(planDay && planDay.day_id === focusedDayId)
+        const label = [
+          formatJsWeekdayShort(date),
+          String(date.getDate()),
+          isToday ? 'сегодня' : '',
+          isDone ? 'выполнено' : hasWorkout ? 'есть тренировка' : '',
+        ]
+          .filter(Boolean)
+          .join(', ')
         return (
           <button
-            key={day.day_id}
+            key={iso}
             type="button"
+            disabled={!planDay}
             aria-pressed={isSelected}
-            aria-label={`${formatWeekdayShort(day.day_of_week)}, ${formatPlanDate(day.scheduled_for)}${isToday ? ', сегодня' : ''}${day.is_completed ? ', выполнено' : ''}`}
-            onClick={() => onSelectDay(day.day_id)}
+            aria-label={label}
+            onClick={() => planDay && onSelectDay(planDay.day_id)}
             className={cn(
-              'flex min-h-12 min-w-[3.25rem] flex-col items-center rounded-2xl border px-2.5 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+              'flex min-h-16 min-w-0 flex-col items-center justify-center rounded-2xl border px-0.5 py-1.5 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40',
               isSelected
                 ? 'border-primary bg-primary text-primary-foreground'
                 : isToday
@@ -35,14 +50,20 @@ export function WeekStrip({ days, focusedDayId, todayIso, onSelectDay }: WeekStr
                   : 'border-transparent bg-secondary text-secondary-foreground',
             )}
           >
-            <span className="text-[11px] font-medium uppercase tracking-wide">
-              {formatWeekdayShort(day.day_of_week)}
+            <span className="text-[11px] font-semibold uppercase leading-none">{formatJsWeekdayShort(date)}</span>
+            <span className="mt-1 text-[15px] font-semibold leading-none">{date.getDate()}</span>
+            <span className="mt-1 flex h-3 items-center justify-center" aria-hidden>
+              {isDone ? (
+                <Check size={12} className={isSelected ? 'text-primary-foreground' : 'text-accent-ink'} />
+              ) : hasWorkout ? (
+                <span
+                  className={cn(
+                    'h-1.5 w-1.5 rounded-full',
+                    isSelected ? 'bg-primary-foreground' : 'bg-primary',
+                  )}
+                />
+              ) : null}
             </span>
-            <span className="text-sm font-semibold">{formatPlanDate(day.scheduled_for)}</span>
-            {day.is_completed ? (
-              <Check size={12} className={cn('mt-0.5', isSelected ? 'text-primary-foreground' : 'text-accent-ink')} />
-            ) : null}
-            {isToday ? <span className="mt-0.5 text-[10px] font-semibold">сегодня</span> : null}
           </button>
         )
       })}

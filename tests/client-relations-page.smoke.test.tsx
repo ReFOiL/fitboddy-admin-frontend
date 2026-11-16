@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
@@ -30,6 +31,7 @@ vi.mock('../src/hooks/use-profile', () => ({
       },
     },
   }),
+  useTrainerProfilePreview: () => ({ data: undefined, isLoading: false, isError: false }),
 }))
 
 vi.mock('../src/hooks/use-messages', () => ({
@@ -56,6 +58,17 @@ vi.mock('../src/hooks/use-relation-actions', () => ({
   }),
 }))
 
+function renderPage() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <ClientRelationsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
 describe('ClientRelationsPage smoke', () => {
   beforeEach(() => {
     mocks.activeRelation = null
@@ -63,11 +76,7 @@ describe('ClientRelationsPage smoke', () => {
   })
 
   it('renders without crashing', () => {
-    render(
-      <MemoryRouter>
-        <ClientRelationsPage />
-      </MemoryRouter>,
-    )
+    renderPage()
 
     expect(screen.getByText('Входящие приглашения')).toBeInTheDocument()
     expect(screen.getByText('Выберите тренера')).toBeInTheDocument()
@@ -80,14 +89,10 @@ describe('ClientRelationsPage smoke', () => {
       trainer_login: 'coach',
     }
 
-    render(
-      <MemoryRouter>
-        <ClientRelationsPage />
-      </MemoryRouter>,
-    )
+    renderPage()
 
     expect(screen.getByText('Ваш тренер')).toBeInTheDocument()
-    expect(screen.getByText('Тренер')).toBeInTheDocument()
+    expect(screen.getByText('coach')).toBeInTheDocument()
     expect(screen.queryByText('Входящие приглашения')).not.toBeInTheDocument()
     expect(screen.queryByText('Выберите тренера')).not.toBeInTheDocument()
   })
@@ -100,11 +105,7 @@ describe('ClientRelationsPage smoke', () => {
     }
     vi.stubGlobal('confirm', vi.fn(() => true))
 
-    render(
-      <MemoryRouter>
-        <ClientRelationsPage />
-      </MemoryRouter>,
-    )
+    renderPage()
     fireEvent.click(screen.getByRole('button', { name: 'Отписаться' }))
 
     expect(window.confirm).toHaveBeenCalledOnce()

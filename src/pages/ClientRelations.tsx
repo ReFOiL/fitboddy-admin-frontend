@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
 import { Eye, MessageSquare, UserMinus } from 'lucide-react'
 
-import { useProfile } from '../hooks/use-profile'
+import { useProfile, useTrainerProfilePreview } from '../hooks/use-profile'
 import { useClientRelationActions, useClientRelations, useConversations, useUnreadCount, useUserIdGuard } from '../hooks'
-import { ClientProfileRequiredCard, IncomingInvitesCard, TrainerSelectionCard } from '../components/client-relations'
+import { ClientProfileRequiredCard, IncomingInvitesCard, InviteCodeForm, TrainerSelectionCard } from '../components/client-relations'
 import { Button } from '../components/ui/button'
 import { Avatar } from '../components/ui/kit'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { APP_PATHS } from '../config'
 import { formatLastMessagePreview } from '../lib/messages-formatters'
+import { trainerFacingName } from '../lib/person'
 import { isProfileCompleted } from '../lib/profile-completion'
 
 export function ClientRelationsPage() {
@@ -33,8 +34,16 @@ export function ClientRelationsPage() {
   const lastPreview = trainerConversation
     ? formatLastMessagePreview(trainerConversation.last_message, user?.user_id)
     : null
+  const trainerPreviewQuery = useTrainerProfilePreview(activeRelation?.trainer_user_id ?? '')
   const trainerDirectory = trainers.find((item) => item.user_id === activeRelation?.trainer_user_id)
-  const trainerName = trainerDirectory?.display_name?.trim() || 'Тренер'
+  const trainerName = trainerFacingName({
+    displayName:
+      activeRelation?.trainer_display_name ||
+      trainerPreviewQuery.data?.full_name ||
+      trainerDirectory?.display_name,
+    login: activeRelation?.trainer_login,
+  })
+  const trainerAvatar = activeRelation?.trainer_avatar_url || trainerPreviewQuery.data?.avatar_url
   const { acceptInvite, declineInvite, connectTrainer } = useClientRelationActions({
     withUserId,
     acceptRelationMutation,
@@ -51,7 +60,7 @@ export function ClientRelationsPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-3">
-                <Avatar name={trainerName} />
+                <Avatar name={trainerName} src={trainerAvatar} />
                 <span className="min-w-0">
                   <span className="block truncate text-[17px]">{trainerName}</span>
                   <span className="block text-[13px] font-normal text-secondary-foreground">Ваш тренер</span>
@@ -114,6 +123,7 @@ export function ClientRelationsPage() {
 
       {!hasActiveTrainer ? (
         <>
+          <InviteCodeForm />
           <IncomingInvitesCard
             invites={incomingInvites}
             isLoading={incomingInvitesQuery.isLoading}

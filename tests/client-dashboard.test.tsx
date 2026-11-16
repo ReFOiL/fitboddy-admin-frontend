@@ -169,9 +169,9 @@ describe('client Dashboard', () => {
     mocks.model = baseModel()
     renderDashboard()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Тренироваться самостоятельно' }))
+    fireEvent.click(screen.getByRole('button', { name: /Тренироваться самостоятельно/ }))
     expect(mocks.runGenerate).toHaveBeenCalledWith('system')
-    expect(screen.getByRole('link', { name: 'выберите тренера' })).toHaveAttribute('href', '/trainers')
+    expect(screen.getByRole('link', { name: 'У меня есть тренер — ввести код' })).toHaveAttribute('href', '/trainers')
   })
 
   it('запускает session mode из тренировки на сегодня', () => {
@@ -186,7 +186,10 @@ describe('client Dashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Начать тренировку' }))
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument()
-    expect(screen.getByText('0/1 упражнений')).toBeInTheDocument()
+    expect(screen.getByText('0/1 упражнение')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Отметить выполненным' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Продолжить' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Завершить' })).toBeInTheDocument()
   })
 
   it('в день отдыха ведёт к расписанию', () => {
@@ -241,7 +244,7 @@ describe('client Dashboard', () => {
     })
     renderDashboard()
 
-    expect(screen.getByText('Следующий цикл соберёт тренер.')).toBeInTheDocument()
+    expect(screen.getByText('Когда этот план закончится, тренер составит следующий')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Следующий цикл' })).not.toBeInTheDocument()
     expect(mocks.runGenerate).not.toHaveBeenCalled()
   })
