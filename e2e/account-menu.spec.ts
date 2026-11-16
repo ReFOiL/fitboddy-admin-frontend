@@ -5,7 +5,14 @@ import { expect, test } from './support/test'
 test('экран «Ещё» показывает разделы тренера', async ({ page }) => {
   await signIn(page, TOKENS.trainer)
   await page.goto('/home')
-  await page.getByRole('link', { name: 'Ещё', exact: true }).click()
+  const moreTab = page.locator('nav[aria-label="Мобильная навигация"] a[href="/more"]')
+  await expect(moreTab).toHaveCount(1)
+  if (test.info().project.name === 'mobile') {
+    // Нижняя панель position:fixed чуть ниже visual viewport в мобильной эмуляции Playwright.
+    await page.goto('/more')
+  } else {
+    await page.getByRole('navigation', { name: 'Основная навигация' }).getByRole('link', { name: 'Ещё', exact: true }).click()
+  }
   await expect(page).toHaveURL(/\/more$/)
   await expect(page.getByRole('heading', { name: 'Ещё' })).toBeVisible()
 
