@@ -21,6 +21,7 @@ type StyledSelectProps = {
   className?: string
   containerClassName?: string
   options: StyledSelectOption[]
+  onBlur?: () => void
 }
 
 export function StyledSelect({
@@ -34,6 +35,7 @@ export function StyledSelect({
   className,
   containerClassName,
   options,
+  onBlur,
 }: StyledSelectProps) {
   const normalizedValue = typeof value === 'string' ? value.trim().toLowerCase() : ''
   const selectedOption =
@@ -57,13 +59,14 @@ export function StyledSelect({
           id={id}
           aria-describedby={ariaDescribedBy}
           aria-invalid={ariaInvalid}
+          onBlur={onBlur}
           className={cn(
             'h-12 w-full rounded-2xl border border-border bg-card px-3 pr-10 text-left text-base text-foreground outline-none transition',
             'hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60',
             className,
           )}
         >
-          <span className={cn('block truncate', !selectedOption ? 'text-secondary-foreground' : undefined)}>
+          <span className={cn('block truncate', !selectedOption ? 'text-placeholder' : undefined)}>
             {selectedOption?.label ?? placeholder}
           </span>
           <Select.Icon asChild>

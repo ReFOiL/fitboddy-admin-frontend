@@ -79,4 +79,6 @@ export type PublicInvite = {
   trainer_user_id: string
   trainer_display_name: string | null
   trainer_login: string | null
+  trainer_avatar_url?: string | null
+  trainer_bio?: string | null
 }

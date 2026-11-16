@@ -70,6 +70,31 @@ export function trainerInviteTitle(invite: Pick<PublicInvite, 'trainer_display_n
   return name ? `Тренер ${name} приглашает вас` : 'Тренер приглашает вас'
 }
 
+export function trainerInviteBio(invite: Pick<PublicInvite, 'trainer_bio'>): string | null {
+  const bio = invite.trainer_bio?.trim()
+  return bio ? bio : null
+}
+
+export function trainerInviteAvatar(invite: Pick<PublicInvite, 'trainer_avatar_url'>): string | null {
+  const avatar = invite.trainer_avatar_url?.trim()
+  return avatar ? avatar : null
+}
+
+// Имя в кнопке не склоняем: «Перейти к {имя}» читается как подпись, а не как падеж.
+export function trainerSwitchCopy(currentName: string | null, nextName: string | null): {
+  currentLine: string
+  consequence: string
+  switchLabel: string
+} {
+  const current = currentName?.trim()
+  const next = nextName?.trim()
+  return {
+    currentLine: current ? `Сейчас ваш тренер — ${current}.` : 'Сейчас у вас уже есть тренер.',
+    consequence: 'План от текущего тренера останется у вас без изменений.',
+    switchLabel: next ? `Перейти к ${next}` : 'Перейти к новому тренеру',
+  }
+}
+
 export function classifyInviteAcceptError(error: unknown): InviteAcceptFailure {
   if (!axios.isAxiosError(error)) {
     return { kind: 'other', message: 'Не удалось принять приглашение.' }

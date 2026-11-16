@@ -28,9 +28,15 @@ test('каталог: один заголовок, отдельное созда
   if (mobile) await page.screenshot({ path: `${shots}/catalog-sync-empty-390.png` })
   await page.getByRole('button', { name: 'Отмена' }).click()
 
+  // Тема живёт на «Ещё», не в шапке каталога.
+  await page.goto('/more')
   await page.getByRole('button', { name: 'Включить тёмную тему' }).click()
+  await page.goto('/exercises')
+  await expect(page.getByRole('heading', { name: 'Упражнения' })).toBeVisible()
   if (mobile) await page.screenshot({ path: `${shots}/catalog-list-dark-390.png`, fullPage: true })
+  await page.goto('/more')
   await page.getByRole('button', { name: 'Включить светлую тему' }).click()
+  await page.goto('/exercises')
 
   await page.getByRole('link', { name: 'Создать упражнение' }).click()
   await expect(page).toHaveURL(/\/exercises\/new$/)

@@ -10,23 +10,12 @@ import { Sheet } from '../ui/kit'
 const LOGIN_PATTERN = /^[a-z0-9_.-]{3,32}$/
 
 type InviteClientSheetProps = {
-  trainerUserId: string
   pending: boolean
-  published: boolean
-  publicationPending: boolean
-  onTogglePublication: () => void
   onClose: () => void
   onInvite: (clientUserId: string) => void
 }
 
-export function InviteClientSheet({
-  pending,
-  published,
-  publicationPending,
-  onTogglePublication,
-  onClose,
-  onInvite,
-}: InviteClientSheetProps) {
+export function InviteClientSheet({ pending, onClose, onInvite }: InviteClientSheetProps) {
   const [login, setLogin] = useState('')
   const [lookupError, setLookupError] = useState('')
   const [lookingUp, setLookingUp] = useState(false)
@@ -62,7 +51,7 @@ export function InviteClientSheet({
           id="invite-client-login"
           value={login}
           autoComplete="off"
-          placeholder="Логин клиента"
+          placeholder="например, anna"
           onChange={(event) => setLogin(event.target.value)}
         />
       </label>
@@ -70,15 +59,6 @@ export function InviteClientSheet({
       <Button type="button" size="lg" className="mt-4 w-full" disabled={!trimmed || busy} onClick={() => void submit()}>
         {busy ? 'Отправляем…' : 'Отправить приглашение'}
       </Button>
-      <button
-        type="button"
-        className="mt-4 flex min-h-12 w-full items-center justify-between text-left text-[17px]"
-        disabled={publicationPending}
-        onClick={onTogglePublication}
-      >
-        <span>Видимость профиля</span>
-        <span className="font-semibold">{published ? 'Виден клиентам' : 'Не опубликован'}</span>
-      </button>
     </Sheet>
   )
 }

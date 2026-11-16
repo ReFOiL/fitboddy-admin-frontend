@@ -45,6 +45,7 @@ describe('TrainerInviteLinkPage', () => {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     })
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined })
   })
 
   it('показывает код и копирует абсолютную ссылку с поля и с иконки', async () => {
@@ -59,11 +60,37 @@ describe('TrainerInviteLinkPage', () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(inviteUrl)
     })
     expect(screen.getByRole('button', { name: 'Скопировано' })).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: 'QR-код приглашения' })).toBeInTheDocument()
+    expect(screen.getByText(/Постоянная ссылка и код/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Поделиться' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Скопировано' }))
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(2)
     })
+  })
+
+  it('делится ссылкой через navigator.share', async () => {
+    const share = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Поделиться' }))
+    await waitFor(() =>
+      expect(share).toHaveBeenCalledWith({
+        title: 'Приглашение в Fitboddy',
+        text: 'Ссылка, чтобы заниматься вместе',
+        url: `${window.location.origin}/i/AB3K9Z`,
+      }),
+    )
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled()
+  })
+
+  it('без системного шаринга копирует ссылку', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Поделиться' }))
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(`${window.location.origin}/i/AB3K9Z`),
+    )
   })
 
   it('обновляет код после подтверждения', async () => {

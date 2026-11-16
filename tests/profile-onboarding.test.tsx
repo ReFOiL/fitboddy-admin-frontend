@@ -89,14 +89,13 @@ describe('ProfileOnboardingPage', () => {
   })
 
   it.each([
-    [1, 'Как тебя зовут?'],
-    [2, 'Расскажи о тренировках'],
-    [3, 'Последние детали'],
-  ])('показывает шаг %i', (step, title) => {
+    [1, 'Расскажите о тренировках', 'Шаг 1 из 2'],
+    [3, 'Последние детали', 'Шаг 2 из 2'],
+  ])('показывает сохранённый шаг %i', (step, title, progress) => {
     sessionStorage.setItem(storageKey, JSON.stringify({ step, draft: {} }))
     renderPage()
     expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
-    expect(screen.getByText(`Шаг ${step} из 3`)).toBeInTheDocument()
+    expect(screen.getByText(progress)).toBeInTheDocument()
   })
 
   it('не показывает ошибку загрузки, если профиля ещё нет (404)', () => {
@@ -109,7 +108,8 @@ describe('ProfileOnboardingPage', () => {
     renderPage()
 
     expect(screen.queryByText('Не удалось загрузить профиль')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Как тебя зовут?' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Расскажите о тренировках' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Цель')).toBeInTheDocument()
   })
 
   it('восстанавливает текущий шаг и draft после refresh', async () => {
@@ -133,23 +133,43 @@ describe('ProfileOnboardingPage', () => {
     firstRender.unmount()
 
     renderPage()
-    expect(screen.getByText('Шаг 3 из 3')).toBeInTheDocument()
+    expect(screen.getByText('Шаг 2 из 2')).toBeInTheDocument()
     expect(screen.getByLabelText('Возраст')).toHaveValue(27)
   })
 
-  it('сохраняет первый шаг локально без финального PUT', async () => {
+  it('сохраняет шаг тренировок локально и не требует имя', async () => {
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        step: 1,
+        draft: {
+          goal: 'weight_loss',
+          experience_level: 'beginner',
+          workout_location: 'home',
+        },
+      }),
+    )
     mocks.mutate.mockImplementation((_payload, options) => options?.onSuccess?.())
     renderPage()
 
-    fireEvent.change(screen.getByLabelText('Имя и фамилия'), { target: { value: 'Анна' } })
     fireEvent.click(screen.getByRole('button', { name: /Продолжить/ }))
 
-    await waitFor(() => expect(screen.getByText('Шаг 2 из 3')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Шаг 2 из 2')).toBeInTheDocument())
     expect(mocks.mutate).not.toHaveBeenCalled()
     expect(JSON.parse(sessionStorage.getItem(storageKey) ?? '{}')).toMatchObject({
       step: 2,
-      draft: { full_name: 'Анна' },
+      version: 2,
+      draft: { goal: 'weight_loss' },
     })
+  })
+
+  it('на пустом первом шаге фокусирует цель и пишет одну и ту же форму ошибки', async () => {
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: /Продолжить/ }))
+    expect(await screen.findByText('Выберите цель')).toBeInTheDocument()
+    expect(screen.getByText('Выберите уровень')).toBeInTheDocument()
+    expect(screen.getByLabelText('Цель')).toHaveFocus()
+    expect(mocks.mutate).not.toHaveBeenCalled()
   })
 
   it('отправляет полную анкету только на последнем шаге', async () => {

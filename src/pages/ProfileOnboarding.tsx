@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import axios from 'axios'
-import { ArrowLeft, Check, Dumbbell, UserRound } from 'lucide-react'
+import { ArrowLeft, Check, Dumbbell } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
@@ -28,12 +28,20 @@ import {
   type ProfileFormValues,
 } from '../lib/profile-schema'
 
-type WizardStep = 1 | 2 | 3
+type WizardStep = 1 | 2
+
+// Старая анкета: 1 — только имя, 2 — тренировки, 3 — возраст. Имя теперь на шаге тренировок.
+function storedWizardStep(value: unknown, version: unknown): WizardStep {
+  if (version === 2) return value === 2 ? 2 : 1
+  if (value === 3) return 2
+  return 1
+}
 
 type StoredOnboardingState = {
   step: WizardStep
   draft: Partial<ProfileFormValues>
   completed?: boolean
+  version?: 2
 }
 
 export const PROFILE_ONBOARDING_STORAGE_PREFIX = 'fitboddy:profile-onboarding:'
@@ -41,7 +49,7 @@ export const PROFILE_ONBOARDING_STORAGE_PREFIX = 'fitboddy:profile-onboarding:'
 function readStoredState(key: string): StoredOnboardingState {
   try {
     const parsed = JSON.parse(sessionStorage.getItem(key) ?? '') as Partial<StoredOnboardingState>
-    const step = parsed.step === 2 || parsed.step === 3 ? parsed.step : 1
+    const step = storedWizardStep(parsed.step, parsed.version)
     const draft = parsed.draft && typeof parsed.draft === 'object' ? { ...parsed.draft } : {}
     return {
       step,
@@ -55,7 +63,7 @@ function readStoredState(key: string): StoredOnboardingState {
 }
 
 function saveStoredState(key: string, state: StoredOnboardingState) {
-  sessionStorage.setItem(key, JSON.stringify(state))
+  sessionStorage.setItem(key, JSON.stringify({ ...state, version: 2 }))
 }
 
 export function ProfileOnboardingPage() {
@@ -71,6 +79,9 @@ export function ProfileOnboardingPage() {
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
+    mode: 'onBlur',
+    reValidateMode: 'onBlur',
+    shouldFocusError: true,
     defaultValues: { ...emptyProfileFormValues, ...initialState.draft },
   })
   const pendingInviteCode = readPendingInviteCode()
@@ -101,43 +112,45 @@ export function ProfileOnboardingPage() {
     navigate(inviteLandingPath(pendingInviteCode), { replace: true })
   }, [completed, navigate, pendingInviteCode])
 
+  const focusField = (id: string) => {
+    document.getElementById(id)?.focus()
+  }
+
   const validateCurrentStep = async (): Promise<boolean> => {
     if (step === 1) {
-      const valid = await form.trigger('full_name')
-      if (!form.getValues('full_name')?.trim()) {
-        form.setError('full_name', { type: 'manual', message: 'Укажите имя' })
+      const nameOk = await form.trigger('full_name')
+      if (!nameOk) {
+        focusField('onboarding_full_name')
         return false
       }
-      return valid
-    }
-
-    if (step === 2) {
       if (!metaQuery.data) {
         form.setError('goal', { type: 'manual', message: 'Не удалось загрузить параметры профиля' })
+        focusField('onboarding_goal')
         return false
       }
       const values = form.getValues()
-      const required: Array<['goal' | 'experience_level' | 'workout_location', string | null, string]> = [
-        ['goal', values.goal, 'Выберите цель'],
-        ['experience_level', values.experience_level, 'Выберите уровень'],
-        ['workout_location', values.workout_location, 'Выберите место тренировок'],
+      const required: Array<['goal' | 'experience_level' | 'workout_location', string, string | null, string]> = [
+        ['goal', 'onboarding_goal', values.goal, 'Выберите цель'],
+        ['experience_level', 'onboarding_level', values.experience_level, 'Выберите уровень'],
+        ['workout_location', 'onboarding_location', values.workout_location, 'Выберите место тренировок'],
       ]
-      for (const [field, value, message] of required) {
-        if (!value) {
-          form.setError(field, { type: 'manual', message })
-          return false
-        }
+      const missing = required.filter(([, , value]) => !value)
+      for (const [field, , , message] of missing) {
+        form.setError(field, { type: 'manual', message })
       }
-      if (!isKnownProfileOption(values.goal, metaQuery.data.goals)) {
-        form.setError('goal', { type: 'manual', message: 'Выберите цель из списка' })
+      if (missing[0]) {
+        focusField(missing[0][1])
         return false
       }
-      if (!isKnownProfileOption(values.experience_level, metaQuery.data.levels)) {
-        form.setError('experience_level', { type: 'manual', message: 'Выберите уровень из списка' })
-        return false
-      }
-      if (!isKnownProfileOption(values.workout_location, metaQuery.data.workout_locations)) {
-        form.setError('workout_location', { type: 'manual', message: 'Выберите место из списка' })
+      const known: Array<['goal' | 'experience_level' | 'workout_location', string, string | null, Array<{ value: string }>, string]> = [
+        ['goal', 'onboarding_goal', values.goal, metaQuery.data.goals, 'Выберите цель из списка'],
+        ['experience_level', 'onboarding_level', values.experience_level, metaQuery.data.levels, 'Выберите уровень из списка'],
+        ['workout_location', 'onboarding_location', values.workout_location, metaQuery.data.workout_locations, 'Выберите место из списка'],
+      ]
+      const unknown = known.find(([, , value, options]) => !isKnownProfileOption(value, options))
+      if (unknown) {
+        form.setError(unknown[0], { type: 'manual', message: unknown[4] })
+        focusField(unknown[1])
         return false
       }
       return true
@@ -146,22 +159,28 @@ export function ProfileOnboardingPage() {
     const valid = await form.trigger(['age', 'gender', 'limitations', 'medical_notes'])
     if (form.getValues('age') == null) {
       form.setError('age', { type: 'manual', message: 'Укажите возраст' })
+      focusField('onboarding_age')
       return false
     }
     if (!form.getValues('gender')) {
       form.setError('gender', { type: 'manual', message: 'Выберите пол' })
+      focusField('onboarding_gender')
       return false
     }
     if (metaQuery.data && !isKnownProfileOption(form.getValues('gender'), metaQuery.data.genders)) {
       form.setError('gender', { type: 'manual', message: 'Выберите пол из списка' })
+      focusField('onboarding_gender')
       return false
     }
     const built = buildUpsertProfileRequest(profileQuery.data, form.getValues())
     if (!built.ok) {
       reportProfileUpsertBlock(form, built)
+      const consentId = built.code === 'guardian_consent' ? 'onboarding_guardian_consent' : 'onboarding_health_data_consent'
+      focusField(consentId)
       return false
     }
     form.clearErrors(['health_data_consent', 'guardian_consent'])
+    if (!valid) focusField('onboarding_age')
     return valid
   }
 
@@ -169,8 +188,8 @@ export function ProfileOnboardingPage() {
     if (!(await validateCurrentStep())) return
     const draft = form.getValues()
 
-    if (step < 3) {
-      const nextStep = (step + 1) as WizardStep
+    if (step < 2) {
+      const nextStep = 2 as WizardStep
       setStep(nextStep)
       saveStoredState(storageKey, { step: nextStep, draft })
       window.scrollTo({
@@ -189,7 +208,7 @@ export function ProfileOnboardingPage() {
       onSuccess: () => {
         rememberGuardianConsent(userId, draft.age, draft.guardian_consent === true)
         setCompleted(true)
-        saveStoredState(storageKey, { step: 3, draft: { ...draft, guardian_consent: false }, completed: true })
+        saveStoredState(storageKey, { step: 2, draft: { ...draft, guardian_consent: false }, completed: true })
       },
     })
   }
@@ -250,7 +269,7 @@ export function ProfileOnboardingPage() {
         <div className="flex items-center justify-between gap-3 text-sm">
           <span className="font-medium">Настройка профиля</span>
           <span className="flex items-center gap-2">
-            <span className="text-secondary-foreground">Шаг {step} из 3</span>
+            <span className="text-secondary-foreground">Шаг {step} из 2</span>
             <ThemeToggle className="md:hidden" />
           </span>
         </div>
@@ -259,48 +278,49 @@ export function ProfileOnboardingPage() {
           role="progressbar"
           aria-label="Прогресс заполнения профиля"
           aria-valuemin={1}
-          aria-valuemax={3}
+          aria-valuemax={2}
           aria-valuenow={step}
         >
-          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(step / 3) * 100}%` }} />
+          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(step / 2) * 100}%` }} />
         </div>
       </div>
 
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle>
-            {step === 1 ? 'Как тебя зовут?' : step === 2 ? 'Расскажи о тренировках' : 'Последние детали'}
+            {step === 1 ? 'Расскажите о тренировках' : 'Последние детали'}
           </CardTitle>
           <CardDescription>
             {step === 1
-              ? 'Фото и город можно добавить позже в профиле.'
-              : step === 2
-                ? 'Ответы помогут подобрать подходящую нагрузку.'
-                : 'Ограничения и медицинские заметки можно не заполнять.'}
+              ? 'Имя можно не указывать. Ответы помогут подобрать нагрузку.'
+              : 'Ограничения и медицинские заметки можно не заполнять.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form
             className="grid gap-4"
+            noValidate
             onSubmit={(event) => {
               event.preventDefault()
               void saveStep()
             }}
           >
             {step === 1 ? (
-              <ProfileFormField id="onboarding_full_name" label="Имя и фамилия" error={form.formState.errors.full_name?.message}>
+              <>
+              <ProfileFormField
+                id="onboarding_full_name"
+                label="Имя и фамилия"
+                hint="Необязательно"
+                error={form.formState.errors.full_name?.message}
+              >
                 <Input
                   id="onboarding_full_name"
                   autoFocus
                   autoComplete="name"
-                  placeholder="Например: Иван Иванов"
+                  placeholder="например, Иван Иванов"
                   {...form.register('full_name')}
                 />
               </ProfileFormField>
-            ) : null}
-
-            {step === 2 ? (
-              <>
                 {metaQuery.isError ? (
                   <QueryState
                     isError
@@ -317,7 +337,13 @@ export function ProfileOnboardingPage() {
                   options={metaQuery.data?.goals ?? []}
                   placeholder="Выберите цель..."
                   disabled={metaQuery.isLoading}
-                  onChange={(value) => form.setValue('goal', value, { shouldValidate: true })}
+                  onChange={(value) => {
+                    form.setValue('goal', value, { shouldValidate: true })
+                    if (value) form.clearErrors('goal')
+                  }}
+                  onBlur={() => {
+                    if (!form.getValues('goal')) form.setError('goal', { type: 'manual', message: 'Выберите цель' })
+                  }}
                   error={form.formState.errors.goal?.message}
                 />
                 <ProfileSelectField
@@ -327,7 +353,15 @@ export function ProfileOnboardingPage() {
                   options={metaQuery.data?.levels ?? []}
                   placeholder="Выберите уровень..."
                   disabled={metaQuery.isLoading}
-                  onChange={(value) => form.setValue('experience_level', value, { shouldValidate: true })}
+                  onChange={(value) => {
+                    form.setValue('experience_level', value, { shouldValidate: true })
+                    if (value) form.clearErrors('experience_level')
+                  }}
+                  onBlur={() => {
+                    if (!form.getValues('experience_level')) {
+                      form.setError('experience_level', { type: 'manual', message: 'Выберите уровень' })
+                    }
+                  }}
                   error={form.formState.errors.experience_level?.message}
                 />
                 <ProfileSelectField
@@ -337,13 +371,21 @@ export function ProfileOnboardingPage() {
                   options={metaQuery.data?.workout_locations ?? []}
                   placeholder="Выберите место..."
                   disabled={metaQuery.isLoading}
-                  onChange={(value) => form.setValue('workout_location', value, { shouldValidate: true })}
+                  onChange={(value) => {
+                    form.setValue('workout_location', value, { shouldValidate: true })
+                    if (value) form.clearErrors('workout_location')
+                  }}
+                  onBlur={() => {
+                    if (!form.getValues('workout_location')) {
+                      form.setError('workout_location', { type: 'manual', message: 'Выберите место тренировок' })
+                    }
+                  }}
                   error={form.formState.errors.workout_location?.message}
                 />
               </>
             ) : null}
 
-            {step === 3 ? (
+            {step === 2 ? (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="order-1">
@@ -355,9 +397,16 @@ export function ProfileOnboardingPage() {
                         min={10}
                         max={100}
                         value={age ?? ''}
+                        placeholder="например, 28"
+                        onBlur={() => {
+                          if (form.getValues('age') == null) {
+                            form.setError('age', { type: 'manual', message: 'Укажите возраст' })
+                          }
+                        }}
                         onChange={(event) => {
                           const nextAge = event.target.value === '' ? null : Number(event.target.value)
-                          form.setValue('age', nextAge, { shouldValidate: true })
+                          form.setValue('age', nextAge, { shouldValidate: true, shouldDirty: true })
+                          if (nextAge != null) form.clearErrors('age')
                           if (!requiresGuardianConsent(nextAge)) {
                             form.setValue('guardian_consent', false)
                             form.clearErrors('guardian_consent')
@@ -374,7 +423,13 @@ export function ProfileOnboardingPage() {
                       options={metaQuery.data?.genders ?? []}
                       placeholder="Выберите пол..."
                       disabled={metaQuery.isLoading}
-                      onChange={(value) => form.setValue('gender', value, { shouldValidate: true })}
+                      onChange={(value) => {
+                        form.setValue('gender', value, { shouldValidate: true })
+                        if (value) form.clearErrors('gender')
+                      }}
+                      onBlur={() => {
+                        if (!form.getValues('gender')) form.setError('gender', { type: 'manual', message: 'Выберите пол' })
+                      }}
                       error={form.formState.errors.gender?.message}
                     />
                   </div>
@@ -404,7 +459,7 @@ export function ProfileOnboardingPage() {
                 <ProfileFormField id="onboarding_limitations" label="Ограничения" error={form.formState.errors.limitations?.message}>
                   <Textarea
                     id="onboarding_limitations"
-                    placeholder="Например: травма колена"
+                    placeholder="например, травма колена"
                     {...form.register('limitations')}
                   />
                 </ProfileFormField>
@@ -437,12 +492,8 @@ export function ProfileOnboardingPage() {
                 className="h-12 flex-1"
                 disabled={upsertMutation.isPending || !userId}
               >
-                {upsertMutation.isPending
-                  ? 'Сохраняем…'
-                  : step === 3
-                    ? 'Завершить'
-                    : 'Продолжить'}
-                {step === 1 ? <UserRound size={18} /> : step === 2 ? <Dumbbell size={18} /> : null}
+                {upsertMutation.isPending ? 'Сохраняем…' : step === 2 ? 'Завершить' : 'Продолжить'}
+                {step === 1 ? <Dumbbell size={18} /> : null}
               </Button>
             </div>
           </form>

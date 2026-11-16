@@ -80,6 +80,10 @@ describe('MainLayout role smoke', () => {
     expect(screen.getAllByText('Сегодня').length).toBeGreaterThan(0)
     expect(screen.queryByText('Аналитика')).not.toBeInTheDocument()
     expect(screen.queryByText('План')).not.toBeInTheDocument()
+    const mobileNav = screen.getByRole('navigation', { name: 'Мобильная навигация' })
+    expect(within(mobileNav).getAllByRole('link')).toHaveLength(5)
+    expect(within(mobileNav).getByRole('link', { name: 'Ещё' })).toHaveAttribute('href', '/more')
+    expect(screen.queryByRole('button', { name: 'Включить тёмную тему' })).not.toBeInTheDocument()
   })
 
   it('marks nested client routes through their parent tab', () => {

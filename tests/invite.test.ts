@@ -9,6 +9,7 @@ import {
   readPendingInviteCode,
   savePendingInviteCode,
   trainerInviteTitle,
+  trainerSwitchCopy,
 } from '../src/lib/invite'
 import { APP_PATHS } from '../src/config'
 
@@ -69,5 +70,14 @@ describe('invite codes', () => {
     expect(trainerInviteTitle({ trainer_display_name: null, trainer_login: null, trainer_user_id: 't', code: 'AB3K9Z' })).toBe(
       'Тренер приглашает вас',
     )
+  })
+
+  it('объясняет смену тренера без склонения имени', () => {
+    expect(trainerSwitchCopy('Олег Крылов', 'Марина Соколова')).toEqual({
+      currentLine: 'Сейчас ваш тренер — Олег Крылов.',
+      consequence: 'План от текущего тренера останется у вас без изменений.',
+      switchLabel: 'Перейти к Марина Соколова',
+    })
+    expect(trainerSwitchCopy(null, null).switchLabel).toBe('Перейти к новому тренеру')
   })
 })

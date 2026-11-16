@@ -3,7 +3,6 @@ import { matchPath, Outlet, useLocation } from 'react-router-dom'
 import { APP_PATHS, type AppRole } from '../../config'
 import { useAuth } from '../../hooks/use-auth'
 import { useProfile } from '../../hooks/use-profile'
-import { useTrainerRelationActions, useTrainerRelations, useUserIdGuard } from '../../hooks'
 import { useMessagingSocket, useUnreadCount } from '../../hooks/use-messages'
 import { cn } from '../../lib/utils'
 import { PendingInviteRedirect } from '../invite/PendingInviteRedirect'
@@ -23,24 +22,13 @@ const STACK_PATTERNS = [
 
 export function MainLayout() {
   const { user, logoutMutation } = useAuth()
-  const { withUserId } = useUserIdGuard()
   const location = useLocation()
   useMessagingSocket(Boolean(user))
   const unreadQuery = useUnreadCount(Boolean(user))
   const unreadCount = unreadQuery.data?.unread_count ?? 0
   const role: AppRole = user?.role === 'trainer' || user?.role === 'client' ? user.role : null
-  const isTrainer = role === 'trainer'
-  const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
   const profile = useProfile(user?.user_id ?? '')
   const displayName = profile.profileQuery.data?.full_name?.trim() || user?.login || user?.email || 'Аккаунт'
-  const { trainerPublicationStatusQuery, upsertDiscoveryProfileMutation, leaveRelationMutation } = useTrainerRelations({
-    trainerUserId,
-  })
-  const { togglePublication } = useTrainerRelationActions({
-    withUserId,
-    upsertDiscoveryProfileMutation,
-    leaveRelationMutation,
-  })
   const isChatThread = Boolean(matchPath(APP_PATHS.messageThread, location.pathname))
   const isMessagesSection = location.pathname === APP_PATHS.messages || isChatThread
   const isStack = STACK_PATTERNS.some((pattern) => matchPath(pattern, location.pathname))
@@ -65,11 +53,6 @@ export function MainLayout() {
         logoutPending={logoutMutation.isPending}
         onLogout={() => logoutMutation.mutate()}
         hiddenOnMobile={isStack || isChatThread}
-        published={Boolean(trainerPublicationStatusQuery.data?.is_published)}
-        publicationPending={upsertDiscoveryProfileMutation.isPending}
-        onTogglePublication={
-          isTrainer ? () => togglePublication(!trainerPublicationStatusQuery.data?.is_published) : undefined
-        }
       />
       <PendingInviteRedirect />
       <main

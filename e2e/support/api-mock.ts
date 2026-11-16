@@ -391,7 +391,17 @@ export class ApiMock {
 
     const trainerPreview = /^\/api\/v1\/profiles\/trainers\/([^/]+)\/preview$/.exec(path)
     if (trainerPreview && method === 'GET') {
-      const found = this.profiles.get(decodeURIComponent(trainerPreview[1]))
+      const trainerId = decodeURIComponent(trainerPreview[1])
+      if (trainerId === 'user-trainer-other') {
+        return this.json(200, {
+          user_id: trainerId,
+          full_name: 'Олег Крылов',
+          avatar_url: null,
+          city: 'Казань',
+          bio: null,
+        })
+      }
+      const found = this.profiles.get(trainerId)
       if (!found) return this.json(404, { detail: 'not found' })
       return this.json(200, {
         user_id: found.user_id,
@@ -734,6 +744,8 @@ export class ApiMock {
       trainer_user_id: IDS.trainer,
       trainer_display_name: 'Марина Соколова',
       trainer_login: 'marina.sokolova',
+      trainer_avatar_url: '/favicon-32.png',
+      trainer_bio: 'Силовые тренировки и восстановление. Зал и онлайн.',
     })
   }
 

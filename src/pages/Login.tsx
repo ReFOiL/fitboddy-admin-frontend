@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Eye, EyeOff, ShieldCheck, Users } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -12,21 +12,21 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { StyledSelect } from '../components/ui/styled-select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { LegalDocLink, LegalDocumentLinks } from '../components/legal/LegalDocumentLinks'
 import { RegistrationConsentField } from '../components/legal/RegistrationConsentField'
 import { AlertBanner } from '../components/shared'
 import { APP_PATHS } from '../config'
-import { pathAfterAuth } from '../lib/invite'
+import { pathAfterAuth, readPendingInviteCode } from '../lib/invite'
+import { cn } from '../lib/utils'
 
 const loginSchema = z.object({
   email_or_login: z
     .string()
     .trim()
-    .min(3, 'Введите email или логин')
-    .max(254, 'Слишком длинное значение'),
-  password: z.string().min(8, 'Минимум 8 символов'),
+    .min(3, 'Укажите email или логин')
+    .max(254, 'Не длиннее 254 символов'),
+  password: z.string().min(8, 'Укажите пароль не короче 8 символов'),
 })
 
 const registerSchema = z
@@ -34,18 +34,18 @@ const registerSchema = z
     role: z.enum(['trainer', 'client']),
     login: z
       .string()
-      .min(3, 'Логин: минимум 3 символа')
-      .max(32, 'Логин: максимум 32 символа')
-      .regex(/^[a-zA-Z0-9_.-]+$/, 'Логин: только латиница, цифры, _, -, .'),
-    email: z.string().email('Введите корректный email'),
-    password: z.string().min(8, 'Минимум 8 символов'),
-    confirmPassword: z.string().min(8, 'Минимум 8 символов'),
+      .min(3, 'Укажите логин не короче 3 символов')
+      .max(32, 'Логин не длиннее 32 символов')
+      .regex(/^[a-zA-Z0-9_.-]+$/, 'В логине только латиница, цифры и символы _ - .'),
+    email: z.string().email('Укажите корректный email'),
+    password: z.string().min(8, 'Укажите пароль не короче 8 символов'),
+    confirmPassword: z.string().min(8, 'Повторите пароль не короче 8 символов'),
     // Оба согласия только для создания аккаунта. Вход существующего пользователя их не требует.
     privacyConsent: z.boolean().refine((value) => value, 'Отметьте согласие на обработку персональных данных'),
     termsConsent: z.boolean().refine((value) => value, 'Отметьте согласие с пользовательским соглашением'),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Пароли должны совпадать',
+    message: 'Пароли не совпадают',
     path: ['confirmPassword'],
   })
 
@@ -53,6 +53,13 @@ type LoginFormValues = z.infer<typeof loginSchema>
 type RegisterFormValues = z.infer<typeof registerSchema>
 
 export const DEFAULT_REGISTRATION_ROLE: RegisterFormValues['role'] = 'client'
+
+const REGISTRATION_ROLES = [
+  { value: 'trainer', label: 'Я тренер' },
+  { value: 'client', label: 'Я клиент' },
+] as const
+
+const fieldMode = { mode: 'onBlur', reValidateMode: 'onBlur', shouldFocusError: true } as const
 
 function getPasswordStrengthMeta(password: string): { label: string; colorClass: string; progress: number } {
   if (!password) {
@@ -79,9 +86,12 @@ export function LoginPage() {
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [showRegisterPassword, setShowRegisterPassword] = useState(false)
   const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false)
+  // Ссылка /i/:code уже положила код в sessionStorage: роль клиента выбираем сразу.
+  const invited = Boolean(readPendingInviteCode())
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
+    ...fieldMode,
     defaultValues: {
       email_or_login: '',
       password: '',
@@ -90,8 +100,9 @@ export function LoginPage() {
 
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
+    ...fieldMode,
     defaultValues: {
-      role: DEFAULT_REGISTRATION_ROLE,
+      role: invited ? 'client' : DEFAULT_REGISTRATION_ROLE,
       login: '',
       email: '',
       password: '',
@@ -107,38 +118,15 @@ export function LoginPage() {
 
   return (
     <main className="min-h-dvh bg-background px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:py-14">
-      <div className="mx-auto mb-4 flex w-full max-w-6xl items-center justify-between gap-3">
+      <div className="mx-auto mb-4 flex w-full max-w-lg items-center justify-between gap-3">
         <BrandLogo className="h-10 sm:h-12" />
         <ThemeToggle />
       </div>
-      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card className="order-2 lg:order-1">
-          <CardHeader>
-            <CardTitle className="text-[28px]">Тренировки с тренером</CardTitle>
-            <CardDescription className="text-base">План, связь с тренером и прогресс — в одном месте.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm text-secondary-foreground">
-            <div className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
-              <div className="mb-1 flex items-center gap-2 text-foreground">
-                <Users size={16} className="text-accent-ink" />
-                Клиент и тренер на связи
-              </div>
-              Меньше ручной рутины, больше фокуса на результате.
-            </div>
-            <div className="rounded-lg border border-border/70 bg-secondary/30 px-3 py-2">
-              <div className="mb-1 flex items-center gap-2 text-foreground">
-                <ShieldCheck size={16} className="text-accent-ink" />
-                Безопасность и прозрачность
-              </div>
-              Доступ к данным только у связанных пользователей.
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="order-1 border-primary/20 lg:order-2">
+      <div className="mx-auto w-full max-w-lg">
+        <Card className="border-primary/20">
           <CardHeader>
             <CardTitle>Вход в аккаунт</CardTitle>
-            <CardDescription>Войди в существующий аккаунт или создай новый за минуту.</CardDescription>
+            <CardDescription>Войдите в существующий аккаунт или создайте новый.</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs value={tab} onValueChange={setTab} className="w-full">
@@ -155,6 +143,7 @@ export function LoginPage() {
                 ) : null}
                 <form
                   className="grid gap-4"
+                  noValidate
                   onSubmit={loginForm.handleSubmit((values) => {
                     loginMutation.mutate(
                       {
@@ -175,7 +164,7 @@ export function LoginPage() {
                       autoComplete="username"
                       aria-invalid={Boolean(loginForm.formState.errors.email_or_login)}
                       aria-describedby={loginForm.formState.errors.email_or_login ? 'login_email_or_login-error' : undefined}
-                      placeholder="ivan@example.com или ivan"
+                      placeholder="например, anna@mail.ru"
                       {...loginForm.register('email_or_login')}
                     />
                     {loginForm.formState.errors.email_or_login?.message ? (
@@ -195,6 +184,7 @@ export function LoginPage() {
                         aria-invalid={Boolean(loginForm.formState.errors.password)}
                         aria-describedby={loginForm.formState.errors.password ? 'login_password-error' : undefined}
                         className="pr-12"
+                        placeholder="не короче 8 символов"
                         {...loginForm.register('password')}
                       />
                       <button
@@ -225,6 +215,7 @@ export function LoginPage() {
                 ) : null}
                 <form
                   className="grid gap-4"
+                  noValidate
                   onSubmit={registerForm.handleSubmit((values) => {
                     registerMutation.mutate(
                       {
@@ -246,22 +237,38 @@ export function LoginPage() {
                     )
                   })}
                 >
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="register_role">Роль</Label>
-                    <StyledSelect
-                      id="register_role"
-                      value={watchedRole}
-                      onChange={(nextRole) =>
-                        registerForm.setValue('role', nextRole as RegisterFormValues['role'], {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
-                      }
-                      options={[
-                        { value: 'client', label: 'Клиент' },
-                        { value: 'trainer', label: 'Тренер' },
-                      ]}
-                    />
+                  <div className="grid gap-2">
+                    <span className="text-sm font-medium" id="register_role_label">
+                      Роль
+                    </span>
+                    <div role="radiogroup" aria-labelledby="register_role_label" className="grid grid-cols-2 gap-2">
+                      {REGISTRATION_ROLES.map((option) => {
+                        const selected = watchedRole === option.value
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            className={cn(
+                              'flex h-16 items-center justify-center rounded-2xl border px-3 text-center text-[17px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+                              selected ? 'border-primary bg-card ring-2 ring-primary' : 'border-border bg-secondary/60',
+                            )}
+                            onClick={() =>
+                              registerForm.setValue('role', option.value, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              })
+                            }
+                          >
+                            {option.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {invited ? (
+                      <p className="text-[15px] text-secondary-foreground">По ссылке приглашения выбрана роль клиента.</p>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-1.5">
@@ -271,7 +278,7 @@ export function LoginPage() {
                       autoComplete="username"
                       aria-invalid={Boolean(registerForm.formState.errors.login)}
                       aria-describedby={registerForm.formState.errors.login ? 'register_login-error' : undefined}
-                      placeholder="ivan"
+                      placeholder="например, ivan"
                       {...registerForm.register('login')}
                     />
                     {registerForm.formState.errors.login?.message ? (
@@ -287,6 +294,7 @@ export function LoginPage() {
                       autoComplete="email"
                       aria-invalid={Boolean(registerForm.formState.errors.email)}
                       aria-describedby={registerForm.formState.errors.email ? 'register_email-error' : undefined}
+                      placeholder="например, anna@mail.ru"
                       {...registerForm.register('email')}
                     />
                     {registerForm.formState.errors.email?.message ? (
@@ -304,6 +312,7 @@ export function LoginPage() {
                         aria-invalid={Boolean(registerForm.formState.errors.password)}
                         aria-describedby={registerForm.formState.errors.password ? 'register_password-error' : 'register_password-strength'}
                         className="pr-12"
+                        placeholder="не короче 8 символов"
                         {...registerForm.register('password')}
                       />
                       <button
@@ -341,6 +350,7 @@ export function LoginPage() {
                         aria-invalid={Boolean(registerForm.formState.errors.confirmPassword)}
                         aria-describedby={registerForm.formState.errors.confirmPassword ? 'register_confirm_password-error' : undefined}
                         className="pr-12"
+                        placeholder="ещё раз тот же пароль"
                         {...registerForm.register('confirmPassword')}
                       />
                       <button

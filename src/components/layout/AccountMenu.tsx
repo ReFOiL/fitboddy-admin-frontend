@@ -2,30 +2,19 @@ import { ChevronDown } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { APP_PATHS, type AppRole } from '../../config'
+import { APP_PATHS } from '../../config'
 import { firstName } from '../../lib/person'
 import { cn } from '../../lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 
 type AccountMenuProps = {
-  role: AppRole
   name: string
   logoutPending: boolean
   onLogout: () => void
-  published?: boolean
-  publicationPending?: boolean
-  onTogglePublication?: () => void
 }
 
-export function AccountMenu({
-  role,
-  name,
-  logoutPending,
-  onLogout,
-  published,
-  publicationPending,
-  onTogglePublication,
-}: AccountMenuProps) {
+// Меню клиента: у тренера те же пункты живут на экране «Ещё», а не под именем.
+export function AccountMenu({ name, logoutPending, onLogout }: AccountMenuProps) {
   const [open, setOpen] = useState(false)
   const label = firstName(name) || 'Аккаунт'
 
@@ -61,33 +50,12 @@ export function AccountMenu({
               Профиль
             </Link>
             <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border px-4">
-              <span className="text-[17px]">Тёмная тема</span>
+              <span className="text-[17px]">Тема</span>
               <ThemeToggle />
             </div>
-            {role === 'trainer' ? (
-              <>
-                <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.analytics} onClick={() => setOpen(false)}>
-                  Аналитика
-                </Link>
-                <Link role="menuitem" className="flex min-h-12 flex-col justify-center border-b border-border px-4" to={APP_PATHS.planRules} onClick={() => setOpen(false)}>
-                  <span className="text-[17px]">Настройки плана</span>
-                  <span className="text-[13px] text-secondary-foreground">Для новых планов</span>
-                </Link>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex min-h-12 w-full items-center border-b border-border px-4 text-left text-[17px]"
-                  disabled={publicationPending}
-                  onClick={onTogglePublication}
-                >
-                  {published ? 'Скрыть из поиска' : 'Показывать клиентам'}
-                </button>
-              </>
-            ) : (
-              <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.trainers} onClick={() => setOpen(false)}>
-                Тренер
-              </Link>
-            )}
+            <Link role="menuitem" className="flex min-h-12 items-center border-b border-border px-4 text-[17px]" to={APP_PATHS.trainers} onClick={() => setOpen(false)}>
+              Тренер
+            </Link>
             <button
               type="button"
               role="menuitem"

@@ -13,7 +13,7 @@ test('первый визит следует системной тёмной т�
 test('переключатель темы запоминает выбор и переживает перезагрузку', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' })
   await signIn(page, TOKENS.trainer)
-  await page.goto('/home')
+  await page.goto('/more')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
 
   await page.getByRole('button', { name: 'Включить тёмную тему' }).click()
