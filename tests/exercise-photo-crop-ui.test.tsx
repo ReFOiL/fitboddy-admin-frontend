@@ -224,7 +224,7 @@ describe('exercise photo crop UI', () => {
     )
 
     const original = new File([new Uint8Array(2 * 1024 * 1024)], 'finish.png', { type: 'image/png' })
-    fireEvent.change(screen.getByLabelText('Фото · Финиш'), { target: { files: [original] } })
+    fireEvent.change(screen.getByLabelText('Загрузить фото'), { target: { files: [original] } })
     expect(onFile).not.toHaveBeenCalled()
     expect(await screen.findByRole('dialog', { name: 'Кадр финиша' })).toBeInTheDocument()
 

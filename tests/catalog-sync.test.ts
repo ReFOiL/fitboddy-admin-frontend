@@ -93,7 +93,7 @@ describe('catalog sync preview', () => {
       changed_fields: ['end_image_url', 'video_url'],
       changes: ['+ end-фото', 'обновлено видео'],
     })
-    expect(formatSyncSummary(preview.summary)).toBe('+1 новых · ~1 обновление медиа · 40 без изменений')
+    expect(formatSyncSummary(preview.summary)).toBe('+1 новых · 1 обновление медиа · 40 без изменений')
     expect(slotsForChangedFields(preview.update[0]?.changed_fields ?? [])).toEqual(['end', 'video'])
   })
 
@@ -110,7 +110,7 @@ describe('catalog sync preview', () => {
     expect(ruPlural(11, 'обновление', 'обновления', 'обновлений')).toBe('обновлений')
     expect(ruPlural(21, 'обновление', 'обновления', 'обновлений')).toBe('обновление')
     expect(formatSyncSummary({ new_count: 12, media_update_count: 3, unchanged_count: 40 })).toBe(
-      '+12 новых · ~3 обновления медиа · 40 без изменений',
+      '+12 новых · 3 обновления медиа · 40 без изменений',
     )
   })
 

@@ -3,6 +3,7 @@ import { useRef } from 'react'
 
 import { MissingPhoto } from '../media/ExerciseMedia'
 import { ExercisePhotoFrame } from '../media/ExercisePhotoFrame'
+import { StyledUpload } from '../media/StyledUpload'
 
 import {
   EXERCISE_PHOTO_ASPECT_HINT,
@@ -19,8 +20,6 @@ import {
   resolveExerciseMediaUrl,
 } from '../../lib/exercise-photos'
 import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { Label } from '../ui/label'
 import { ExercisePhotoCropHost } from './ExercisePhotoCropDialog'
 import { useExercisePhotoCrop } from './use-exercise-photo-crop'
 
@@ -139,29 +138,24 @@ function ExercisePhotoSlot({
     requestedForUrlRef.current = null
   }
 
+  const uploadControl = editable ? (
+    <StyledUpload
+      kind="photo"
+      id={inputId}
+      accept={EXERCISE_PHOTO_ACCEPT}
+      disabled={isBusy}
+      hasPreview={Boolean(imageUrl)}
+      emptyCaption={imageUrl ? undefined : EXERCISE_PHOTO_SHORT_LABELS[position]}
+      onFile={(file) => {
+        // Кадр 4:3 собирается до загрузки: наружу уходит уже сжатый файл.
+        onPickFile(position, file)
+      }}
+    />
+  ) : null
+
   return (
     <div className="relative grid gap-3 rounded-xl border border-border/70 bg-secondary/15 p-3">
       <div className="text-sm font-medium">{label}</div>
-
-      {editable ? (
-        <div className="grid gap-1.5">
-          <Label htmlFor={inputId}>{imageUrl ? 'Заменить фото' : 'Загрузить фото'}</Label>
-          <Input
-            id={inputId}
-            type="file"
-            accept={EXERCISE_PHOTO_ACCEPT}
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.currentTarget.value = ''
-              if (!file) return
-              // Кадр 4:3 собирается до загрузки: наружу уходит уже сжатый файл.
-              onPickFile(position, file)
-            }}
-            disabled={isBusy}
-          />
-          <span className="text-xs text-secondary-foreground">{EXERCISE_PHOTO_HINT}</span>
-        </div>
-      ) : null}
 
       {isBusy ? (
         <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
@@ -204,6 +198,7 @@ function ExercisePhotoSlot({
             </span>
           </ExercisePhotoFrame>
           <p className="text-center text-[13px] text-secondary-foreground">{EXERCISE_PHOTO_FRAME_CAPTIONS[position]}</p>
+          {uploadControl}
           {editable ? (
             <Button
               type="button"
@@ -220,15 +215,20 @@ function ExercisePhotoSlot({
             </Button>
           ) : null}
         </div>
-      ) : !isBusy ? (
+      ) : (
         <div className="space-y-2">
-          <MissingPhoto
-            label={EXERCISE_PHOTO_SHORT_LABELS[position]}
-            className="aspect-[4/3] w-full rounded-xl"
-          />
-          <p className="text-center text-[13px] text-secondary-foreground">{EXERCISE_PHOTO_FRAME_CAPTIONS[position]}</p>
+          {editable ? (
+            uploadControl
+          ) : (
+            <MissingPhoto label={EXERCISE_PHOTO_SHORT_LABELS[position]} className="aspect-[4/3] w-full rounded-xl" />
+          )}
+          {!isBusy || editable ? (
+            <p className="text-center text-[13px] text-secondary-foreground">{EXERCISE_PHOTO_FRAME_CAPTIONS[position]}</p>
+          ) : null}
         </div>
-      ) : null}
+      )}
+
+      {editable ? <span className="text-xs text-secondary-foreground">{EXERCISE_PHOTO_HINT}</span> : null}
     </div>
   )
 }

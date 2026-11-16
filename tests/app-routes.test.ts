@@ -11,6 +11,7 @@ describe('app-routes', () => {
     expect(resolveDocumentTitle(APP_PATHS.terms, null)).toBe('Fitboddy — Пользовательское соглашение')
     expect(resolveDocumentTitle(APP_PATHS.trainerInvite, 'trainer')).toBe('Fitboddy — Приглашение')
     expect(resolveDocumentTitle('/i/AB3K9Z', null)).toBe('Fitboddy — Приглашение')
+    expect(resolveDocumentTitle('/exercises/new', 'trainer')).toBe('Fitboddy — Новое упражнение')
     expect(resolveDocumentTitle('/unknown', null)).toBe('Fitboddy')
   })
 

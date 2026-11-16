@@ -12,6 +12,7 @@ const ClientExerciseDetailsPage = lazy(async () => ({
 }))
 const DashboardPage = lazy(async () => ({ default: (await import('./pages/Dashboard')).DashboardPage }))
 const ExerciseDetailsPage = lazy(async () => ({ default: (await import('./pages/ExerciseDetails')).ExerciseDetailsPage }))
+const CreateExercisePage = lazy(async () => ({ default: (await import('./pages/CreateExercise')).CreateExercisePage }))
 const ExercisesPage = lazy(async () => ({ default: (await import('./pages/Exercises')).ExercisesPage }))
 const LoginPage = lazy(async () => ({ default: (await import('./pages/Login')).LoginPage }))
 const PrivacyPolicyPage = lazy(async () => ({ default: (await import('./pages/LegalDocumentPage')).PrivacyPolicyPage }))
@@ -150,6 +151,14 @@ function App() {
               element={
                 <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
                   <ExercisesPage />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path={APP_PATHS.exerciseNew.slice(1)}
+              element={
+                <RoleRoute currentRole={role} allowedRoles={['trainer']} fallbackTo={APP_PATHS.home}>
+                  <CreateExercisePage />
                 </RoleRoute>
               }
             />

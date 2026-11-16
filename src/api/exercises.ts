@@ -128,13 +128,26 @@ export async function uploadTrainerExerciseVideo(
   trainerUserId: string,
   rowId: string,
   file: File,
+  onProgress?: (percent: number) => void,
 ): Promise<ExerciseVideoUploadResponse> {
   const formData = new FormData()
   formData.append('file', file)
+  let lastPercent = -1
   const { data } = await apiClient.post<ExerciseVideoUploadResponse>(
     `/api/v1/trainers/${encodeURIComponent(trainerUserId)}/exercises/${encodeURIComponent(rowId)}/video`,
     formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } },
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      // Общий таймаут 12 с обрывает ролик на медленной сети.
+      timeout: EXERCISE_PHOTO_UPLOAD_TIMEOUT_MS,
+      onUploadProgress: (event) => {
+        if (!onProgress || !event.total) return
+        const percent = Math.min(100, Math.round((event.loaded / event.total) * 100))
+        if (percent === lastPercent) return
+        lastPercent = percent
+        onProgress(percent)
+      },
+    },
   )
   return data
 }

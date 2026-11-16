@@ -110,7 +110,7 @@ describe('CatalogSyncDialog', () => {
     renderDialog()
 
     expect(await screen.findByRole('button', { name: 'Синхронизировать выбранное (2)' })).toBeEnabled()
-    expect(screen.getByRole('status')).toHaveAccessibleName('+2 новых · ~1 обновление медиа · 4 без изменений')
+    expect(screen.getByRole('status')).toHaveAccessibleName('+2 новых · 1 обновление медиа · 4 без изменений')
     expect(screen.getByRole('checkbox', { name: 'Приседания со штангой' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Становая тяга' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Отметить все в разделе «Обновить»' })).toBeDisabled()
@@ -174,7 +174,7 @@ describe('CatalogSyncDialog', () => {
 
     expect(screen.getByRole('switch', { name: 'Также подтянуть медиа из системы' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByText('В системе')).toBeInTheDocument()
-    expect(screen.getByText('У тебя')).toBeInTheDocument()
+    expect(screen.getByText('У вас')).toBeInTheDocument()
     expect(screen.getByText('нет end-фото.')).toBeInTheDocument()
     expect(screen.getByText('+ end-фото · обновлено видео')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Жим лёжа' })).toBeChecked()
@@ -221,8 +221,9 @@ describe('CatalogSyncDialog', () => {
     })
     renderDialog()
 
-    expect(await screen.findByText('Нечего синхронизировать')).toBeInTheDocument()
-    expect(screen.getByText('Каталог уже совпадает с системной базой.')).toBeInTheDocument()
+    expect(await screen.findByText('Нечего добавить')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Добавить ·/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Обновить ·/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Синхронизировать выбранное (0)' })).toBeDisabled()
   })

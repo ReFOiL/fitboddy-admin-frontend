@@ -438,6 +438,9 @@ export class ApiMock {
 
     const exercises = /^\/api\/v1\/trainers\/([^/]+)\/exercises$/.exec(path)
     if (exercises && method === 'GET') return this.json(200, this.catalog)
+    if (exercises && method === 'POST') {
+      return this.createTrainerExercise(decodeURIComponent(exercises[1]), readBody(request))
+    }
 
     const syncPreview = /^\/api\/v1\/trainers\/([^/]+)\/exercises\/sync-preview$/.exec(path)
     if (syncPreview && method === 'GET') return this.json(200, this.catalogSyncPreview)
@@ -449,6 +452,14 @@ export class ApiMock {
     if (exercise && method === 'GET') {
       const found = this.catalog.find((item) => item.row_id === decodeURIComponent(exercise[2]))
       return found ? this.json(200, found) : this.json(404, { detail: 'not found' })
+    }
+    if (exercise && method === 'PUT') {
+      return this.updateTrainerExercise(decodeURIComponent(exercise[2]), readBody(request))
+    }
+
+    const exerciseVideo = /^\/api\/v1\/trainers\/([^/]+)\/exercises\/([^/]+)\/video$/.exec(path)
+    if (exerciseVideo && method === 'POST') {
+      return this.attachExerciseVideo(decodeURIComponent(exerciseVideo[2]))
     }
 
     const policy = /^\/api\/v1\/trainers\/([^/]+)\/generation-policy$/.exec(path)
@@ -524,6 +535,77 @@ export class ApiMock {
 
     console.error(`e2e mock: нет обработчика ${method} ${path}`)
     return this.json(404, { detail: `not mocked: ${method} ${path}` })
+  }
+
+  private createTrainerExercise(trainerUserId: string, body: unknown): MockResponse {
+    const record = asRecord(body)
+    const name = typeof record.exercise_name === 'string' ? record.exercise_name.trim() : ''
+    if (name.length < 2) return this.json(422, { detail: 'name' })
+    const created = catalogExercise({
+      row_id: 'row-new',
+      exercise_name: name,
+      workout_category: typeof record.workout_category === 'string' ? record.workout_category : 'full_body',
+      equipment: typeof record.equipment === 'string' ? record.equipment : 'none',
+    })
+    created.trainer_user_id = trainerUserId
+    created.description = typeof record.description === 'string' && record.description.trim() ? record.description : null
+    created.is_cardio = record.is_cardio === true
+    created.is_hold = record.is_hold === true
+    if (typeof record.difficulty === 'number') created.difficulty = record.difficulty
+    if (typeof record.default_sets === 'number') created.default_sets = record.default_sets
+    created.default_reps = typeof record.default_reps === 'number' ? record.default_reps : created.is_hold ? null : created.default_reps
+    created.default_duration_seconds =
+      typeof record.default_duration_seconds === 'number' ? record.default_duration_seconds : null
+    if (typeof record.default_rest_seconds === 'number') created.default_rest_seconds = record.default_rest_seconds
+    created.default_weight_kg = typeof record.default_weight_kg === 'number' ? record.default_weight_kg : null
+    if (
+      record.load_scheme === 'flat' ||
+      record.load_scheme === 'ascending' ||
+      record.load_scheme === 'descending' ||
+      record.load_scheme === 'custom'
+    ) {
+      created.load_scheme = record.load_scheme
+    }
+    created.primary_muscles = stringList(record.primary_muscles)
+    created.secondary_muscles = stringList(record.secondary_muscles)
+    this.catalog.unshift(created)
+    return this.json(200, created)
+  }
+
+  private updateTrainerExercise(rowId: string, body: unknown): MockResponse {
+    const found = this.catalog.find((item) => item.row_id === rowId)
+    if (!found) return this.json(404, { detail: 'not found' })
+    const record = asRecord(body)
+    if (typeof record.exercise_name === 'string') found.exercise_name = record.exercise_name
+    if (typeof record.description === 'string') found.description = record.description || null
+    if (typeof record.equipment === 'string') found.equipment = record.equipment
+    if (typeof record.is_cardio === 'boolean') found.is_cardio = record.is_cardio
+    if (typeof record.is_hold === 'boolean') found.is_hold = record.is_hold
+    if (typeof record.difficulty === 'number') found.difficulty = record.difficulty
+    if (typeof record.default_sets === 'number') found.default_sets = record.default_sets
+    if ('default_reps' in record) found.default_reps = typeof record.default_reps === 'number' ? record.default_reps : null
+    if ('default_duration_seconds' in record) {
+      found.default_duration_seconds =
+        typeof record.default_duration_seconds === 'number' ? record.default_duration_seconds : null
+    }
+    if (typeof record.default_rest_seconds === 'number') found.default_rest_seconds = record.default_rest_seconds
+    if ('default_weight_kg' in record) {
+      found.default_weight_kg = typeof record.default_weight_kg === 'number' ? record.default_weight_kg : null
+    }
+    found.primary_muscles = stringList(record.primary_muscles)
+    found.secondary_muscles = stringList(record.secondary_muscles)
+    return this.json(200, found)
+  }
+
+  private attachExerciseVideo(rowId: string): MockResponse {
+    const found = this.catalog.find((item) => item.row_id === rowId)
+    if (!found) return this.json(404, { detail: 'not found' })
+    found.video_url = `/videos/${rowId}.mp4`
+    return this.json(200, {
+      trainer_user_id: found.trainer_user_id,
+      row_id: rowId,
+      video_url: found.video_url,
+    })
   }
 
   private actor(request: PlaywrightRequest): AuthUser | null {

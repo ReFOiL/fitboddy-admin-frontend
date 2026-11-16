@@ -1,105 +1,28 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, Dumbbell, Search } from 'lucide-react'
+import { ArchiveRestore, Dumbbell, Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
 import { Link } from 'react-router-dom'
-import { z } from 'zod'
 
-import { listMuscles } from '../api/exercises'
 import { CatalogSyncDialog } from '../components/exercises/CatalogSyncDialog'
-import { CreateExercisePhotoField } from '../components/exercises/CreateExercisePhotoField'
-import { ExercisePlanHint } from '../components/exercises/ExercisePlanHint'
+import { formatExerciseDoseLine } from '../components/exercises/exercise-form'
 import { ExerciseThumb } from '../components/ui/kit'
+import { APP_PATHS } from '../config'
 import { useCatalogSyncAttention, type CatalogSyncAttentionStatus } from '../hooks/use-catalog-sync-attention'
 import { useAuth } from '../hooks/use-auth'
 import { useExercises } from '../hooks/use-exercises'
-import { useProfile } from '../hooks/use-profile'
-import { EXERCISE_PHOTO_ASPECT_HINT } from '../lib/exercise-photo-crop'
-import type { LoadScheme, UpsertTrainerExerciseRequest } from '../types/exercise'
-import { formatEquipmentLabel, normalizeEquipmentName } from '../lib/equipment'
-import {
-  getLoadSchemeOptions,
-  parseSchemeStepsInput,
-  previewSchemeSteps,
-} from '../lib/load-schemes'
-import { MuscleTargetPicker } from '../components/muscles/MuscleTargetPicker'
-import { deriveWorkoutCategory, formatWorkoutCategory } from '../lib/muscles'
+import { formatEquipmentLabel } from '../lib/equipment'
+import { formatWorkoutCategory } from '../lib/muscles'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
-import { DifficultyPicker } from '../components/ui/difficulty-picker'
-import { EquipmentPicker } from '../components/ui/equipment-picker'
+import { Card, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
 import { Skeleton } from '../components/ui/skeleton'
-import { StyledSelect } from '../components/ui/styled-select'
 
-const exerciseSchema = z
-  .object({
-    exercise_name: z.string().min(2, 'Минимум 2 символа').max(128, 'Максимум 128 символов'),
-    description: z.string().max(4000, 'Максимум 4000 символов').optional(),
-    equipment: z
-      .string()
-      .min(2, 'Укажите инвентарь')
-      .refine((value) => value.trim().toLowerCase() === 'none' || normalizeEquipmentName(value) !== null, {
-        message: 'Укажите название инвентаря (2–64 символа)',
-      }),
-    is_cardio: z.boolean(),
-    is_hold: z.boolean(),
-    difficulty: z.number().int().min(1, 'От 1 до 5').max(5, 'От 1 до 5'),
-    default_sets: z.number().int().min(1, 'Минимум 1').max(10, 'Максимум 10'),
-    default_reps: z.number().int().min(1, 'Минимум 1').max(100, 'Максимум 100').nullable(),
-    default_duration_seconds: z.number().int().min(5, 'Минимум 5 сек').max(3600, 'Максимум 3600 сек').nullable(),
-    default_rest_seconds: z.number().int().min(0, 'Минимум 0').max(600, 'Максимум 600'),
-    default_weight_kg: z.number().min(0, 'Не может быть отрицательным').nullable(),
-    load_scheme: z.enum(['flat', 'ascending', 'descending', 'custom']),
-    scheme_steps_input: z.string().optional(),
-    primary_muscles: z.array(z.string()),
-    secondary_muscles: z.array(z.string()),
-  })
-  .superRefine((values, ctx) => {
-    if (values.is_hold) {
-      if (values.default_duration_seconds == null) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_duration_seconds'], message: 'Укажите длительность' })
-      }
-    } else if (values.default_reps == null) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['default_reps'], message: 'Укажите повторения' })
-    }
-    if (values.load_scheme === 'custom') {
-      const steps = parseSchemeStepsInput(values.scheme_steps_input ?? '')
-      if (steps.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['scheme_steps_input'],
-          message: 'Укажите коэффициенты через запятую, например 0.7, 0.85, 1',
-        })
-      }
-    }
-  })
-
-type ExerciseFormValues = z.infer<typeof exerciseSchema>
 type CatalogFilterMode = 'all' | 'active' | 'archived'
 
-function formatExerciseCriteria(exercise: {
-  is_cardio: boolean
-  is_hold: boolean
-  default_sets?: number
-  default_reps?: number | null
-  default_duration_seconds?: number | null
-  default_weight_kg?: number | null
-}): string {
-  const stimulus = exercise.is_cardio ? 'Кардио' : 'Силовое'
-  const dosage = exercise.is_hold
-    ? `на время${exercise.default_duration_seconds ? ` ${exercise.default_duration_seconds}с` : ''}`
-    : `на повторы${exercise.default_reps ? ` ${exercise.default_reps}` : ''}`
-  const weight =
-    exercise.default_weight_kg != null && exercise.default_weight_kg > 0 ? `, ${exercise.default_weight_kg} кг` : ''
-  return `${stimulus}, ${dosage}${weight}`
-}
-
-function formatEquipment(code: string): string {
-  return formatEquipmentLabel(code)
-}
+const FILTERS: Array<{ id: CatalogFilterMode; label: string }> = [
+  { id: 'all', label: 'Все' },
+  { id: 'active', label: 'Активные' },
+  { id: 'archived', label: 'Архив' },
+]
 
 const CATEGORY_LABELS: Record<string, string> = {
   верх: 'верх тела',
@@ -117,76 +40,18 @@ function formatCategory(value: string): string {
   return CATEGORY_LABELS[key] ?? formatWorkoutCategory(key)
 }
 
-const defaultValues: ExerciseFormValues = {
-  exercise_name: '',
-  description: '',
-  equipment: 'none',
-  is_cardio: false,
-  is_hold: false,
-  difficulty: 2,
-  default_sets: 3,
-  default_reps: 10,
-  default_duration_seconds: 35,
-  default_rest_seconds: 60,
-  default_weight_kg: null,
-  load_scheme: 'flat',
-  scheme_steps_input: '',
-  primary_muscles: [],
-  secondary_muscles: [],
-}
-
-function mapFormToPayload(values: ExerciseFormValues): UpsertTrainerExerciseRequest {
-  const description = values.description?.trim() ?? ''
-  const loadScheme: LoadScheme = values.load_scheme
-  return {
-    exercise_name: values.exercise_name.trim(),
-    description: description || null,
-    equipment: values.equipment.trim().toLowerCase() === 'none'
-      ? 'none'
-      : (normalizeEquipmentName(values.equipment) ?? values.equipment.trim()),
-    is_cardio: values.is_cardio,
-    is_hold: values.is_hold,
-    difficulty: values.difficulty,
-    workout_category: deriveWorkoutCategory(values.primary_muscles),
-    default_sets: values.default_sets,
-    default_reps: values.is_hold ? null : values.default_reps,
-    default_duration_seconds: values.is_hold ? values.default_duration_seconds : null,
-    default_rest_seconds: values.default_rest_seconds,
-    default_weight_kg: values.default_weight_kg,
-    load_scheme: loadScheme,
-    scheme_steps: loadScheme === 'custom' ? parseSchemeStepsInput(values.scheme_steps_input ?? '') : [],
-    primary_muscles: values.primary_muscles,
-    secondary_muscles: values.secondary_muscles,
-  }
-}
-
 export function ExercisesPage() {
   const { user } = useAuth()
   const isTrainer = user?.role === 'trainer'
   const trainerUserId = isTrainer && user?.user_id ? user.user_id : ''
-  const { profileQuery } = useProfile(trainerUserId)
   const syncHintId = useId()
   const syncAttention = useCatalogSyncAttention(trainerUserId)
   const showSyncDot = syncAttention.showDot
-  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
   const [syncOpen, setSyncOpen] = useState(false)
-  const [showPlanHint, setShowPlanHint] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
-  const [startPhoto, setStartPhoto] = useState<File | null>(null)
-  const [endPhoto, setEndPhoto] = useState<File | null>(null)
-  const [startPreview, setStartPreview] = useState<string | null>(null)
-  const [endPreview, setEndPreview] = useState<string | null>(null)
   const [filterMode, setFilterMode] = useState<CatalogFilterMode>('active')
   const [searchQuery, setSearchQuery] = useState('')
   const includeArchived = filterMode !== 'active'
-  const {
-    trainerCatalogQuery,
-    addExerciseMutation,
-    updateExerciseMutation,
-    archiveExerciseMutation,
-    restoreExerciseMutation,
-    uploadPhotoMutation,
-  } = useExercises({
+  const { trainerCatalogQuery, restoreExerciseMutation } = useExercises({
     trainerUserId,
     includeArchived,
   })
@@ -199,52 +64,8 @@ export function ExercisesPage() {
       return true
     })
     if (!normalizedSearch) return byStatus
-    return byStatus.filter((exercise) => {
-      const haystack = [
-        exercise.exercise_name,
-        exercise.workout_category,
-        exercise.equipment,
-      ]
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(normalizedSearch)
-    })
+    return byStatus.filter((exercise) => exercise.exercise_name.toLowerCase().includes(normalizedSearch))
   }, [filterMode, normalizedSearch, trainerCatalogQuery.data])
-
-  const form = useForm<ExerciseFormValues>({
-    resolver: zodResolver(exerciseSchema),
-    defaultValues,
-  })
-  const watchedEquipment = useWatch({ control: form.control, name: 'equipment' }) ?? defaultValues.equipment
-  const watchedDifficulty = useWatch({ control: form.control, name: 'difficulty' }) ?? defaultValues.difficulty
-  const watchedIsCardio = useWatch({ control: form.control, name: 'is_cardio' }) ?? false
-  const watchedIsHold = useWatch({ control: form.control, name: 'is_hold' }) ?? false
-  const watchedSets = useWatch({ control: form.control, name: 'default_sets' }) ?? defaultValues.default_sets
-  const watchedReps = useWatch({ control: form.control, name: 'default_reps' })
-  const watchedDuration = useWatch({ control: form.control, name: 'default_duration_seconds' })
-  const watchedRest = useWatch({ control: form.control, name: 'default_rest_seconds' }) ?? defaultValues.default_rest_seconds
-  const watchedWeight = useWatch({ control: form.control, name: 'default_weight_kg' })
-  const watchedLoadScheme = useWatch({ control: form.control, name: 'load_scheme' }) ?? 'flat'
-  const watchedSchemeStepsInput = useWatch({ control: form.control, name: 'scheme_steps_input' }) ?? ''
-  const watchedPrimaryMuscles = useWatch({ control: form.control, name: 'primary_muscles' }) ?? []
-  const watchedSecondaryMuscles = useWatch({ control: form.control, name: 'secondary_muscles' }) ?? []
-  const musclesQuery = useQuery({
-    queryKey: ['muscles-catalog'],
-    queryFn: listMuscles,
-    enabled: isCreateFormOpen,
-  })
-  const schemePreview = previewSchemeSteps(
-    watchedLoadScheme,
-    watchedSets,
-    parseSchemeStepsInput(watchedSchemeStepsInput),
-  )
-
-  const formDisabled =
-    addExerciseMutation.isPending ||
-    updateExerciseMutation.isPending ||
-    archiveExerciseMutation.isPending ||
-    restoreExerciseMutation.isPending ||
-    uploadPhotoMutation.isPending
 
   if (!isTrainer) {
     return (
@@ -252,7 +73,7 @@ export function ExercisesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Dumbbell size={18} className="text-accent-ink" />
-            Каталог упражнений
+            Упражнения
           </CardTitle>
           <CardDescription>Этот раздел доступен только тренерам.</CardDescription>
         </CardHeader>
@@ -261,526 +82,114 @@ export function ExercisesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Упражнения
-          </CardTitle>
-          <CardDescription>
-            Подтяните новые упражнения из системной базы или создайте своё. Правки — на странице упражнения.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {showPlanHint ? <ExercisePlanHint /> : null}
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {!isCreateFormOpen ? (
-              <Button type="button" size="lg" className="w-full sm:w-auto sm:min-w-56" onClick={() => setIsCreateFormOpen(true)}>
-                Создать упражнение
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              size="lg"
-              variant="secondary"
-              className="w-full sm:w-auto sm:min-w-56"
-              aria-describedby={showSyncDot ? syncHintId : undefined}
-              data-sync-attention={syncAttentionMarker(syncAttention.status, showSyncDot)}
-              onClick={() => setSyncOpen(true)}
-            >
-              Синхронизировать с системной базой
-              {showSyncDot ? <CatalogSyncAttentionDot /> : null}
-            </Button>
-            {showSyncDot ? (
-              <span id={syncHintId} className="sr-only">
-                В системной базе есть упражнения, которые можно добавить или обновить.
-              </span>
-            ) : null}
-          </div>
-          {isCreateFormOpen ? (
-            <form
-              className="grid gap-4 rounded-xl border border-border/70 bg-secondary/20 p-4"
-              onSubmit={form.handleSubmit((values) => {
-                const payload = mapFormToPayload(values)
-                addExerciseMutation.mutate(payload, {
-                  onSuccess: (created) => {
-                    const uploads: Array<Promise<unknown>> = []
-                    if (startPhoto) {
-                      uploads.push(
-                        uploadPhotoMutation.mutateAsync({ rowId: created.row_id, position: 'start', file: startPhoto }),
-                      )
-                    }
-                    if (endPhoto) {
-                      uploads.push(uploadPhotoMutation.mutateAsync({ rowId: created.row_id, position: 'end', file: endPhoto }))
-                    }
-                    void Promise.all(uploads).finally(() => {
-                      form.reset(defaultValues)
-                      setStartPhoto(null)
-                      setEndPhoto(null)
-                      if (startPreview) URL.revokeObjectURL(startPreview)
-                      if (endPreview) URL.revokeObjectURL(endPreview)
-                      setStartPreview(null)
-                      setEndPreview(null)
-                      setMoreOpen(false)
-                      setIsCreateFormOpen(false)
-                      setShowPlanHint(true)
-                    })
-                  },
-                })
-              })}
-            >
-              <div className="grid gap-1.5">
-                <Label htmlFor="exercise_name">Название</Label>
-                <Input id="exercise_name" placeholder="Болгарские выпады" disabled={formDisabled} {...form.register('exercise_name')} />
-                {form.formState.errors.exercise_name?.message ? (
-                  <span className="text-xs text-destructive">{form.formState.errors.exercise_name.message}</span>
-                ) : null}
-              </div>
+    <div className="space-y-5">
+      <header className="space-y-2">
+        <h1 className="text-[28px] font-bold">Упражнения</h1>
+        <p className="text-[15px] text-secondary-foreground">
+          Подтяните новые упражнения из системной базы или создайте своё. Правки открываются на странице упражнения.
+        </p>
+      </header>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <CreateExercisePhotoField
-                  label="Старт"
-                  inputId="create_photo_start"
-                  preview={startPreview}
-                  disabled={formDisabled}
-                  onFile={(file) => {
-                    if (startPreview) URL.revokeObjectURL(startPreview)
-                    setStartPhoto(file)
-                    setStartPreview(file ? URL.createObjectURL(file) : null)
-                  }}
-                />
-                <CreateExercisePhotoField
-                  label="Финиш"
-                  inputId="create_photo_end"
-                  preview={endPreview}
-                  disabled={formDisabled}
-                  onFile={(file) => {
-                    if (endPreview) URL.revokeObjectURL(endPreview)
-                    setEndPhoto(file)
-                    setEndPreview(file ? URL.createObjectURL(file) : null)
-                  }}
-                />
-              </div>
-              <p className="text-xs text-secondary-foreground">{EXERCISE_PHOTO_ASPECT_HINT}</p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button asChild type="button" size="lg" className="w-full sm:w-auto sm:min-w-56">
+          <Link to={APP_PATHS.exerciseNew}>Создать упражнение</Link>
+        </Button>
+        <Button
+          type="button"
+          size="lg"
+          variant="secondary"
+          className="w-full sm:w-auto sm:min-w-56"
+          aria-describedby={showSyncDot ? syncHintId : undefined}
+          data-sync-attention={syncAttentionMarker(syncAttention.status, showSyncDot)}
+          onClick={() => setSyncOpen(true)}
+        >
+          Синхронизировать с системной базой
+          {showSyncDot ? <CatalogSyncAttentionDot /> : null}
+        </Button>
+        {showSyncDot ? (
+          <span id={syncHintId} className="sr-only">
+            В системной базе есть упражнения, которые можно добавить или обновить.
+          </span>
+        ) : null}
+      </div>
 
-              <div className={moreOpen ? 'grid gap-1.5' : 'hidden'}>
-                <Label htmlFor="description">Описание</Label>
-                <textarea
-                  id="description"
-                  className="min-h-24 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-primary/70 disabled:opacity-50"
-                  placeholder="Техника, акценты, на что обратить внимание."
-                  disabled={formDisabled}
-                  {...form.register('description')}
-                />
-                {form.formState.errors.description?.message ? (
-                  <span className="text-xs text-destructive">{form.formState.errors.description.message}</span>
-                ) : null}
-              </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {FILTERS.map((filter) => (
+          <Button
+            key={filter.id}
+            type="button"
+            size="sm"
+            variant={filterMode === filter.id ? 'default' : 'secondary'}
+            onClick={() => setFilterMode(filter.id)}
+          >
+            {filter.label}
+          </Button>
+        ))}
+      </div>
 
-              <div className={`grid gap-2 rounded-xl border border-border/70 bg-background/40 p-3 ${moreOpen ? '' : 'hidden'}`}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label>Группы мышц</Label>
-                  <span className="text-xs text-secondary-foreground">
-                    Категория: {formatWorkoutCategory(deriveWorkoutCategory(watchedPrimaryMuscles))}
-                  </span>
-                </div>
-                {musclesQuery.isLoading ? (
-                  <Skeleton className="h-40 w-full" />
-                ) : (
-                  <MuscleTargetPicker
-                    muscles={musclesQuery.data ?? []}
-                    primary={watchedPrimaryMuscles}
-                    secondary={watchedSecondaryMuscles}
-                    bodyGender={profileQuery.data?.gender}
-                    onChange={({ primary, secondary }) => {
-                      form.setValue('primary_muscles', primary, { shouldDirty: true, shouldValidate: true })
-                      form.setValue('secondary_muscles', secondary, { shouldDirty: true, shouldValidate: true })
-                    }}
-                  />
-                )}
-              </div>
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-secondary-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          className="pl-9"
+          placeholder="Поиск по названию"
+          aria-label="Поиск по названию"
+        />
+      </div>
 
-              <div className={moreOpen ? '' : 'hidden'}>
-              <EquipmentPicker
-                id="equipment"
-                disabled={formDisabled}
-                value={watchedEquipment}
-                error={form.formState.errors.equipment?.message}
-                onChange={(nextValue) => {
-                  form.setValue('equipment', nextValue, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  })
-                }}
-              />
-              </div>
-
-              <div className={`grid gap-4 md:grid-cols-2 ${moreOpen ? '' : 'hidden'}`}>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="difficulty">Сложность (1-5)</Label>
-                  <DifficultyPicker
-                    id="difficulty"
-                    value={watchedDifficulty}
-                    disabled={formDisabled}
-                    onChange={(nextDifficulty) => {
-                      if (nextDifficulty === form.getValues('difficulty')) return
-                      form.setValue('difficulty', nextDifficulty, { shouldDirty: true, shouldValidate: true })
-                    }}
-                  />
-                  {form.formState.errors.difficulty?.message ? (
-                    <span className="text-xs text-destructive">{form.formState.errors.difficulty.message}</span>
-                  ) : null}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="is_cardio">Тип нагрузки</Label>
-                  <StyledSelect
-                    id="is_cardio"
-                    value={watchedIsCardio ? 'cardio' : 'strength'}
-                    onChange={(nextValue) => {
-                      const nextIsCardio = nextValue === 'cardio'
-                      if (nextIsCardio === form.getValues('is_cardio')) return
-                      form.setValue('is_cardio', nextIsCardio, { shouldDirty: true, shouldValidate: true })
-                    }}
-                    disabled={formDisabled}
-                    options={[
-                      { value: 'strength', label: 'Силовое' },
-                      { value: 'cardio', label: 'Кардио' },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div className={`grid gap-1.5 ${moreOpen ? '' : 'hidden'}`}>
-                <Label htmlFor="is_hold">Дозировка</Label>
-                <StyledSelect
-                  id="is_hold"
-                  value={watchedIsHold ? 'duration' : 'reps'}
-                  onChange={(nextValue) => {
-                    const nextIsHold = nextValue === 'duration'
-                    if (nextIsHold === form.getValues('is_hold')) return
-                    form.setValue('is_hold', nextIsHold, { shouldDirty: true, shouldValidate: true })
-                    if (nextIsHold) {
-                      form.setValue('default_rest_seconds', 45, { shouldDirty: true, shouldValidate: true })
-                      if (!form.getValues('default_duration_seconds')) {
-                        form.setValue('default_duration_seconds', 35, { shouldDirty: true, shouldValidate: true })
-                      }
-                    } else {
-                      form.setValue('default_rest_seconds', 60, { shouldDirty: true, shouldValidate: true })
-                      if (!form.getValues('default_reps')) {
-                        form.setValue('default_reps', 10, { shouldDirty: true, shouldValidate: true })
-                      }
-                    }
-                  }}
-                  disabled={formDisabled}
-                  options={[
-                    { value: 'reps', label: 'На повторы' },
-                    { value: 'duration', label: 'На время' },
-                  ]}
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="default_sets">Подходы</Label>
-                  <Input
-                    id="default_sets"
-                    type="number"
-                    min={1}
-                    max={10}
-                    disabled={formDisabled}
-                    value={watchedSets}
-                    onChange={(event) => {
-                      const nextValue = Number(event.target.value)
-                      form.setValue('default_sets', Number.isFinite(nextValue) ? nextValue : 1, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }}
-                  />
-                  {form.formState.errors.default_sets?.message ? (
-                    <span className="text-xs text-destructive">{form.formState.errors.default_sets.message}</span>
-                  ) : null}
-                </div>
-                {watchedIsHold ? (
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="default_duration_seconds">Длительность (сек)</Label>
-                    <Input
-                      id="default_duration_seconds"
-                      type="number"
-                      min={5}
-                      max={3600}
-                      disabled={formDisabled}
-                      value={watchedDuration ?? ''}
-                      onChange={(event) => {
-                        const raw = event.target.value
-                        form.setValue('default_duration_seconds', raw === '' ? null : Number(raw), {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
-                      }}
-                    />
-                    {form.formState.errors.default_duration_seconds?.message ? (
-                      <span className="text-xs text-destructive">{form.formState.errors.default_duration_seconds.message}</span>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="default_reps">Повторения</Label>
-                    <Input
-                      id="default_reps"
-                      type="number"
-                      min={1}
-                      max={100}
-                      disabled={formDisabled}
-                      value={watchedReps ?? ''}
-                      onChange={(event) => {
-                        const raw = event.target.value
-                        form.setValue('default_reps', raw === '' ? null : Number(raw), {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
-                      }}
-                    />
-                    {form.formState.errors.default_reps?.message ? (
-                      <span className="text-xs text-destructive">{form.formState.errors.default_reps.message}</span>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className={`grid gap-1.5 ${moreOpen ? '' : 'hidden'}`}>
-                  <Label htmlFor="default_rest_seconds">Отдых (сек)</Label>
-                  <Input
-                    id="default_rest_seconds"
-                    type="number"
-                    min={0}
-                    max={600}
-                    disabled={formDisabled}
-                    value={watchedRest}
-                    onChange={(event) => {
-                      const nextValue = Number(event.target.value)
-                      form.setValue('default_rest_seconds', Number.isFinite(nextValue) ? nextValue : 0, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }}
-                  />
-                  {form.formState.errors.default_rest_seconds?.message ? (
-                    <span className="text-xs text-destructive">{form.formState.errors.default_rest_seconds.message}</span>
-                  ) : null}
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="default_weight_kg">Базовый вес (кг)</Label>
-                  <Input
-                    id="default_weight_kg"
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    disabled={formDisabled}
-                    value={watchedWeight ?? ''}
-                    placeholder="Необязательно"
-                    onChange={(event) => {
-                      const raw = event.target.value
-                      form.setValue('default_weight_kg', raw === '' ? null : Number(raw), {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      })
-                    }}
-                  />
-                  {form.formState.errors.default_weight_kg?.message ? (
-                    <span className="text-xs text-destructive">{form.formState.errors.default_weight_kg.message}</span>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className={`grid gap-3 rounded-xl border border-border/70 bg-secondary/15 p-3 ${moreOpen ? '' : 'hidden'}`}>
-                  <div className="grid gap-1.5">
-                    <Label>Схема подходов</Label>
-                    <StyledSelect
-                      value={watchedLoadScheme}
-                      onChange={(value) =>
-                        form.setValue('load_scheme', value as LoadScheme, { shouldDirty: true, shouldValidate: true })
-                      }
-                      options={getLoadSchemeOptions(watchedIsHold)}
-                      disabled={formDisabled}
-                    />
-                  </div>
-                  {watchedLoadScheme === 'custom' ? (
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="scheme_steps_input">
-                        {watchedIsHold
-                          ? 'Коэффициенты от базовой длительности'
-                          : 'Коэффициенты от рабочего веса'}
-                      </Label>
-                      <Input
-                        id="scheme_steps_input"
-                        disabled={formDisabled}
-                        value={watchedSchemeStepsInput}
-                        placeholder="0.7, 0.85, 1, 1.05"
-                        onChange={(event) =>
-                          form.setValue('scheme_steps_input', event.target.value, {
-                            shouldDirty: true,
-                            shouldValidate: true,
-                          })
-                        }
-                      />
-                      {form.formState.errors.scheme_steps_input?.message ? (
-                        <span className="text-xs text-destructive">{form.formState.errors.scheme_steps_input.message}</span>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <div className="text-xs text-secondary-foreground">
-                    Превью: {schemePreview.map((step, index) => `П${index + 1}×${step}`).join(' · ')}
-                    {watchedIsHold && watchedDuration != null && watchedDuration > 0
-                      ? ` → ${schemePreview.map((step) => `${Math.round(watchedDuration * step)} сек`).join(', ')}`
-                      : !watchedIsHold && watchedWeight != null && watchedWeight > 0
-                        ? ` → ${schemePreview
-                            .map((step) => `${Math.round((watchedWeight * step) / 2.5) * 2.5} кг`)
-                            .join(', ')}`
-                        : ''}
-                    {watchedIsHold && watchedWeight != null && watchedWeight > 0
-                      ? ` · вес ${watchedWeight} кг на все подходы`
-                      : ''}
-                  </div>
-                </div>
-
-              <button
-                type="button"
-                className="flex min-h-12 w-full items-center justify-between text-left text-[17px] font-semibold"
-                aria-expanded={moreOpen}
-                onClick={() => setMoreOpen((current) => !current)}
-              >
-                <span>Ещё</span>
-                <span>{moreOpen ? '▴' : '▾'}</span>
-              </button>
-
-              <div className="flex flex-wrap gap-2">
-                <Button type="submit" size="lg" className="min-w-56" disabled={formDisabled}>
-                  Сохранить упражнение
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    form.reset(defaultValues)
-                    if (startPreview) URL.revokeObjectURL(startPreview)
-                    if (endPreview) URL.revokeObjectURL(endPreview)
-                    setStartPhoto(null)
-                    setEndPhoto(null)
-                    setStartPreview(null)
-                    setEndPreview(null)
-                    setMoreOpen(false)
-                    setIsCreateFormOpen(false)
-                  }}
-                  disabled={formDisabled}
+      {trainerCatalogQuery.isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-24 w-full rounded-xl" />
+          <Skeleton className="h-24 w-full rounded-xl" />
+        </div>
+      ) : null}
+      {trainerCatalogQuery.isError ? (
+        <span className="text-sm text-destructive">Не удалось загрузить каталог упражнений.</span>
+      ) : null}
+      {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError ? (
+        <div className="space-y-3">
+          {filteredCatalog.length === 0 ? (
+            <span className="text-sm text-secondary-foreground">По текущим фильтрам упражнения не найдены.</span>
+          ) : (
+            filteredCatalog.map((exercise) => (
+              <div key={exercise.row_id} className="border-b border-border py-3">
+                <Link
+                  to={`/exercises/${encodeURIComponent(exercise.row_id)}`}
+                  className="flex min-h-16 items-center justify-between gap-3"
                 >
-                  Отмена
-                </Button>
-              </div>
-            </form>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Archive size={18} className="text-accent-ink" />
-            Список упражнений
-          </CardTitle>
-          <CardDescription>Фильтруй каталог по статусу и быстро ищи упражнение по ключевым словам.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-secondary/20 p-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={filterMode === 'all' ? 'default' : 'secondary'}
-              onClick={() => setFilterMode('all')}
-            >
-              Все
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={filterMode === 'active' ? 'default' : 'secondary'}
-              onClick={() => setFilterMode('active')}
-            >
-              Только активные
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={filterMode === 'archived' ? 'default' : 'secondary'}
-              onClick={() => setFilterMode('archived')}
-            >
-              Только архив
-            </Button>
-          </div>
-          <div className="relative">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-secondary-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="pl-9"
-              placeholder="Поиск: название, ID, категория, инвентарь"
-            />
-          </div>
-
-          {trainerCatalogQuery.isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <Skeleton className="h-24 w-full rounded-xl" />
-            </div>
-          ) : null}
-          {trainerCatalogQuery.isError ? (
-            <span className="text-sm text-destructive">Не удалось загрузить каталог упражнений.</span>
-          ) : null}
-          {!trainerCatalogQuery.isLoading && !trainerCatalogQuery.isError ? (
-            <div className="space-y-3">
-              {filteredCatalog.length === 0 ? (
-                <span className="text-sm text-secondary-foreground">По текущим фильтрам упражнения не найдены.</span>
-              ) : (
-                filteredCatalog.map((exercise) => (
-                  <div key={exercise.row_id} className="border-b border-border py-3">
-                    <Link
-                      to={`/exercises/${encodeURIComponent(exercise.row_id)}`}
-                      className="flex min-h-16 items-center justify-between gap-3"
+                  <ExerciseThumb imageUrl={exercise.start_image_url} hasVideo={Boolean(exercise.video_url)} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[17px] font-semibold">{exercise.exercise_name}</span>
+                    <span className="block text-[15px] text-secondary-foreground">
+                      {formatCategory(exercise.workout_category)} · {formatEquipmentLabel(exercise.equipment)} ·{' '}
+                      {formatExerciseDoseLine(exercise)}
+                      {exercise.is_active ? '' : ' · Архив'}
+                    </span>
+                  </span>
+                  <span aria-hidden>›</span>
+                </Link>
+                {!exercise.is_active ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-12 gap-2"
+                      onClick={() => restoreExerciseMutation.mutate(exercise.row_id)}
+                      disabled={restoreExerciseMutation.isPending}
                     >
-                      <ExerciseThumb imageUrl={exercise.start_image_url} hasVideo={Boolean(exercise.video_url)} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[17px] font-semibold">{exercise.exercise_name}</span>
-                        <span className="block text-[15px] text-secondary-foreground">
-                          {formatCategory(exercise.workout_category)} · {formatEquipment(exercise.equipment)} ·{' '}
-                          {formatExerciseCriteria(exercise)}
-                          {exercise.is_active ? '' : ' · архив'}
-                        </span>
-                      </span>
-                      <span aria-hidden>›</span>
-                    </Link>
-                    {!exercise.is_active ? (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="h-12 gap-2"
-                          onClick={() => restoreExerciseMutation.mutate(exercise.row_id)}
-                          disabled={formDisabled}
-                        >
-                          <ArchiveRestore size={14} />
-                          Восстановить
-                        </Button>
-                    </div>
-                    ) : null}
+                      <ArchiveRestore size={14} />
+                      Восстановить
+                    </Button>
                   </div>
-                ))
-              )}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
+      ) : null}
+
       {syncOpen ? <CatalogSyncDialog trainerUserId={trainerUserId} onClose={() => setSyncOpen(false)} /> : null}
     </div>
   )
@@ -813,4 +222,3 @@ function CatalogSyncAttentionDot() {
     />
   )
 }
-

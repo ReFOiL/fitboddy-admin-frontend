@@ -25,6 +25,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [photoUploadProgress, setPhotoUploadProgress] = useState<number | null>(null)
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(null)
 
   const trainerCatalogQuery = useQuery({
     queryKey: queryKeys.exercises.trainerCatalog(trainerUserId, includeArchived),
@@ -160,7 +161,7 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     onSuccess: (createdExercise) => {
       upsertExerciseInCatalogCache(createdExercise)
       invalidateCatalog()
-      notifyExerciseCatalogSaved('created', navigate)
+      // Страница создания сама показывает тост и открывает карточку.
     },
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось добавить упражнение.')),
   })
@@ -197,14 +198,17 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
   })
 
   const uploadVideoMutation = useMutation({
-    mutationFn: async (params: { rowId: string; file: File }) =>
-      uploadTrainerExerciseVideo(trainerUserId, params.rowId, params.file),
+    mutationFn: async (params: { rowId: string; file: File }) => {
+      setVideoUploadProgress(0)
+      return uploadTrainerExerciseVideo(trainerUserId, params.rowId, params.file, setVideoUploadProgress)
+    },
     onSuccess: (payload) => {
       patchExerciseVideoInCatalogCache(payload.row_id, payload.video_url)
       invalidateCatalog()
       toast.success('Видео загружено')
     },
     onError: (error) => toast.error(getUserErrorMessage(error, 'Не удалось загрузить видео.')),
+    onSettled: () => setVideoUploadProgress(null),
   })
 
   const deleteVideoMutation = useMutation({
@@ -259,5 +263,6 @@ export function useExercises(params: { trainerUserId: string; includeArchived: b
     uploadPhotoMutation,
     deletePhotoMutation,
     photoUploadProgress,
+    videoUploadProgress,
   }
 }
