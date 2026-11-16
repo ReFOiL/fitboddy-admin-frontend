@@ -1,9 +1,10 @@
 import axios from 'axios'
 
 import { usePlans } from './use-plans'
-import { useProfile } from './use-profile'
+import { useProfile, useTrainerProfilePreview } from './use-profile'
 import { useClientRelations } from './use-relations'
 import { localTodayIso } from '../lib/dates'
+import { trainerFacingName } from '../lib/person'
 import { isProfileCompleted } from '../lib/profile-completion'
 
 type ClientUser = {
@@ -16,7 +17,7 @@ export { localTodayIso } from '../lib/dates'
 export function useClientPlanModel(user: ClientUser) {
   const isClient = user?.role === 'client'
   const clientUserId = isClient && user?.user_id ? user.user_id : ''
-  const { clientActiveRelationQuery } = useClientRelations({ clientUserId })
+  const { clientActiveRelationQuery, trainersQuery } = useClientRelations({ clientUserId })
   const plans = usePlans(clientUserId)
   const profile = useProfile(clientUserId)
   const { activePlanQuery, todayWorkoutQuery, generatePlanMutation } = plans
@@ -24,9 +25,21 @@ export function useClientPlanModel(user: ClientUser) {
 
   const profileData = profileQuery.data
   const questionnaireReady = isProfileCompleted(profileData)
-  const activeTrainerUserId = clientActiveRelationQuery.data?.trainer_user_id ?? ''
-  const activeTrainerLogin = clientActiveRelationQuery.data?.trainer_login ?? null
-  const activeTrainerDisplay = activeTrainerLogin?.trim() ? activeTrainerLogin : activeTrainerUserId
+  const relation = clientActiveRelationQuery.data
+  const activeTrainerUserId = relation?.trainer_user_id ?? ''
+  const trainerPreviewQuery = useTrainerProfilePreview(activeTrainerUserId)
+  const directoryTrainer = (Array.isArray(trainersQuery.data) ? trainersQuery.data : []).find(
+    (item) => item.user_id === activeTrainerUserId,
+  )
+  const activeTrainerDisplay = trainerFacingName({
+    displayName:
+      relation?.trainer_display_name ||
+      trainerPreviewQuery.data?.full_name ||
+      directoryTrainer?.display_name,
+    login: relation?.trainer_login,
+  })
+  const activeTrainerAvatarUrl =
+    relation?.trainer_avatar_url?.trim() || trainerPreviewQuery.data?.avatar_url?.trim() || null
   const hasNoActiveRelation =
     !clientActiveRelationQuery.isLoading && !clientActiveRelationQuery.isError && !clientActiveRelationQuery.data
   const hasRelationError = clientActiveRelationQuery.isError && !hasNoActiveRelation
@@ -87,6 +100,7 @@ export function useClientPlanModel(user: ClientUser) {
     questionnaireReady,
     activeTrainerUserId,
     activeTrainerDisplay,
+    activeTrainerAvatarUrl,
     hasNoActiveRelation,
     hasRelationError,
     hasActiveTrainer,

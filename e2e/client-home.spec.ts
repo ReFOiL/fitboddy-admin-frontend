@@ -7,8 +7,11 @@ test('пустая главная клиента без тренера и пла
   await page.goto('/home')
   await expect(page.getByRole('heading', { name: 'Привет, Егор' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Начните тренироваться' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Тренироваться самостоятельно' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'выберите тренера' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Тренироваться самостоятельно/ })).toBeVisible()
+  await page.getByRole('link', { name: 'У меня есть тренер — ввести код' }).click()
+  await expect(page.getByRole('textbox', { name: 'Код или ссылка от тренера' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Подключиться' })).toBeVisible()
+  await expect(page.getByText('Попросите у тренера ссылку-приглашение или код из 6 символов').first()).toBeVisible()
 })
 
 test('клиент начинает тренировку, отмечает подходы и завершает день', async ({ page, api }) => {
@@ -16,8 +19,17 @@ test('клиент начинает тренировку, отмечает по�
   await signIn(page, TOKENS.anna)
   await page.goto('/home')
   await expect(page.getByRole('heading', { name: 'Привет, Анна' })).toBeVisible()
+  await expect(page.getByText('Марина Соколова')).toBeVisible()
+  await expect(page.getByText('marina.sokolova')).toHaveCount(0)
+  const sunday = page.getByRole('button', { name: /Вс/ }).first()
+  await expect(sunday).toBeVisible()
+  if (test.info().project.name === 'mobile') {
+    const box = await sunday.boundingBox()
+    expect(box).not.toBeNull()
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
+  }
   await page.getByRole('button', { name: 'Начать тренировку' }).click()
-  await expect(page.getByRole('heading', { name: /Сегодня/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Тренировка/ })).toBeVisible()
 
   await expect(page.getByRole('button', { name: 'Заменить' })).toHaveCount(0)
 
@@ -44,10 +56,10 @@ test('клиент начинает тренировку, отмечает по�
 
   await page.getByRole('button', { name: 'Готово' }).click()
   await expect(page.getByText(/Подход 2 \/ 3/)).toBeVisible()
-  await page.getByRole('button', { name: 'Пропустить' }).click()
+  await page.getByRole('button', { name: 'Пропустить отдых' }).click()
   await page.getByRole('button', { name: 'Готово' }).click()
   await expect(page.getByText(/Подход 3 \/ 3/)).toBeVisible()
-  await page.getByRole('button', { name: 'Пропустить' }).click()
+  await page.getByRole('button', { name: 'Пропустить отдых' }).click()
   const completed = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&

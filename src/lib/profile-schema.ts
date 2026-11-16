@@ -125,19 +125,22 @@ export function reportProfileUpsertBlock(
 export function buildUpsertProfileRequest(
   profile: Partial<ProfileResponse> | undefined,
   draft: Partial<ProfileFormValues>,
-  options?: { preserveHealthFields?: boolean },
+  options?: { preserveHealthFields?: boolean; enforceGuardianConsent?: boolean },
 ): BuiltProfileUpsert {
   const current = profileToFormValues(profile)
   const merged = { ...current, ...draft }
   const age = merged.age ?? null
   const guardianConsent = merged.guardian_consent === true
   const preserveHealth = options?.preserveHealthFields === true
+  // Инвентарь и цели не меняют возраст: галочку там не показываем.
+  // Личные данные возраст меняют, поэтому согласие проверяем даже при сохранении заметок.
+  const enforceGuardian = options?.enforceGuardianConsent ?? !preserveHealth
   const healthAllowed = minorMayIncludeHealthFields(age, guardianConsent)
 
   // Младше 18 анкету без согласия представителя не сохраняем: текст о здоровье в запрос не попадает.
   // Сохранение инвентаря (preserve) галочку не показывает и профиль заменяет целиком,
   // поэтому уже лежащие заметки там не стираем и не блокируем.
-  if (!preserveHealth && requiresGuardianConsent(age) && !guardianConsent) {
+  if (enforceGuardian && requiresGuardianConsent(age) && !guardianConsent) {
     return { ok: false, code: 'guardian_consent', message: GUARDIAN_CONSENT_REQUIRED_MESSAGE }
   }
 

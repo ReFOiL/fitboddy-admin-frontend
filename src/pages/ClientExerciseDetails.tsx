@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -11,6 +11,7 @@ import { ConfirmSheet, OverflowMenu, ScreenHeader, StickyActionBar } from '../co
 import { APP_PATHS } from '../config'
 import { useAuth } from '../hooks/use-auth'
 import { usePlans } from '../hooks/use-plans'
+import { useWorkoutWakeLock } from '../hooks/use-workout-session'
 import { useProfile } from '../hooks/use-profile'
 import { EXERCISE_PHOTO_QUERY_OPTIONS } from '../lib/exercise-photos'
 import {
@@ -24,6 +25,7 @@ import {
   markLineChecked,
   saveSetChecks,
 } from '../lib/plan-session'
+import { notifyRestFinished } from '../lib/rest-alert'
 import { getUserErrorMessage } from '../lib/user-error-message'
 
 export function ClientExerciseDetailsPage() {
@@ -121,7 +123,7 @@ export function ClientExerciseDetailsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg pb-28">
+    <div className={`mx-auto w-full max-w-lg ${inWorkout ? 'pb-56' : 'pb-8'}`}>
       <ScreenHeader
         title={searchParams.get('progress') || exercise?.exercise_name || 'Упражнение'}
         onBack={() => navigate(-1)}
@@ -206,6 +208,44 @@ export function ClientExerciseDetailsPage() {
   )
 }
 
+function RestRing({ left, total }: { left: number; total: number }) {
+  const size = 120
+  const stroke = 8
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+  const progress = total > 0 ? Math.min(1, Math.max(0, left / total)) : 0
+  const offset = circumference * (1 - progress)
+  return (
+    <div className="relative mx-auto h-32 w-32" role="timer" aria-label={`Отдых ${formatRestClock(left)}`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          className="stroke-secondary"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="stroke-primary"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      <p className="absolute inset-0 flex items-center justify-center text-[22px] font-bold tabular-nums">
+        {formatRestClock(left)}
+      </p>
+    </div>
+  )
+}
+
 function SetRunner({
   dayId,
   lineId,
@@ -237,6 +277,17 @@ function SetRunner({
   const lastSet = setIndex >= total - 1
   const completeDay = lastSet && isLastExercise
   const dose = weight ? `${weight} кг` : 'Без веса'
+  const previousRest = useRef<number | null>(null)
+  const skippedRest = useRef(false)
+  useWorkoutWakeLock(true)
+
+  useEffect(() => {
+    if (previousRest.current != null && previousRest.current > 0 && restLeft === 0 && !skippedRest.current) {
+      notifyRestFinished()
+    }
+    if (restLeft === 0) skippedRest.current = false
+    previousRest.current = restLeft
+  }, [restLeft])
 
   useEffect(() => {
     if (restLeft == null || restLeft <= 0) return
@@ -254,6 +305,11 @@ function SetRunner({
     const checks = loadSetChecks(dayId, lineId, total)
     checks[setIndex] = true
     saveSetChecks(dayId, lineId, checks)
+  }
+
+  const skipRest = () => {
+    skippedRest.current = true
+    setRestLeft(0)
   }
 
   const onPrimary = () => {
@@ -274,23 +330,30 @@ function SetRunner({
         Подход {setIndex + 1} / {total}
         {reps ? <span className="ml-2 text-[17px] font-medium text-secondary-foreground">{reps} повт.</span> : null}
       </p>
-      {restSeconds > 0 ? (
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="text-[28px] font-bold tabular-nums">{formatRestClock(resting ? restLeft ?? 0 : restLeft === 0 ? 0 : restSeconds)}</p>
-          <button
-            type="button"
-            className="h-12 px-2 text-[17px] font-semibold underline disabled:opacity-40"
-            disabled={!resting}
-            onClick={() => setRestLeft(0)}
-          >
-            Пропустить
-          </button>
+      {restSeconds > 0 && !resting ? (
+        <div className="mt-4">
+          <RestRing left={restLeft === 0 ? 0 : restSeconds} total={restSeconds} />
         </div>
       ) : null}
       <StickyActionBar>
+        {resting ? (
+          <div className="mb-3">
+            <RestRing left={restLeft ?? 0} total={restSeconds} />
+          </div>
+        ) : null}
+        {restSeconds > 0 ? (
+          <Button type="button" variant="secondary" className="mb-2 h-12 w-full" disabled={!resting} onClick={skipRest}>
+            Пропустить отдых
+          </Button>
+        ) : null}
         <Button type="button" size="lg" className="h-12 w-full" onClick={onPrimary} disabled={resting || finishing}>
           {finishing ? 'Сохраняем…' : completeDay ? 'Завершить тренировку' : 'Готово'}
         </Button>
+        {resting ? (
+          <p className="mt-2 text-center text-[15px] text-secondary-foreground">
+            Отдых — ещё {formatRestClock(restLeft ?? 0)}
+          </p>
+        ) : null}
       </StickyActionBar>
     </div>
   )

@@ -17,6 +17,7 @@ import { Input } from '../components/ui/input'
 import { ScreenHeader, StickyActionBar } from '../components/ui/kit'
 import { QueryState } from '../components/shared'
 import { useAuth } from '../hooks/use-auth'
+import { useUnsavedChangesGuard } from '../hooks/use-unsaved-changes-guard'
 import { useClientLoads, useClientPlatformLoads } from '../hooks/use-plans'
 import { useProfile } from '../hooks/use-profile'
 import { useClientRelations } from '../hooks/use-relations'
@@ -103,6 +104,13 @@ function TrainingSettings({ userId, onBack }: { userId: string; onBack: () => vo
     setSeedKey(readyKey)
   }
 
+  const equipmentDirty = equipmentDraft != null && !sameEquipment(equipmentDraft, savedEquipment)
+  const weightsDirty = Object.entries(weightDraft).some(([id, raw]) => {
+    const saved = loadsByExercise.get(id)
+    const savedText = saved != null ? String(saved) : ''
+    return raw.trim() !== savedText
+  })
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!profile) throw new Error('Профиль ещё не загружен')
@@ -160,6 +168,8 @@ function TrainingSettings({ userId, onBack }: { userId: string; onBack: () => vo
       toast.error(message)
     },
   })
+
+  useUnsavedChangesGuard((equipmentDirty || weightsDirty) && !saveMutation.isPending)
 
   return (
     <div className="mx-auto w-full max-w-lg pb-28">

@@ -2,6 +2,7 @@ import { CalendarDays, CheckCircle2, Dumbbell, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { EXERCISE_FORMS, pluralPhrase, WORKOUT_FORMS } from '../../lib/plural'
 import { formatPlanDate, formatWeekdayShort } from '../../lib/plan-formatters'
 import { cn } from '../../lib/utils'
 import type { PlanDay } from '../../types/plan'
@@ -24,6 +25,7 @@ export function PlanSchedule({ days, todayIso, trainerUserId, alwaysOpen = false
   }, {})
   const weekEntries = Object.entries(daysByWeek).sort(([left], [right]) => Number(left) - Number(right))
   const totalExercises = days.reduce((total, day) => total + day.exercises.length, 0)
+  const summary = `${pluralPhrase(days.length, WORKOUT_FORMS)} · ${pluralPhrase(totalExercises, EXERCISE_FORMS)}`
 
   return (
     <div className="rounded-2xl border border-border/70">
@@ -31,7 +33,7 @@ export function PlanSchedule({ days, todayIso, trainerUserId, alwaysOpen = false
         <div className="px-4 py-3">
           <div className="text-sm font-semibold">Расписание</div>
           <div className="mt-0.5 text-xs text-secondary-foreground">
-            {days.length} тренировок · {totalExercises} упражнений
+            {summary}
           </div>
         </div>
       ) : (
@@ -45,7 +47,7 @@ export function PlanSchedule({ days, todayIso, trainerUserId, alwaysOpen = false
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">Расписание</span>
           <span className="mt-0.5 block text-xs text-secondary-foreground">
-            {days.length} тренировок · {totalExercises} упражнений
+            {summary}
           </span>
         </span>
         {open ? <X size={16} className="opacity-60" /> : <Dumbbell size={16} className="opacity-60" />}

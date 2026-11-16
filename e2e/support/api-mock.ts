@@ -389,6 +389,19 @@ export class ApiMock {
       return this.json(200, {})
     }
 
+    const trainerPreview = /^\/api\/v1\/profiles\/trainers\/([^/]+)\/preview$/.exec(path)
+    if (trainerPreview && method === 'GET') {
+      const found = this.profiles.get(decodeURIComponent(trainerPreview[1]))
+      if (!found) return this.json(404, { detail: 'not found' })
+      return this.json(200, {
+        user_id: found.user_id,
+        full_name: found.full_name,
+        avatar_url: found.avatar_url,
+        city: found.city,
+        bio: found.bio,
+      })
+    }
+
     const profileMatch = /^\/api\/v1\/profiles\/([^/]+)$/.exec(path)
     if (profileMatch && method === 'GET') {
       const found = this.profiles.get(decodeURIComponent(profileMatch[1]))

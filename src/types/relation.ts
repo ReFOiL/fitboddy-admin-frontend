@@ -21,6 +21,8 @@ export type TrainerClientRelation = {
   relation_id: string
   trainer_user_id: string
   trainer_login?: string | null
+  trainer_display_name?: string | null
+  trainer_avatar_url?: string | null
   client_user_id: string
   client_login?: string | null
   client_display_name?: string | null

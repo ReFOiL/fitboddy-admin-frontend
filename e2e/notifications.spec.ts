@@ -40,6 +40,7 @@ test.describe('уведомления включены', () => {
     await signIn(page, TOKENS.anna)
     await page.goto('/profile')
     await expect(page.getByRole('heading', { name: 'Профиль' })).toBeVisible()
+    await page.getByRole('link', { name: 'Уведомления' }).click()
     await expect(page.getByRole('heading', { name: 'Уведомления' })).toBeVisible()
     await expect(page.getByText('Не подключён', { exact: true })).toBeVisible()
 

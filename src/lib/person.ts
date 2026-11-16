@@ -14,6 +14,18 @@ export function firstName(name: string): string {
   return trimmed.split(/\s+/)[0] ?? trimmed
 }
 
+/** Имя тренера для клиента. Логин — только если имени нет. Идентификатор пользователя не показываем. */
+export function trainerFacingName(input: {
+  displayName?: string | null
+  login?: string | null
+}): string {
+  const display = input.displayName?.trim()
+  if (display) return display
+  const login = input.login?.trim()
+  if (login) return login
+  return 'Тренер'
+}
+
 export function clientDisplayName(relation: {
   client_display_name?: string | null
   client_login?: string | null

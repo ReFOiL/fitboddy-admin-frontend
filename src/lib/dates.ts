@@ -1,9 +1,23 @@
-import { plural } from './plural'
+import { pluralPhrase } from './plural'
 
 const WEEKDAY_TITLE = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 const WEEKDAY_LOWER = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота']
 const WEEKDAY_SHORT_JS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
 const MONTH_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+const MONTH_GENITIVE = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+]
 
 export function parseIsoDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
@@ -48,6 +62,13 @@ export function formatJsWeekdayShort(date: Date): string {
   return WEEKDAY_SHORT_JS[date.getDay()]
 }
 
+/** «Тренировка · Пн, 16 ноября» — одна строка, без полного названия дня. */
+export function formatWorkoutSessionTitle(scheduledFor: string): string {
+  const date = parseIsoDate(scheduledFor)
+  if (!date) return 'Тренировка'
+  return `Тренировка · ${formatJsWeekdayShort(date)}, ${date.getDate()} ${MONTH_GENITIVE[date.getMonth()]}`
+}
+
 export function calendarWeek(today: Date): Date[] {
   const start = new Date(today)
   const day = start.getDay()
@@ -70,8 +91,7 @@ export function messageCountLabel(count: number): string {
 
 /** Без рода: «4 пропущенные тренировки», а не «Пропустил 4 тренировки». */
 export function missedWorkoutsLabel(count: number): string {
-  const phrase = plural(count, 'пропущенная тренировка', 'пропущенные тренировки', 'пропущенных тренировок')
-  return `${count} ${phrase}`
+  return pluralPhrase(count, ['пропущенная тренировка', 'пропущенные тренировки', 'пропущенных тренировок'])
 }
 
 export function formatWorkoutClock(iso: string): string {

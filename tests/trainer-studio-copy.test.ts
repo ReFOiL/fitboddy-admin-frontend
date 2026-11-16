@@ -9,14 +9,14 @@ import type { PlanDay, TrainingPlan } from '../src/types/plan'
 
 describe('plural', () => {
   it('склоняет 1, 2, 5 и 11–14', () => {
-    expect(plural(1, 'день', 'дня', 'дней')).toBe('день')
-    expect(plural(2, 'день', 'дня', 'дней')).toBe('дня')
-    expect(plural(4, 'день', 'дня', 'дней')).toBe('дня')
-    expect(plural(5, 'день', 'дня', 'дней')).toBe('дней')
-    expect(plural(11, 'день', 'дня', 'дней')).toBe('дней')
-    expect(plural(14, 'день', 'дня', 'дней')).toBe('дней')
-    expect(plural(21, 'день', 'дня', 'дней')).toBe('день')
-    expect(plural(22, 'день', 'дня', 'дней')).toBe('дня')
+    expect(plural(1, ['день', 'дня', 'дней'])).toBe('день')
+    expect(plural(2, ['день', 'дня', 'дней'])).toBe('дня')
+    expect(plural(4, ['день', 'дня', 'дней'])).toBe('дня')
+    expect(plural(5, ['день', 'дня', 'дней'])).toBe('дней')
+    expect(plural(11, ['день', 'дня', 'дней'])).toBe('дней')
+    expect(plural(14, ['день', 'дня', 'дней'])).toBe('дней')
+    expect(plural(21, ['день', 'дня', 'дней'])).toBe('день')
+    expect(plural(22, ['день', 'дня', 'дней'])).toBe('дня')
   })
 })
 

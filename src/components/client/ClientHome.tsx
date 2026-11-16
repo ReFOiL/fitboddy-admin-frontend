@@ -1,32 +1,46 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import { APP_PATHS } from '../../config'
 import { useClientPlanModel } from '../../hooks/use-client-plan-model'
 import { useConversations, useUnreadCount } from '../../hooks/use-messages'
 import { useWorkoutSession } from '../../hooks/use-workout-session'
-import { calendarWeek, formatJsWeekdayShort, formatLowerWeekday, formatWorkoutClock, formatWorkoutDuration, parseIsoDate, toIsoDate } from '../../lib/dates'
+import { completedWeekStreak, estimateWorkoutMinutes, trainerNotes } from '../../lib/client-plan-summary'
+import { formatLowerWeekday, formatWorkoutClock, formatWorkoutDuration, parseIsoDate } from '../../lib/dates'
 import { formatLastMessagePreview } from '../../lib/messages-formatters'
 import { formatWorkoutCategory } from '../../lib/muscles'
 import { selectPlanDay } from '../../lib/plan-day-selector'
 import { clientSystemGenerateBlockReason } from '../../lib/plan-generate-reason'
 import { loadWorkoutStart } from '../../lib/plan-session'
 import { firstName } from '../../lib/person'
+import { EXERCISE_FORMS, plural, pluralPhrase, WEEK_FORMS, WORKOUT_FORMS } from '../../lib/plural'
 import { lastCompletedDay, weekProgress } from '../../lib/roster'
 import type { AuthUser } from '../../types/auth'
-import type { PlanExercise } from '../../types/plan'
+import type { PlanExercise, TrainingPlan } from '../../types/plan'
 import { GenerateBlockNote } from '../plan/GenerateBlockNote'
+import { WeekStrip } from '../plan/WeekStrip'
 import { WorkoutSession } from '../plan/WorkoutSession'
 import { Button } from '../ui/button'
 import { QueryState } from '../shared'
-import { Avatar, DoneMark } from '../ui/kit'
+import { Avatar } from '../ui/kit'
 
 export function ClientHome({ user }: { user: AuthUser }) {
   const model = useClientPlanModel(user)
+  const location = useLocation()
+  const navigate = useNavigate()
   const conversationsQuery = useConversations(true, 15_000)
   const unreadQuery = useUnreadCount(true)
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null)
   const workoutSession = useWorkoutSession(model.todayWorkout)
+  const startedFromPlan = useRef(false)
+  useEffect(() => {
+    const state = location.state as { startWorkout?: boolean } | null
+    if (!state?.startWorkout || startedFromPlan.current) return
+    if (!model.todayWorkout || model.todayWorkout.is_completed) return
+    startedFromPlan.current = true
+    workoutSession.start()
+    navigate(APP_PATHS.home, { replace: true, state: null })
+  }, [location.state, model.todayWorkout, navigate, workoutSession])
   const daySelection = useMemo(
     () =>
       selectPlanDay({
@@ -57,7 +71,6 @@ export function ClientHome({ user }: { user: AuthUser }) {
   const busy = model.completeDayMutation.isPending || model.replaceExerciseMutation.isPending
   const greetingName = firstName(model.profile?.full_name ?? '')
   const todayDate = parseIsoDate(model.todayIso) ?? new Date()
-  const week = calendarWeek(todayDate)
   const focused = daySelection.kind === 'workout' ? daySelection.day : null
   const cardDay = focused
   const weekStats = model.activePlan && cardDay ? weekProgress(model.activePlan, cardDay.week) : null
@@ -132,41 +145,23 @@ export function ClientHome({ user }: { user: AuthUser }) {
 
       {model.questionnaireReady && model.hasActivePlan ? (
         <>
-          <div className="mt-4 flex gap-2 overflow-x-auto">
-            {week.map((date) => {
-              const iso = toIsoDate(date)
-              const planDay = model.activePlan?.days.find((day) => day.scheduled_for.slice(0, 10) === iso)
-              const isToday = iso === model.todayIso
-              const selected = planDay?.day_id === daySelection.focusedDayId
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  disabled={!planDay}
-                  onClick={() => planDay && setSelectedDayId(planDay.day_id)}
-                  className={`flex h-16 w-12 shrink-0 flex-col items-center justify-center rounded-2xl border text-[13px] font-semibold disabled:opacity-40 ${
-                    selected
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : isToday
-                        ? 'border-primary bg-card text-foreground'
-                        : 'border-transparent bg-secondary text-secondary-foreground'
-                  }`}
-                >
-                  <span>{formatJsWeekdayShort(date)}</span>
-                  {planDay?.is_completed ? <DoneMark /> : <span className="text-[17px]">{date.getDate()}</span>}
-                </button>
-              )
-            })}
+          <div className="mt-4">
+            <WeekStrip
+              days={model.activePlan?.days ?? []}
+              focusedDayId={daySelection.focusedDayId}
+              todayIso={model.todayIso}
+              onSelectDay={setSelectedDayId}
+            />
           </div>
 
           {cardDay ? (
             <section className="mt-4 rounded-3xl border border-border bg-card p-4">
               <div className="text-[13px] font-bold uppercase">{daySelection.isToday ? 'Сегодня' : formatLowerWeekday(parseIsoDate(cardDay.scheduled_for) ?? todayDate)}</div>
               <h2 className="mt-1 text-[28px] font-bold">{workoutTitle(cardDay.exercises)}</h2>
-              <p className="mt-1 text-[17px]">
-                {cardDay.exercises.length} упражнений
-                {cardDay.scheduled_time ? ` · ${cardDay.scheduled_time}` : ''}
-              </p>
+              <p className="mt-1 text-[17px]">{todayMeta(cardDay)}</p>
+              {trainerNotes(cardDay.exercises).length > 0 ? (
+                <p className="mt-2 text-[15px]">Заметка тренера: {trainerNotes(cardDay.exercises).join(' · ')}</p>
+              ) : null}
               <p className="mt-2 text-[15px] text-secondary-foreground">{previewNames(cardDay.exercises)}</p>
               {daySelection.isToday && model.todayWorkout && !model.todayWorkout.is_completed ? (
                 <Button type="button" size="lg" className="mt-4 w-full" onClick={workoutSession.start}>
@@ -193,6 +188,24 @@ export function ClientHome({ user }: { user: AuthUser }) {
 
           <section className="mt-6">
             <h2 className="text-[13px] font-bold uppercase">Прогресс</h2>
+            {weekStats && weekStats.total > 0 ? (
+              <div className="mt-3">
+                <div
+                  className="h-2 overflow-hidden rounded-full bg-secondary"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={weekStats.total}
+                  aria-valuenow={weekStats.done}
+                  aria-label="Прогресс недели"
+                >
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${Math.round((weekStats.done / weekStats.total) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {model.activePlan ? <WeekStreak plan={model.activePlan} /> : null}
             <div className="mt-2 grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-border bg-card p-4">
                 <div className="text-[28px] font-bold leading-none">
@@ -202,7 +215,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
               </div>
               <div className="rounded-2xl border border-border bg-card p-4">
                 <div className="text-[28px] font-bold leading-none">{completedTotal}</div>
-                <div className="mt-2 text-[15px]">тренировок всего</div>
+                <div className="mt-2 text-[15px]">{plural(completedTotal, WORKOUT_FORMS)} всего</div>
                 {lastClock || lastDuration ? (
                   <div className="mt-1 text-[15px]">последняя {[lastClock, lastDuration].filter(Boolean).join(' · ')}</div>
                 ) : null}
@@ -212,7 +225,7 @@ export function ClientHome({ user }: { user: AuthUser }) {
 
           {model.showNextCycleCta ? (
             model.hasActiveTrainer ? (
-              <p className="mt-4 text-[15px] text-secondary-foreground">Следующий цикл соберёт тренер.</p>
+              <p className="mt-4 text-[15px] text-secondary-foreground">Когда этот план закончится, тренер составит следующий</p>
             ) : (
               <Button
                 type="button"
@@ -237,31 +250,34 @@ export function ClientHome({ user }: { user: AuthUser }) {
         ) : (
           <div className="mt-8">
             <h2 className="text-[28px] font-bold">Начните тренироваться</h2>
-            <Button
-              type="button"
-              size="lg"
-              className="mt-4 w-full"
-              disabled={!generationEnabled}
-              onClick={() => model.runGenerate('system')}
-            >
-              {model.generatePlanMutation.isPending ? 'Генерируем…' : 'Тренироваться самостоятельно'}
-            </Button>
+            <div className="mt-4 grid gap-3">
+              <Link
+                to={APP_PATHS.trainers}
+                className="flex min-h-28 items-center rounded-3xl border border-border bg-card p-4 text-left text-[17px] font-semibold"
+              >
+                У меня есть тренер — ввести код
+              </Link>
+              <button
+                type="button"
+                className="flex min-h-28 items-center rounded-3xl border border-border bg-card p-4 text-left text-[17px] font-semibold disabled:opacity-50"
+                disabled={!generationEnabled}
+                onClick={() => model.runGenerate('system')}
+              >
+                {model.generatePlanMutation.isPending
+                  ? 'Генерируем…'
+                  : 'Тренироваться самостоятельно — план соберёт Fitboddy по анкете'}
+              </button>
+            </div>
             <div className="mt-3">
               <GenerateBlockNote reason={generationEnabled ? null : systemGenerateReason} />
             </div>
-            <p className="mt-4 text-center text-[17px]">
-              Или{' '}
-              <Link className="underline" to={APP_PATHS.trainers}>
-                выберите тренера
-              </Link>
-            </p>
           </div>
         )
       ) : null}
 
       {model.hasActiveTrainer ? (
         <div className="mt-6 flex min-h-16 items-center gap-3 border-t border-border py-3">
-          <Avatar name={model.activeTrainerDisplay || 'Тренер'} />
+          <Avatar name={model.activeTrainerDisplay || 'Тренер'} src={model.activeTrainerAvatarUrl} />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[17px] font-semibold">{model.activeTrainerDisplay || 'Тренер'}</div>
             <div className="text-[15px] text-secondary-foreground">
@@ -274,6 +290,24 @@ export function ClientHome({ user }: { user: AuthUser }) {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function todayMeta(day: { exercises: PlanExercise[]; scheduled_time?: string | null }): string {
+  const parts = [pluralPhrase(day.exercises.length, EXERCISE_FORMS)]
+  if (day.scheduled_time?.trim()) parts.push(day.scheduled_time.trim())
+  const minutes = estimateWorkoutMinutes(day.exercises)
+  if (minutes != null) parts.push(`около ${minutes} мин`)
+  return parts.join(' · ')
+}
+
+function WeekStreak({ plan }: { plan: TrainingPlan }) {
+  const streak = completedWeekStreak(plan)
+  if (streak == null) return null
+  return (
+    <p className="mt-3 text-[15px] font-semibold">
+      {streak} {plural(streak, WEEK_FORMS)} подряд
+    </p>
   )
 }
 
