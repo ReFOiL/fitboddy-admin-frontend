@@ -51,7 +51,7 @@ export function PlanGenerationPage() {
           <Skeleton className="h-32 w-full rounded-2xl" />
         ) : model.hasActiveTrainer ? (
           <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-[17px] font-semibold">Тренер ещё составляет программу</p>
+            <p className="text-[17px] font-semibold">Тренер ещё составляет план</p>
             <p className="mt-1 text-[15px] text-secondary-foreground">Расписание появится, когда план будет готов.</p>
           </div>
         ) : (

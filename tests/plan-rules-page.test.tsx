@@ -56,8 +56,10 @@ describe('PlanRulesPage', () => {
     const saveBar = await screen.findByRole('region', { name: 'Сохранение правил' })
     expect(saveBar.className).toContain('bottom-[calc(4.25rem+env(safe-area-inset-bottom))]')
     expect(saveBar.className).toContain('z-40')
-    expect(screen.getByRole('heading', { name: 'Настройки плана' }).closest('section')).toHaveClass('pb-40')
-    expect(screen.getByText('Сохранено')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Правила генератора' }).closest('section')).toHaveClass('pb-40')
+    expect(screen.getByText('Нет изменений')).toBeInTheDocument()
+    expect(screen.getByText('Новичок получит 3 тренировки в неделю по 3–5 упражнений')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Какие зоны тела в какие дни' })).not.toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent('Не удалось загрузить каталог упражнений.')
     expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument()
   })
@@ -72,22 +74,14 @@ describe('PlanRulesPage', () => {
 
     renderPage()
 
-    const beginner = await screen.findByRole('spinbutton', { name: /Новичок/ })
-    fireEvent.change(beginner, { target: { value: '' } })
-    expect(beginner).toHaveValue(3)
+    const increaseBeginner = await screen.findByRole('button', { name: 'Больше: Новичок' })
     expect(screen.getByRole('button', { name: 'Сохранить правила' })).toBeDisabled()
+    for (let step = 0; step < 4; step += 1) fireEvent.click(increaseBeginner)
+    fireEvent.click(increaseBeginner)
+    expect(screen.getByText('Новичок получит 7 тренировок в неделю по 3–5 упражнений')).toBeInTheDocument()
 
-    fireEvent.change(beginner, { target: { value: '0' } })
-    expect(beginner).toHaveValue(1)
-
-    const minimums = screen.getAllByRole('spinbutton', { name: 'минимум' })
-    fireEvent.change(minimums[0], { target: { value: '' } })
-    expect(minimums[0]).toHaveValue(4)
-    fireEvent.change(minimums[0], { target: { value: '20' } })
-    expect(minimums[0]).toHaveValue(12)
-
-    fireEvent.change(beginner, { target: { value: '9' } })
-    expect(beginner).toHaveValue(7)
+    const increaseMinimum = screen.getAllByRole('button', { name: 'Больше: Минимум' })[0]
+    for (let step = 0; step < 8; step += 1) fireEvent.click(increaseMinimum)
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить правила' }))
 
     await waitFor(() => expect(upsertTrainerGenerationPolicy).toHaveBeenCalled())

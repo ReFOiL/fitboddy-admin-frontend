@@ -148,5 +148,5 @@ export function formatDosage(
     const restLabel = rest % 60 === 0 ? `${rest / 60} мин` : `${rest} с`
     parts.push(`отдых ${restLabel}`)
   }
-  return parts.length > 0 ? parts.join(' · ') : 'По программе'
+  return parts.length > 0 ? parts.join(' · ') : 'По плану'
 }

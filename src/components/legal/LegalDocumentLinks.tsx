@@ -19,7 +19,14 @@ export function LegalDocLink({
   onClick?: MouseEventHandler<HTMLAnchorElement>
 }) {
   return (
-    <Link to={to} className={cn(legalLinkClass, className)} onClick={onClick}>
+    <Link
+      to={to}
+      className={cn(legalLinkClass, className)}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick?.(event)
+      }}
+    >
       {children}
     </Link>
   )

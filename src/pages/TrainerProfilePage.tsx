@@ -73,7 +73,7 @@ export function TrainerProfilePage() {
     if (questionnaireRequired && !metaQuery.data) {
       form.setError('goal', {
         type: 'manual',
-        message: 'Не удалось загрузить параметры профиля, попробуй позже',
+        message: 'Не удалось загрузить параметры профиля, попробуйте позже',
       })
       return
     }
@@ -414,7 +414,7 @@ export function TrainerProfilePage() {
             className={isFormDirty ? 'text-sm font-medium text-foreground' : 'text-sm text-secondary-foreground'}
             aria-live="polite"
           >
-            {isFormDirty ? 'Есть изменения' : 'Сохранено'}
+            {isFormDirty ? 'Есть изменения' : 'Нет изменений'}
           </span>
           {!isFormDirty ? <CheckCircle2 size={17} className="text-accent-ink" aria-hidden /> : null}
           <Button

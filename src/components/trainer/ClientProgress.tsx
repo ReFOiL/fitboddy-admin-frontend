@@ -1,4 +1,4 @@
-import { formatMonthDay, formatWorkoutClock, formatWorkoutDuration, weeksLabel } from '../../lib/dates'
+import { formatCalendarDate, formatMonthDay, formatWorkoutClock, formatWorkoutDuration, weeksLabel } from '../../lib/dates'
 import { formatDosage } from '../../lib/plan-draft'
 import { formatWeekday, formatWeekdayShort } from '../../lib/plan-formatters'
 import { isEmptyLeadInDay, isSkippedWorkout } from '../../lib/plan-start'
@@ -183,7 +183,7 @@ export function ClientProgress({
               return (
                 <div key={day.day_id} className="border-b border-border py-3">
                   <div className="text-[17px] font-semibold">
-                    {formatWeekdayShort(day.day_of_week)}, {formatMonthDay(day.scheduled_for)}
+                    {formatCalendarDate(day.scheduled_for, 'short')}
                     {missed ? ' · пропущена' : timing ? ` · ${timing}` : ` · ${day.exercises.length} из ${day.exercises.length}`}
                   </div>
                   <div className="text-[15px] text-secondary-foreground">
@@ -195,7 +195,7 @@ export function ClientProgress({
           </section>
         </>
       ) : (
-        <p className="py-8 text-[17px]">Плана ещё нет — прогресс появится после первой программы.</p>
+        <p className="py-8 text-[17px]">Плана ещё нет — прогресс появится после первого плана.</p>
       )}
 
       <StickyActionBar>

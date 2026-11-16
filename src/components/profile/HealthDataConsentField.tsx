@@ -12,12 +12,12 @@ export function HealthDataConsentField({ id, checked, onCheckedChange, error }: 
 
   return (
     <div className="grid gap-1">
-      <label className="flex items-start gap-2.5 text-[15px] leading-5 text-secondary-foreground">
+      <label className="flex min-h-11 cursor-pointer items-start gap-3 py-2 text-[15px] leading-5 text-secondary-foreground">
         <input
           id={id}
           name={id}
           type="checkbox"
-          className="mt-0.5 size-4 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          className="mt-0.5 size-6 shrink-0 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           checked={checked}
           aria-invalid={Boolean(error)}
           aria-describedby={errorId}

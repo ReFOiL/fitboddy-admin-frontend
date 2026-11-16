@@ -83,7 +83,7 @@ export function MuscleAnatomyMap({
             key={value}
             type="button"
             className={[
-              'rounded-full px-3 py-1.5 text-sm',
+              'inline-flex min-h-11 items-center rounded-full px-4 text-sm',
               facing === value
                 ? 'bg-secondary text-foreground ring-1 ring-primary'
                 : 'border border-border bg-card text-secondary-foreground hover:bg-secondary',

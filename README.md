@@ -1,5 +1,9 @@
 # React + TypeScript + Vite
 
+## Язык интерфейса
+
+Тексты для людей — на «вы»: «войдите», «ваш план», «расскажите». Формы на «ты» («войди», «твой», «тебя», «расскажи», «попробуй») в `src` не проходят проверку `tests/vy-address.test.ts`, она запускается вместе с `npm test`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

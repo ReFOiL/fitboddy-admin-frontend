@@ -1,5 +1,4 @@
-import { addIsoDays, formatMonthDay, parseIsoDate } from './dates'
-import { formatWeekdayShort } from './plan-formatters'
+import { addIsoDays, formatCalendarDate, parseIsoDate } from './dates'
 import type { PlanStartMode, SetPlanStartRequest } from '../types/plan'
 
 /** Trainer's choice in «Когда начать». `date` is set only for the date option. */
@@ -22,11 +21,9 @@ export function mondayBasedWeekday(iso: string): number | null {
   return jsDay === 0 ? 6 : jsDay - 1
 }
 
-/** «Пн, 3 ноя» */
+/** «пн, 3 нояб.» */
 export function formatPlanStartSubtitle(iso: string): string {
-  const weekday = mondayBasedWeekday(iso)
-  if (weekday == null) return iso
-  return `${formatWeekdayShort(weekday)}, ${formatMonthDay(iso)}`
+  return formatCalendarDate(iso, 'short')
 }
 
 /** Next date on or after today whose weekday is one of the plan's slots. Monday is 0. */

@@ -1,4 +1,4 @@
-import { photoPlaceholderForTheme, VIDEO_PLACEHOLDER_SRC } from '../../lib/media-placeholders'
+import { photoPlaceholderForTheme, videoPlaceholderForTheme } from '../../lib/media-placeholders'
 import { resolveExerciseMediaUrl } from '../../lib/exercise-photos'
 import { useTheme } from '../../hooks/use-theme'
 import { cn } from '../../lib/utils'
@@ -26,9 +26,10 @@ export function MissingPhoto({ label, className }: FrameProps) {
 
 /** Нет ролика: картинка-заглушка вместо чёрного прямоугольника «Видео». */
 export function MissingVideo({ label, className }: FrameProps) {
+  const { theme } = useTheme()
   return (
     <span className={cn('relative block overflow-hidden bg-secondary', className)}>
-      <img src={VIDEO_PLACEHOLDER_SRC} alt="" className="h-full w-full object-cover" />
+      <img src={videoPlaceholderForTheme(theme)} alt="" className="h-full w-full object-cover" />
       {label ? (
         <span className="absolute inset-x-0 bottom-0 bg-background/80 px-2 py-1 text-center text-[13px] font-semibold text-foreground">
           {label}

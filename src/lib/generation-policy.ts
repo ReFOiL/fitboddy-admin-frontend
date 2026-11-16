@@ -1,4 +1,7 @@
+import { EXERCISE_FORMS, plural } from './plural'
 import type { GenerationPolicy, SessionSizeBounds } from '../types/generation-policy'
+
+const WORKOUT_ACCUSATIVE = ['тренировку', 'тренировки', 'тренировок'] as const
 
 export const DEFAULT_SESSION_BOUNDS: Record<string, SessionSizeBounds> = {
   default: { min: 4, max: 7 },
@@ -99,4 +102,76 @@ export function isGenerationPolicyDirty(saved: GenerationPolicy, draft: Generati
     stableSerialize(comparable(saved)) !==
     stableSerialize(comparable(draft))
   )
+}
+
+export const GENERATION_PRESET_ORDER = ['standard', 'gentle', 'intense'] as const
+export type GenerationPresetId = (typeof GENERATION_PRESET_ORDER)[number]
+
+type GenerationPreset = {
+  id: GenerationPresetId
+  label: string
+  workouts: Record<string, number>
+  sessions: Record<string, SessionSizeBounds>
+}
+
+function cloneSessions(source: Record<string, SessionSizeBounds>): Record<string, SessionSizeBounds> {
+  return Object.fromEntries(Object.entries(source).map(([key, bounds]) => [key, { ...bounds }]))
+}
+
+// Наборы только подставляют числа. Сохранение остаётся отдельной кнопкой.
+export const GENERATION_PRESETS: Record<GenerationPresetId, GenerationPreset> = {
+  standard: {
+    id: 'standard',
+    label: 'Стандарт',
+    workouts: { beginner: 3, intermediate: 3, advanced: 3 },
+    sessions: cloneSessions(DEFAULT_SESSION_BOUNDS),
+  },
+  gentle: {
+    id: 'gentle',
+    label: 'Мягко',
+    workouts: { beginner: 2, intermediate: 2, advanced: 3 },
+    sessions: {
+      default: { min: 3, max: 5 },
+      beginner: { min: 2, max: 4 },
+      intermediate: { min: 3, max: 5 },
+      advanced: { min: 3, max: 5 },
+      rehabilitation: { min: 2, max: 3 },
+    },
+  },
+  intense: {
+    id: 'intense',
+    label: 'Интенсивно',
+    workouts: { beginner: 4, intermediate: 5, advanced: 6 },
+    sessions: {
+      default: { min: 6, max: 9 },
+      beginner: { min: 4, max: 6 },
+      intermediate: { min: 5, max: 8 },
+      advanced: { min: 6, max: 9 },
+      rehabilitation: { min: 3, max: 5 },
+    },
+  },
+}
+
+export function applyGenerationPreset(policy: GenerationPolicy, presetId: GenerationPresetId): GenerationPolicy {
+  const preset = GENERATION_PRESETS[presetId]
+  return normalizeGenerationPolicy({
+    ...policy,
+    default_workouts_per_week: { ...preset.workouts },
+    exercises_per_session: cloneSessions(preset.sessions),
+  })
+}
+
+export function matchingGenerationPreset(policy: GenerationPolicy): GenerationPresetId | null {
+  for (const presetId of GENERATION_PRESET_ORDER) {
+    if (!isGenerationPolicyDirty(policy, applyGenerationPreset(policy, presetId))) return presetId
+  }
+  return null
+}
+
+/** «Новичок получит 3 тренировки в неделю по 3–5 упражнений». */
+export function beginnerGeneratorExample(policy: GenerationPolicy): string {
+  const workouts = policy.default_workouts_per_week.beginner ?? 3
+  const bounds = policy.exercises_per_session.beginner ?? DEFAULT_SESSION_BOUNDS.beginner
+  const range = bounds.min === bounds.max ? String(bounds.min) : `${bounds.min}–${bounds.max}`
+  return `Новичок получит ${workouts} ${plural(workouts, WORKOUT_ACCUSATIVE)} в неделю по ${range} ${plural(bounds.max, EXERCISE_FORMS)}`
 }

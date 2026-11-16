@@ -32,8 +32,8 @@ const trainerLinks = [
     path: APP_PATHS.analytics,
   },
   {
-    label: 'Настройки плана',
-    description: 'Правила для новых планов',
+    label: 'Правила генератора',
+    description: 'Сколько тренировок и упражнений в новых планах',
     path: APP_PATHS.planRules,
   },
   {
@@ -79,19 +79,19 @@ export function MorePage() {
             type="button"
             role="switch"
             aria-checked={published}
-            aria-label="Показывать в каталоге"
+            aria-label="Видимость в каталоге"
             className="flex min-h-16 w-full items-center justify-between gap-3 border-b border-border px-1 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60"
             disabled={publicationPending || trainerPublicationStatusQuery.isLoading}
             onClick={() => togglePublication(!published)}
           >
             <span className="min-w-0">
-              <span className="block text-[17px] font-semibold">Показывать в каталоге</span>
+              <span className="block text-[17px] font-semibold">Видимость в каталоге</span>
               <span className="mt-0.5 block text-[15px] text-secondary-foreground">
                 {trainerPublicationStatusQuery.isLoading
                   ? 'Проверяем статус…'
                   : published
-                    ? 'Клиенты видят вас в поиске'
-                    : 'Скрыто из поиска клиентов'}
+                    ? 'Вас видно в каталоге тренеров'
+                    : 'Вас не видно в каталоге тренеров'}
               </span>
             </span>
             <span

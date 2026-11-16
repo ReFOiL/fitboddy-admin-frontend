@@ -33,7 +33,7 @@ describe('WeekStrip', () => {
   it('показывает семь дней и отметку выполненного', () => {
     render(<WeekStrip days={[day]} focusedDayId={null} todayIso="2026-08-16" onSelectDay={() => undefined} />)
     expect(screen.getAllByRole('button')).toHaveLength(7)
-    expect(screen.getByRole('button', { name: /Вс, 16, сегодня, выполнено/ })).toBeEnabled()
-    expect(screen.getByRole('button', { name: /Пн, 10/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /вс, 16 авг\., сегодня, выполнено/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /пн, 10 авг\./ })).toBeDisabled()
   })
 })

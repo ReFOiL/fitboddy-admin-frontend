@@ -40,9 +40,9 @@ export function TrainerSelectionCard({
     <Card className="border-primary/20">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          Выберите тренера
+          Каталог тренеров
         </CardTitle>
-        <CardDescription>Открытые тренеры ниже. Подключение — одна кнопка.</CardDescription>
+        <CardDescription>Тренеры с открытой видимостью в каталоге. Подключение — одна кнопка.</CardDescription>
       </CardHeader>
       <CardContent>
         <QueryState

@@ -79,7 +79,7 @@ describe('ClientRelationsPage smoke', () => {
     renderPage()
 
     expect(screen.getByText('Входящие приглашения')).toBeInTheDocument()
-    expect(screen.getByText('Выберите тренера')).toBeInTheDocument()
+    expect(screen.getByText('Каталог тренеров')).toBeInTheDocument()
   })
 
   it('скрывает предложения, когда уже есть активный тренер', () => {
@@ -94,7 +94,7 @@ describe('ClientRelationsPage smoke', () => {
     expect(screen.getByText('Ваш тренер')).toBeInTheDocument()
     expect(screen.getByText('coach')).toBeInTheDocument()
     expect(screen.queryByText('Входящие приглашения')).not.toBeInTheDocument()
-    expect(screen.queryByText('Выберите тренера')).not.toBeInTheDocument()
+    expect(screen.queryByText('Каталог тренеров')).not.toBeInTheDocument()
   })
 
   it('завершает связь с тренером после подтверждения', () => {

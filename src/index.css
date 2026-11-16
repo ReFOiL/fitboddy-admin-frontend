@@ -31,6 +31,9 @@
   --overlay: rgb(24 29 36 / 45%);
   /* Подсказки в полях светлее введённого текста, чтобы не читались как значение. */
   --placeholder: #9aa3ad;
+  /* Выключенная основная кнопка: серый фон и тёмно-серый текст, контраст выше 3:1. */
+  --disabled: #d5d8dc;
+  --disabled-foreground: #3a414a;
 }
 
 [data-theme='dark'] {
@@ -57,6 +60,9 @@
   --media-foreground: #e3e8ee;
   --overlay: rgb(8 10 14 / 62%);
   --placeholder: #6a7682;
+  /* Та же пара, что в светлой теме: текст тёмно-серый на сером фоне кнопки. */
+  --disabled: #d5d8dc;
+  --disabled-foreground: #3a414a;
 }
 
 @theme inline {
@@ -81,6 +87,8 @@
   --color-media-foreground: var(--media-foreground);
   --color-overlay: var(--overlay);
   --color-placeholder: var(--placeholder);
+  --color-disabled: var(--disabled);
+  --color-disabled-foreground: var(--disabled-foreground);
 }
 
 @layer base {
