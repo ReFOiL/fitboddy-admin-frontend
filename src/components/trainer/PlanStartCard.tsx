@@ -17,9 +17,10 @@ type PlanStartCardProps = {
   todayIso: string
   dayOfWeeks: readonly number[]
   onChange: (next: PlanStartChoice) => void
+  embedded?: boolean
 }
 
-export function PlanStartCard({ choice, todayIso, dayOfWeeks, onChange }: PlanStartCardProps) {
+export function PlanStartCard({ choice, todayIso, dayOfWeeks, onChange, embedded = false }: PlanStartCardProps) {
   const headingId = useId()
   const dateInputRef = useRef<HTMLInputElement>(null)
   const [pickerTick, setPickerTick] = useState(0)
@@ -88,8 +89,8 @@ export function PlanStartCard({ choice, todayIso, dayOfWeeks, onChange }: PlanSt
     : [nextWorkoutOption, nextMondayOption, dateOption]
 
   return (
-    <section aria-labelledby={headingId} className="mt-4 rounded-2xl border border-border bg-card p-4">
-      <h2 id={headingId} className="text-[17px] font-semibold">
+    <section aria-labelledby={headingId} className={embedded ? undefined : 'mt-4 rounded-2xl border border-border bg-card p-4'}>
+      <h2 id={headingId} className={embedded ? 'sr-only' : 'text-[17px] font-semibold'}>
         Когда начать
       </h2>
       <div role="radiogroup" aria-labelledby={headingId} className="mt-3 grid gap-2">

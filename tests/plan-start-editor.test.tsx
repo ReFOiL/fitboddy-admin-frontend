@@ -159,8 +159,13 @@ function StartHarness({
   )
 }
 
-async function openPlanDetails() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Подробнее о плане' }))
+async function openPlanStart() {
+  fireEvent.click(await screen.findByRole('button', { name: /Когда начать/ }))
+}
+
+async function openProgress() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Ещё действия' }))
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Прогресс' }))
 }
 
 describe('Когда начать', () => {
@@ -174,7 +179,7 @@ describe('Когда начать', () => {
     const plan = buildPlan(today)
     const weekdays = plan.days.map((item) => item.day_of_week)
     renderStudio(plan)
-    await openPlanDetails()
+    await openPlanStart()
 
     const nearest = await screen.findByRole('radio', { name: /С ближайшей тренировки/ })
     expect(nearest).toBeChecked()
@@ -211,10 +216,11 @@ describe('Когда начать', () => {
     const today = localTodayIso()
     const plan = buildPlan(today)
     renderStudio(plan)
-    await openPlanDetails()
+    await screen.findByLabelText('Время')
+    fireEvent.change(screen.getByLabelText('Время'), { target: { value: '18:00' } })
+    await openPlanStart()
 
     await screen.findByRole('radio', { name: /С ближайшей тренировки/ })
-    fireEvent.change(screen.getByLabelText('Время'), { target: { value: '18:00' } })
     expect(screen.getByRole('button', { name: 'Сохранить план' })).toBeEnabled()
 
     fireEvent.click(screen.getByRole('radio', { name: /С даты/ }))
@@ -238,10 +244,8 @@ describe('Когда начать', () => {
     const today = localTodayIso()
     const plan = buildPlan(today)
     renderStudio(plan)
-    await openPlanDetails()
-
     await screen.findByRole('heading', { name: 'Анна' })
-    fireEvent.click(screen.getByRole('button', { name: 'Прогресс' }))
+    await openProgress()
 
     expect(await screen.findByText(/пропущена/)).toBeInTheDocument()
     const shown = new RegExp(formatCalendarDate(addIsoDays(today, -2), 'short').replaceAll('.', '\\.'))

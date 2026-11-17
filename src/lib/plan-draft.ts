@@ -10,6 +10,8 @@ export type DraftSlot = {
   restSeconds: number | null
   weightKg: number | null
   note: string
+  /** Только подпись дня в студии. В подпись черновика и в запрос не входит. */
+  category?: string
 }
 
 export type DayDraft = {
@@ -44,6 +46,7 @@ function slotFromExercise(exercise: PlanExercise): DraftSlot {
     restSeconds: exercise.rest_seconds,
     weightKg: exercise.weight_kg,
     note: exercise.note?.trim() ?? '',
+    category: exercise.category,
   }
 }
 
@@ -104,6 +107,17 @@ export function dirtyDayIndexes(baseline: DayDraft[], draft: DayDraft[]): number
       return original ? isDayDirty(original, day) : true
     })
     .map((day) => day.dayIndex)
+}
+
+/** Меняет порядок упражнений в дне. Индексы вне массива и одинаковые индексы не трогает. */
+export function moveDraftSlot(slots: DraftSlot[], fromIndex: number, toIndex: number): DraftSlot[] {
+  if (fromIndex === toIndex) return slots
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= slots.length || toIndex >= slots.length) return slots
+  const next = slots.slice()
+  const [item] = next.splice(fromIndex, 1)
+  if (!item) return slots
+  next.splice(toIndex, 0, item)
+  return next
 }
 
 export function slotsToWrite(slots: DraftSlot[]): SlotWrite[] {

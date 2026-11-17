@@ -4,6 +4,15 @@ import { IDS, TOKENS } from './support/api-mock'
 import { signIn } from './support/session'
 import { expect, test } from './support/test'
 
+async function showNextWeek(page: Page) {
+  const next = page.getByRole('button', { name: 'Следующая неделя' })
+  if (await next.isVisible()) {
+    await next.click()
+    return
+  }
+  await page.getByRole('button', { name: 'Неделя 2', exact: true }).click()
+}
+
 async function openAnna(page: Page) {
   await signIn(page, TOKENS.trainer)
   await page.goto(`/clients/profile?clientUserId=${encodeURIComponent(IDS.anna)}`)
@@ -30,7 +39,7 @@ test('тренер собирает план: день, упражнение, д
   await expect(addDay).toBeHidden()
 
   await page.getByRole('button', { name: 'Вт', exact: true }).click()
-  await page.getByRole('button', { name: /Добавить упражнение/ }).click()
+  await page.getByRole('button', { name: /Упражнение из каталога/ }).click()
   await page.getByRole('textbox', { name: 'Поиск упражнения' }).fill('Тяга')
   await page.getByRole('button', { name: /Тяга верхнего блока/ }).click()
   await page.getByRole('button', { name: /Готово · добавлено 1/ }).click()
@@ -44,7 +53,6 @@ test('тренер собирает план: день, упражнение, д
   await expect(stepperValue(page, 'Вес, кг')).toHaveText('42.5')
   await expect(page.getByRole('button', { name: 'Больше: Отдых, с' })).toBeVisible()
   await page.getByLabel('Заметка').fill('Лопатки свести, не отрывать таз')
-  await page.getByRole('button', { name: 'К плану' }).click()
 
   const row = page.getByRole('button', { name: /Тяга верхнего блока/ })
   await expect(row).toContainText('4×9')
@@ -69,7 +77,7 @@ test('копирует день и неделю на сервере, после 
   await openAnna(page)
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Ещё' }).click()
+  await page.getByRole('button', { name: 'Ещё действия' }).click()
   await page.getByRole('menuitem', { name: 'Копировать день' }).click()
   const dayDialog = page.getByRole('dialog', { name: 'Куда скопировать день' })
   await dayDialog.getByRole('button', { name: 'Вт', exact: true }).click()
@@ -81,14 +89,14 @@ test('копирует день и неделю на сервере, после 
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Приседания со штангой/ })).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Ещё' }).click()
+  await page.getByRole('button', { name: 'Ещё действия' }).click()
   await page.getByRole('menuitem', { name: 'Копировать неделю' }).click()
   const weekDialog = page.getByRole('dialog', { name: 'Куда скопировать неделю' })
   await weekDialog.getByRole('button', { name: 'Скопировать' }).click()
   await expect(page.getByText('Неделя скопирована')).toBeVisible()
   await expect(weekDialog).toBeHidden()
 
-  await page.getByRole('button', { name: 'Следующая неделя' }).click()
+  await showNextWeek(page)
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Скручивания/ })).toHaveCount(0)
 
@@ -97,7 +105,7 @@ test('копирует день и неделю на сервере, после 
   await page.getByRole('button', { name: 'Вт', exact: true }).click()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Приседания со штангой/ })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Следующая неделя' }).click()
+  await showNextWeek(page)
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Скручивания/ })).toHaveCount(0)
 })
@@ -111,7 +119,7 @@ test('сборка из каталога спрашивает подтвержд
   await profileReady
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Ещё' }).click()
+  await page.getByRole('button', { name: 'Ещё действия' }).click()
   await page.getByRole('menuitem', { name: /Собрать из каталога/ }).click()
   const dismissed = page.getByRole('dialog', { name: 'Собрать из каталога' })
   await expect(dismissed).toContainText('Текущий план будет заменён')
@@ -122,7 +130,7 @@ test('сборка из каталога спрашивает подтвержд
   await expect(dismissed).toBeHidden()
   await expect(page.getByRole('button', { name: /Жим лёжа/ })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Ещё' }).click()
+  await page.getByRole('button', { name: 'Ещё действия' }).click()
   await page.getByRole('menuitem', { name: /Собрать из каталога/ }).click()
   const accepted = page.getByRole('dialog', { name: 'Собрать из каталога' })
   await expect(accepted).toContainText('4 дня и 3 упражнения')
@@ -136,7 +144,6 @@ test('на 390px кнопка сохранения выше таб-бара', as
   await openAnna(page)
   await page.getByRole('button', { name: /Жим лёжа/ }).click()
   await page.getByRole('button', { name: 'Больше: Подходы' }).click()
-  await page.getByRole('button', { name: 'К плану' }).click()
 
   const save = page.getByRole('button', { name: 'Сохранить план' })
   const tabs = page.getByRole('navigation', { name: 'Мобильная навигация' })

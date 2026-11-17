@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import { ChevronLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { listTrainerExercises, queryKeys } from '../../api'
@@ -12,15 +13,18 @@ import { useManualPlan } from '../../hooks/use-manual-plan'
 import { usePlans } from '../../hooks/use-plans'
 import { useProfile } from '../../hooks/use-profile'
 import { useTrainerRelations } from '../../hooks/use-relations'
-import { formatCalendarDate, formatMonthDay, localTodayIso } from '../../lib/dates'
+import { formatMonthDay, localTodayIso } from '../../lib/dates'
 import { formatEquipmentLabel } from '../../lib/equipment'
 import { assembleReplacementCopy } from '../../lib/plan-archive-copy'
 import { formatWeekdayShort } from '../../lib/plan-formatters'
 import { WEEKDAYS, weekdaySlots, type WeekdaySlot } from '../../lib/plan-weekday'
-import { dirtyDayIndexes, draftsFromPlan, formatDosage, type DayDraft, type DraftSlot } from '../../lib/plan-draft'
+import { dirtyDayIndexes, draftsFromPlan, type DayDraft, type DraftSlot } from '../../lib/plan-draft'
+import { useMinWidth } from '../../lib/use-min-width'
 import {
   isEmptyLeadInDay,
   isSamePlanStartChoice,
+  nextWeekMonday,
+  nextWorkoutDate,
   planStartChoiceForSlots,
   planStartChoiceFromPlan,
   planStartRequest,
@@ -28,7 +32,6 @@ import {
 } from '../../lib/plan-start'
 import { muscleBucket } from '../../lib/muscle-bucket'
 import { clientDisplayName } from '../../lib/person'
-import { lastCompletedDay } from '../../lib/roster'
 import { getProfileOnboardingStep, isProfileCompleted, profileLacksGuardianConsent } from '../../lib/profile-completion'
 import { getTrainerPlanComposeBlockReason } from '../../lib/trainer-plan-compose'
 import type { TrainerExercise } from '../../types/exercise'
@@ -51,14 +54,14 @@ import {
 import { HealthDataTrainerSummary } from '../profile/HealthDataTrainerSummary'
 import { ClientProgress } from './ClientProgress'
 import { EmptyPlanChoices } from './EmptyPlanChoices'
-import { ExerciseSlotSheet } from './ExerciseSlotSheet'
 import { PlanStartCard } from './PlanStartCard'
+import { StudioDayPanel } from './StudioDayPanel'
+import { StudioSchedule } from './StudioSchedule'
 import { WorkingWeights } from './WorkingWeights'
-import { PlanDayChip, WeekdayMenu, WeekdaySwapSheet } from './WeekdayChange'
-import { WeekSwitcher } from './WeekSwitcher'
+import { WeekdayMenu, WeekdaySwapSheet } from './WeekdayChange'
 
 type StudioScreen = 'plan' | 'progress' | 'add' | 'weights' | 'questionnaire'
-type Picker = 'none' | 'copy-day' | 'copy-week' | 'add-day'
+type Picker = 'none' | 'copy-day' | 'copy-week' | 'add-day' | 'start'
 
 const MUSCLE_CHIPS = [
   { id: 'all', label: 'Все' },
@@ -128,8 +131,9 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   const [muscle, setMuscle] = useState<(typeof MUSCLE_CHIPS)[number]['id']>('all')
   const [picked, setPicked] = useState<string[]>([])
   const [confirm, setConfirm] = useState<'assemble' | 'delete-day' | 'leave' | null>(null)
-  const [detailsOpen, setDetailsOpen] = useState(false)
   const [weekdayOpen, setWeekdayOpen] = useState(false)
+  const [openWeekState, setOpenWeekState] = useState<number[] | null>(null)
+  const wide = useMinWidth(1024)
   const [swapWith, setSwapWith] = useState<number | null>(null)
 
   // Черновик сбрасывается, когда с сервера приходит другой план или новая версия.
@@ -148,6 +152,7 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
       startBaseline: choice,
     })
     setStartChoice(choice)
+    if (!samePlan) setOpenWeekState(null)
     // Смена дня недели не переназначает day_index: остаёмся на той же тренировке.
     if (!samePlan || !next.some((day) => day.week === week)) {
       setWeek(next[0]?.week ?? null)
@@ -183,6 +188,8 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
   )
   const daysForWeek = shownWeekDays.length > 0 ? shownWeekDays : weekDays
   const selectedDay = daysForWeek.find((day) => day.dayIndex === dayIndex) ?? daysForWeek[0] ?? null
+  const canChangeWeekday = !readOnly && Boolean(editablePlan)
+  const openWeeks = openWeekState ?? [activeWeek]
   const catalog = (catalogQuery.data ?? []).filter((item) => item.is_active)
   const media = useMemo(() => new Map(catalog.map((item) => [item.row_id, item])), [catalog])
 
@@ -271,6 +278,10 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     setWeek(item)
     setWeekdayOpen(false)
     setLineKey(null)
+    setOpenWeekState((current) => {
+      const base = current ?? [item]
+      return base.includes(item) ? base : [...base, item]
+    })
     const inWeek = draft.filter((day) => day.week === item)
     const first =
       inWeek.find(
@@ -307,6 +318,35 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     runAssemble()
   }
 
+  const onDayClick = (day: DayDraft) => {
+    const isActive = selectedDay?.dayId === day.dayId
+    if (!isActive) {
+      setWeek(day.week)
+      setWeekdayOpen(false)
+      setLineKey(null)
+      setDayIndex(day.dayIndex)
+      return
+    }
+    if (!canChangeWeekday) return
+    if (weekdayOpen) {
+      setWeekdayOpen(false)
+      return
+    }
+    if (!requireCleanDraft()) return
+    setSwapWith(null)
+    setWeekdayOpen(true)
+  }
+
+  const toggleWeek = (item: number) => {
+    const open = (openWeekState ?? [activeWeek]).includes(item)
+    if (item !== activeWeek || !open) {
+      selectWeek(item)
+      return
+    }
+    setOpenWeekState((openWeekState ?? [activeWeek]).filter((week) => week !== item))
+    setWeekdayOpen(false)
+  }
+
   const menuItems: OverflowItem[] = [
     {
       id: 'copy-day',
@@ -329,6 +369,35 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
         setPicker('copy-week')
       },
     },
+    {
+      id: 'weights',
+      label: 'Рабочие веса',
+      onSelect: () => setScreen('weights'),
+    },
+    {
+      id: 'questionnaire',
+      label: 'Анкета',
+      onSelect: () => setScreen('questionnaire'),
+    },
+    {
+      id: 'settings',
+      label: 'Настройки плана',
+      onSelect: () => navigate(APP_PATHS.planRules),
+    },
+    {
+      id: 'progress',
+      label: 'Прогресс',
+      onSelect: () => setScreen('progress'),
+    },
+    ...(wide && editablePlan
+      ? [
+          {
+            id: 'start',
+            label: 'Когда начать',
+            onSelect: () => setPicker('start'),
+          },
+        ]
+      : []),
     {
       id: 'delete-day',
       label: 'Удалить день',
@@ -424,139 +493,178 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
     )
   }
 
-  const canChangeWeekday = !readOnly && Boolean(editablePlan)
-  const last = plan ? lastCompletedDay(plan) : null
-  const editingSlot = selectedDay?.slots.find((item) => item.key === lineKey) ?? null
   const planDates = plan ? `${formatMonthDay(plan.start_date)} — ${formatMonthDay(plan.end_date)}` : ''
   const freeWeekdays = WEEKDAYS.filter((day) => !weekDays.some((item) => item.dayOfWeek === day))
+  const saveStatus = startNeedsDate ? 'Укажите дату начала' : isDirty ? 'Есть несохранённые изменения' : 'Нет изменений'
+  const saveDisabled = !isDirty || startNeedsDate || manual.saveMutation.isPending
+  const visibleMenu = readOnly
+    ? menuItems.filter((item) => item.id !== 'copy-day' && item.id !== 'copy-week' && item.id !== 'delete-day' && item.id !== 'start')
+    : menuItems
+  const startPhrase = (() => {
+    if (resolvedStart.mode === 'date') return resolvedStart.date ? `с ${formatMonthDay(resolvedStart.date)}` : 'выберите дату'
+    if (resolvedStart.mode === 'next_monday') {
+      const monday = nextWeekMonday(todayIso)
+      return monday ? `с ${formatMonthDay(monday)}` : 'со следующего понедельника'
+    }
+    const next = nextWorkoutDate(dayOfWeeks, todayIso)
+    return next ? `с ${formatMonthDay(next)}` : 'выберите дни'
+  })()
+  const timeControl =
+    !readOnly && selectedDay ? (
+      <label
+        className={
+          wide
+            ? 'shrink-0 text-[15px] font-semibold text-secondary-foreground'
+            : 'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-[13px] font-semibold'
+        }
+      >
+        {wide ? null : <span>Время</span>}
+        <input
+          id="plan-day-time"
+          aria-label="Время"
+          type="time"
+          value={selectedDay.scheduledTime ? selectedDay.scheduledTime.slice(0, 5) : ''}
+          className="bg-transparent font-bold text-foreground outline-none"
+          onChange={(event) => {
+            const value = event.target.value
+            updateDay(selectedDay.dayIndex, (day) => ({ ...day, scheduledTime: value || null }))
+          }}
+        />
+      </label>
+    ) : null
+  const startControl =
+    !wide && !readOnly && editablePlan && draft.length > 0 ? (
+      <button
+        type="button"
+        className="inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-card px-2.5 text-[13px] font-semibold"
+        onClick={() => setPicker('start')}
+      >
+        <span className="shrink-0">Когда начать</span>
+        <span className="truncate font-bold">{startPhrase}</span>
+      </button>
+    ) : null
+  const openAdd = () => {
+    setSearch('')
+    setMuscle('all')
+    setPicked([])
+    setLineKey(null)
+    setScreen('add')
+  }
 
   return (
-    <div className="mx-auto w-full max-w-lg pb-28">
-      <ScreenHeader
-        title={clientName}
-        onBack={goBack}
-        menu={
-          <OverflowMenu
-            items={
-              readOnly ? menuItems.filter((item) => item.id !== 'copy-day' && item.id !== 'copy-week' && item.id !== 'delete-day') : menuItems
-            }
-          />
-        }
-      />
-      {plan && weeks.length > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <p className="min-w-0 text-[15px] leading-snug text-secondary-foreground">{planDates}</p>
-          <WeekSwitcher weeks={weeks} active={activeWeek} onChange={selectWeek} />
+    <div className={wide ? 'flex min-h-[calc(100dvh-8rem)] flex-col' : 'pb-36'}>
+      <div className={wide ? 'mb-4 flex items-start gap-3' : 'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 border-b border-border pb-2'}>
+        <button
+          type="button"
+          aria-label="К списку клиентов"
+          title="К списку клиентов"
+          className="flex h-11 w-11 shrink-0 items-center justify-center"
+          onClick={goBack}
+        >
+          <ChevronLeft aria-hidden size={22} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <h1 className={wide ? 'text-[28px] font-bold leading-tight' : 'truncate text-[17px] font-bold'}>{clientName}</h1>
+          {planDates ? (
+            <p className={wide ? 'mt-1 text-[15px] text-secondary-foreground' : 'text-[13px] font-semibold text-secondary-foreground'}>
+              {planDates}
+            </p>
+          ) : null}
+          {wide && (isDirty || startNeedsDate) ? (
+            <p className="mt-2 inline-flex items-center gap-2 text-[15px] font-semibold text-warning">
+              <span aria-hidden className="h-2 w-2 rounded-full bg-warning" />
+              {saveStatus}
+            </p>
+          ) : null}
         </div>
-      ) : null}
-
-      {daysForWeek.length > 0 ? (
-        <>
-          <p id="weekday-chip-hint" className="sr-only">
-            Сменить день недели
-          </p>
-          <p className="mt-3 text-[13px] font-semibold text-secondary-foreground">День недели</p>
-          <div className="relative z-30 mt-2 flex gap-2 overflow-x-auto">
-            {daysForWeek.map((day) => {
-              const isActive = selectedDay?.dayId === day.dayId
-              const canOpen = isActive && canChangeWeekday
-              return (
-                <PlanDayChip
-                  key={day.dayId}
-                  label={formatWeekdayShort(day.dayOfWeek)}
-                  active={isActive}
-                  disclosure={canOpen}
-                  expanded={isActive && weekdayOpen}
-                  title={canOpen ? 'Сменить день недели' : 'Открыть день'}
-                  describedBy={canOpen ? 'weekday-chip-hint' : undefined}
-                  onClick={() => {
-                    if (!isActive) {
-                      setWeekdayOpen(false)
-                      setLineKey(null)
-                      setDayIndex(day.dayIndex)
-                      return
-                    }
-                    if (!canChangeWeekday) return
-                    if (weekdayOpen) {
-                      setWeekdayOpen(false)
-                      return
-                    }
-                    if (!requireCleanDraft()) return
-                    setSwapWith(null)
-                    setWeekdayOpen(true)
-                  }}
-                />
-              )
-            })}
-            {canChangeWeekday ? (
-              <button
-                type="button"
-                aria-label="Добавить день"
-                title="Добавить день"
-                className="inline-flex h-12 shrink-0 items-center justify-center rounded-full border border-dashed border-primary/50 bg-secondary px-4 text-[15px] font-semibold text-foreground"
-                onClick={() => {
-                  if (!requireCleanDraft()) return
-                  setWeekdayOpen(false)
-                  setAddTime('')
-                  setAddDow(null)
-                  setPicker('add-day')
-                }}
-              >
-                + День
-              </button>
+        {wide ? (
+          <div className="flex shrink-0 items-center gap-3 pt-0.5">
+            {plan ? (
+              <Button type="button" variant="secondary" className="h-12" onClick={assemble}>
+                Собрать из каталога
+              </Button>
             ) : null}
+            {!readOnly && selectedDay ? (
+              <Button type="button" size="lg" className="h-14" disabled={saveDisabled} onClick={save}>
+                {manual.saveMutation.isPending ? 'Сохраняем…' : 'Сохранить план'}
+              </Button>
+            ) : null}
+            <OverflowMenu label="Ещё действия" items={visibleMenu} />
           </div>
-        </>
-      ) : null}
-      {weekdayOpen && canChangeWeekday && selectedDay ? (
-        <>
-          <button
-            type="button"
-            aria-label="Закрыть список дней"
-            className="fixed inset-0 z-20 cursor-default"
-            onClick={() => setWeekdayOpen(false)}
-          />
-          <WeekdayMenu
-            slots={weekdaySlots(weekDays, selectedDay.dayOfWeek)}
-            pending={manual.changeWeekdayMutation.isPending}
-            onPick={pickWeekday}
-          />
-        </>
-      ) : null}
-
-      <div className="mt-2">
-        {selectedDay?.slots.map((slot) => {
-          const exercise = media.get(slot.exerciseId)
-          return (
-            <Row
-              key={slot.key}
-              title={slot.exerciseName}
-              subtitle={formatDosage(slot)}
-              leading={<ExerciseThumb imageUrl={exercise?.start_image_url} hasVideo={Boolean(exercise?.video_url)} />}
-              onClick={readOnly ? undefined : () => setLineKey(slot.key)}
-            />
-          )
-        })}
+        ) : (
+          <OverflowMenu label="Ещё действия" items={visibleMenu} />
+        )}
       </div>
 
-      {!readOnly && selectedDay ? (
-        <Button
-          type="button"
-          variant="secondary"
-          className="mt-3 w-full"
-          onClick={() => {
-            setSearch('')
-            setMuscle('all')
-            setPicked([])
-            setLineKey(null)
-            setScreen('add')
-          }}
-        >
-          + Добавить упражнение
-        </Button>
-      ) : null}
-
-      {!plan ? (
+      {plan && weeks.length > 0 ? (
+        <div className={wide ? 'grid min-h-0 flex-1 grid-cols-[340px_minmax(0,1fr)] gap-4' : 'mt-3'}>
+          <StudioSchedule
+            weeks={weeks}
+            days={draft}
+            activeWeek={activeWeek}
+            openWeeks={openWeeks}
+            selectedDayId={selectedDay?.dayId ?? null}
+            todayIso={todayIso}
+            leadInStart={chosenStart}
+            planStart={plan?.start_date ?? null}
+            canEdit={canChangeWeekday}
+            wide={wide}
+            weekdayOpen={weekdayOpen}
+            onSelectWeek={selectWeek}
+            onToggleWeek={toggleWeek}
+            onDayClick={onDayClick}
+            onAddDay={() => {
+              if (!requireCleanDraft()) return
+              setWeekdayOpen(false)
+              setAddTime('')
+              setAddDow(null)
+              setPicker('add-day')
+            }}
+            weekdayMenu={
+              weekdayOpen && canChangeWeekday && selectedDay ? (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Закрыть список дней"
+                    className="fixed inset-0 z-20 cursor-default"
+                    onClick={() => setWeekdayOpen(false)}
+                  />
+                  <WeekdayMenu
+                    slots={weekdaySlots(weekDays, selectedDay.dayOfWeek)}
+                    pending={manual.changeWeekdayMutation.isPending}
+                    onPick={pickWeekday}
+                  />
+                </>
+              ) : null
+            }
+          />
+          <StudioDayPanel
+            day={selectedDay}
+            readOnly={readOnly}
+            wide={wide}
+            media={media}
+            lineKey={lineKey}
+            startControl={startControl}
+            timeControl={timeControl}
+            onToggleLine={(key) => setLineKey((current) => (current === key ? null : key))}
+            onChangeSlot={(next) =>
+              updateDay(selectedDay?.dayIndex ?? -1, (day) => ({
+                ...day,
+                slots: day.slots.map((item) => (item.key === next.key ? next : item)),
+              }))
+            }
+            onDeleteSlot={(key) => {
+              updateDay(selectedDay?.dayIndex ?? -1, (day) => ({
+                ...day,
+                slots: day.slots.filter((item) => item.key !== key),
+              }))
+              setLineKey(null)
+            }}
+            onReorder={(slots) => updateDay(selectedDay?.dayIndex ?? -1, (day) => ({ ...day, slots }))}
+            onAdd={openAdd}
+          />
+        </div>
+      ) : (
         <EmptyPlanChoices
           catalogPending={generatePlanMutation.isPending}
           manualPending={manual.createEmptyMutation.isPending}
@@ -564,88 +672,27 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
           onCatalog={assemble}
           onManual={createManual}
         />
-      ) : (
-        <div className="mt-4 border-t border-border">
-          <button
-            type="button"
-            className="flex min-h-12 w-full items-center text-left text-[17px] font-semibold"
-            aria-expanded={detailsOpen}
-            onClick={() => setDetailsOpen((current) => !current)}
-          >
-            Подробнее о плане
-            <span aria-hidden className="ml-auto text-secondary-foreground">
-              {detailsOpen ? '▴' : '▾'}
-            </span>
-          </button>
-          {detailsOpen ? (
-            <div className="pb-2">
-              <div className="flex items-center justify-between gap-3 text-[15px]">
-                <span>
-                  {last
-                    ? `Последняя тренировка: ${formatCalendarDate(last.scheduled_for, 'short')}`
-                    : 'Тренировок пока нет'}
-                </span>
-                <button
-                  type="button"
-                  className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 font-semibold underline"
-                  onClick={() => setScreen('progress')}
-                >
-                  Прогресс
-                </button>
-              </div>
-              {readOnly ? (
-                <p className="mt-3 text-[15px] text-secondary-foreground">Этот план нельзя править по слотам. Собрать новый можно из меню.</p>
-              ) : null}
-              {!readOnly && editablePlan && draft.length > 0 ? (
-                <PlanStartCard choice={startChoice} todayIso={todayIso} dayOfWeeks={dayOfWeeks} onChange={setStartChoice} />
-              ) : null}
-              {!readOnly && selectedDay ? (
-                <label className="mt-4 grid gap-2 text-[17px] font-semibold" htmlFor="plan-day-time">
-                  Время
-                  <Input
-                    id="plan-day-time"
-                    type="time"
-                    value={selectedDay.scheduledTime ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      updateDay(selectedDay.dayIndex, (day) => ({ ...day, scheduledTime: value || null }))
-                    }}
-                  />
-                </label>
-              ) : null}
-              <div className="mt-2 divide-y divide-border border-y border-border">
-                <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('weights')}>
-                  Рабочие веса
-                </button>
-                <button type="button" className="flex min-h-12 w-full items-center text-left text-[17px]" onClick={() => setScreen('questionnaire')}>
-                  Анкета
-                </button>
-                <Link to={APP_PATHS.planRules} className="flex min-h-11 items-center text-[17px]">
-                  Правила генератора
-                </Link>
-              </div>
-            </div>
-          ) : null}
-        </div>
       )}
 
-      {!readOnly && selectedDay ? (
-        <StickyActionBar>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[15px] text-secondary-foreground" aria-live="polite">
-              {startNeedsDate ? 'Укажите дату начала' : isDirty ? 'Есть изменения' : 'Нет изменений'}
-            </span>
-            <Button
-              type="button"
-              size="lg"
-              className="ml-auto h-12 min-w-36 flex-1"
-              disabled={!isDirty || startNeedsDate || manual.saveMutation.isPending}
-              onClick={save}
-            >
-              {manual.saveMutation.isPending ? 'Сохраняем…' : 'Сохранить план'}
-            </Button>
-          </div>
-        </StickyActionBar>
+      {!wide && !readOnly && selectedDay ? (
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 border-t border-border bg-card px-4 py-3 md:bottom-0">
+          <p
+            className={`mb-2 inline-flex items-center gap-2 text-[15px] font-semibold ${isDirty || startNeedsDate ? 'text-warning' : 'text-secondary-foreground'}`}
+            aria-live="polite"
+          >
+            {isDirty || startNeedsDate ? <span aria-hidden className="h-2 w-2 rounded-full bg-warning" /> : null}
+            {saveStatus}
+          </p>
+          <Button type="button" size="lg" className="h-12 w-full" disabled={saveDisabled} onClick={save}>
+            {manual.saveMutation.isPending ? 'Сохраняем…' : 'Сохранить план'}
+          </Button>
+        </div>
+      ) : null}
+
+      {picker === 'start' && !readOnly ? (
+        <Sheet title="Когда начать" onClose={() => setPicker('none')}>
+          <PlanStartCard embedded choice={startChoice} todayIso={todayIso} dayOfWeeks={dayOfWeeks} onChange={setStartChoice} />
+        </Sheet>
       ) : null}
       {picker === 'add-day' ? (
         <Sheet title="Добавить день" onClose={() => setPicker('none')}>
@@ -678,27 +725,6 @@ export function PlanStudio({ clientUserId, initialScreen }: { clientUserId: stri
             {structureBusy ? 'Добавляем…' : 'Добавить'}
           </Button>
         </Sheet>
-      ) : null}
-
-      {editingSlot && selectedDay ? (
-        <ExerciseSlotSheet
-          slot={editingSlot}
-          media={media.get(editingSlot.exerciseId)}
-          onChange={(next) =>
-            updateDay(selectedDay.dayIndex, (day) => ({
-              ...day,
-              slots: day.slots.map((item) => (item.key === editingSlot.key ? next : item)),
-            }))
-          }
-          onDelete={() => {
-            updateDay(selectedDay.dayIndex, (day) => ({
-              ...day,
-              slots: day.slots.filter((item) => item.key !== editingSlot.key),
-            }))
-            setLineKey(null)
-          }}
-          onClose={() => setLineKey(null)}
-        />
       ) : null}
 
       {picker === 'copy-day' && selectedDay ? (
@@ -821,6 +847,7 @@ function slotFromCatalog(exercise: TrainerExercise, suffix: string): DraftSlot {
     key: `new-${exercise.row_id}-${suffix}`,
     exerciseId: exercise.row_id,
     exerciseName: exercise.exercise_name,
+    category: exercise.workout_category,
     sets: exercise.default_sets > 0 ? exercise.default_sets : 1,
     reps: exercise.default_reps,
     durationSeconds: exercise.default_duration_seconds,
