@@ -284,14 +284,22 @@ export function DoneMark() {
   )
 }
 
-export function ExerciseThumb({ imageUrl, hasVideo }: { imageUrl?: string | null; hasVideo?: boolean }) {
+export function ExerciseThumb({
+  imageUrl,
+  hasVideo,
+  className,
+}: {
+  imageUrl?: string | null
+  hasVideo?: boolean
+  className?: string
+}) {
   const { theme } = useTheme()
   const photo = imageUrl?.trim() ? imageUrl : null
   // Без своего кадра не подставляем светлый jpg: в тёмной теме плитка остаётся белой.
   const src = photo ?? (hasVideo ? videoPlaceholderForTheme(theme) : catalogThumbForTheme(theme))
   const showPlay = Boolean(hasVideo && photo)
   return (
-    <ExercisePhotoFrame src={src} alt="" className="h-12 w-16 shrink-0 rounded-lg">
+    <ExercisePhotoFrame src={src} alt="" className={cn('h-12 w-16 shrink-0 rounded-lg', className)}>
       {showPlay ? (
         <span className="absolute inset-0 flex items-center justify-center">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-background/80 text-foreground">

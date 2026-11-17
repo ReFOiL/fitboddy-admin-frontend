@@ -49,10 +49,10 @@ describe('список клиентов', () => {
     expect(screen.queryByRole('link', { name: 'План' })).not.toBeInTheDocument()
     const row = screen.getByRole('button', { name: new RegExp(longName) })
     expect(row.querySelector('.line-clamp-2')).toHaveTextContent(longName)
-    const chips = screen.getByRole('button', { name: 'Все' }).parentElement
+    const chips = screen.getByRole('button', { name: /^Все/ }).parentElement
     expect(chips?.className).toContain('overflow-x-auto')
     expect(chips?.className).toContain('flex-nowrap')
-    expect(screen.getByRole('button', { name: 'Без плана' })).toHaveClass('shrink-0')
+    expect(screen.getByRole('button', { name: /^Без плана/ })).toHaveClass('shrink-0')
 
     fireEvent.click(row)
     expect(screen.getByRole('heading', { name: 'Студия' })).toBeInTheDocument()

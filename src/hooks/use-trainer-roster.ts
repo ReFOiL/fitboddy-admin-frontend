@@ -29,6 +29,8 @@ export function useTrainerRoster(trainerUserId: string) {
     enabled: Boolean(trainerUserId),
   })
   const clients = clientsQuery.data ?? []
+  // TODO: для большого состава лучше один пакетный эндпоинт сводки
+  // (дата окончания, последняя тренировка, число пропусков), чем отдельный план на каждого клиента.
   const planQueries = useQueries({
     queries: clients.map((relation) => ({
       queryKey: queryKeys.plans.activeByUser(relation.client_user_id),

@@ -1,6 +1,7 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import { APP_BRAND_NAME, APP_PATHS, type AppRole } from '../../config'
+import { isWideTrainerPath } from '../../lib/wide-canvas'
 import { messageCountLabel } from '../../lib/dates'
 import { firstName } from '../../lib/person'
 import { BrandLogo } from '../brand/BrandLogo'
@@ -24,14 +25,16 @@ export function AppHeader({
   onLogout,
   hiddenOnMobile = false,
 }: AppHeaderProps) {
+  const location = useLocation()
   const isTrainer = role === 'trainer'
   const name = firstName(displayName) || 'Профиль'
+  const wideCanvas = isWideTrainerPath(location.pathname)
 
   return (
     <header
       className={`sticky top-0 z-20 shrink-0 border-b border-border bg-card ${hiddenOnMobile ? 'hidden md:block' : ''}`}
     >
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4 md:h-16 md:px-6">
+      <div className={`mx-auto flex h-14 w-full items-center gap-4 px-4 md:h-16 ${wideCanvas ? 'max-w-[1440px] md:px-8' : 'max-w-6xl md:px-6'}`}>
         <Link
           to={APP_PATHS.home}
           aria-label={APP_BRAND_NAME}

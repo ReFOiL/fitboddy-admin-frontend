@@ -128,6 +128,47 @@ export function formatWorkoutDuration(startedAt?: string | null, finishedAt?: st
   return rest ? `${hours} ч ${rest} мин` : `${hours} ч`
 }
 
+/** Разница календарных дней: `to − from`. Отрицательная, если `to` раньше. */
+export function isoDayDiff(fromIso: string, toIso: string): number | null {
+  const from = parseIsoDate(fromIso)
+  const to = parseIsoDate(toIso)
+  if (!from || !to) return null
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000)
+}
+
+/** «16 нояб.» или «16 ноября» — без дня недели. */
+export function formatDayMonth(iso: string, style: 'long' | 'short' = 'short'): string {
+  const date = parseIsoDate(iso)
+  if (!date) return iso
+  const day = date.getDate()
+  const month = style === 'long' ? MONTH_GENITIVE[date.getMonth()] : MONTH_ABBR[date.getMonth()]
+  return `${day} ${month}`
+}
+
+/** Понедельник и воскресенье календарной недели, в которую попадает дата. */
+export function calendarWeekBounds(iso: string): { start: string; end: string } | null {
+  const date = parseIsoDate(iso)
+  if (!date) return null
+  const jsDay = date.getDay()
+  const mondayShift = jsDay === 0 ? -6 : 1 - jsDay
+  const start = new Date(date)
+  start.setDate(date.getDate() + mondayShift)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  return { start: toIsoDate(start), end: toIsoDate(end) }
+}
+
+/** «16–22 ноября» или «30 ноября — 6 декабря». */
+export function formatWeekSpan(startIso: string, endIso: string): string {
+  const start = parseIsoDate(startIso)
+  const end = parseIsoDate(endIso)
+  if (!start || !end) return ''
+  if (start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth()) {
+    return `${start.getDate()}–${end.getDate()} ${MONTH_GENITIVE[end.getMonth()]}`
+  }
+  return `${formatDayMonth(startIso, 'long')} — ${formatDayMonth(endIso, 'long')}`
+}
+
 export function weeksLabel(count: number): string {
   const mod10 = count % 10
   const mod100 = count % 100

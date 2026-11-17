@@ -1,6 +1,7 @@
 import { matchPath, Outlet, useLocation } from 'react-router-dom'
 
 import { APP_PATHS, type AppRole } from '../../config'
+import { isWideTrainerPath } from '../../lib/wide-canvas'
 import { useAuth } from '../../hooks/use-auth'
 import { useProfile } from '../../hooks/use-profile'
 import { useMessagingSocket, useUnreadCount } from '../../hooks/use-messages'
@@ -32,6 +33,7 @@ export function MainLayout() {
   const isChatThread = Boolean(matchPath(APP_PATHS.messageThread, location.pathname))
   const isMessagesSection = location.pathname === APP_PATHS.messages || isChatThread
   const isStack = STACK_PATTERNS.some((pattern) => matchPath(pattern, location.pathname))
+  const wideCanvas = isWideTrainerPath(location.pathname)
 
   return (
     <div
@@ -59,9 +61,14 @@ export function MainLayout() {
         id="main-content"
         tabIndex={-1}
         className={cn(
-          'mx-auto w-full max-w-6xl flex-1',
+          'mx-auto w-full flex-1',
+          wideCanvas ? 'max-w-[1440px]' : 'max-w-6xl',
           (isChatThread || isMessagesSection) && 'min-h-0 overflow-hidden',
-          isChatThread || isMessagesSection ? 'px-0 py-0 md:px-6 md:py-6' : 'px-4 py-4 md:px-6 md:py-6',
+          isChatThread || isMessagesSection
+            ? 'px-0 py-0 md:px-6 md:py-6'
+            : wideCanvas
+              ? 'px-4 py-4 md:px-8 md:py-5'
+              : 'px-4 py-4 md:px-6 md:py-6',
           isChatThread
             ? 'pb-0 md:pb-6'
             : 'pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8',
